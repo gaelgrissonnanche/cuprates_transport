@@ -4,9 +4,12 @@
 import numpy as np
 from numpy import sqrt, exp, cos, sin, log, pi
 from scipy.optimize import brentq, approx_fprime
+from scipy.integrate import odeint
 from functools import partial
 import matplotlib as mpl
+from matplotlib import cm
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import os
 import pickle
@@ -31,7 +34,14 @@ tp = -115
 tpp = 35
 tz = 11
 
-mesh = 1000
+mesh_xy = 101
+mesh_z = 11
+
+B_amp = 1
+B_theta = 0
+B_phi = 0
+
+B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*cos(B_phi), cos(B_theta)])
 
 ## Band structure /////////////////////////////////////////////////////////////#
 def e_2D_func(kx, ky, mu, a, t, tp, tpp):
@@ -59,42 +69,55 @@ def e_3D_func_for_gradient(k, mu, a, d, t, tp, tpp, tz):
     kz = k[2]
     return e_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz)
 
-## Meshgrid ///////////////////////////////////////////////////////////////////#
-kx = np.linspace(-pi/a, pi/a, mesh)
-ky = np.linspace(-pi/b, pi/b, mesh)
-kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
-
 ## Create partial functions
 e_3D_func_p = partial(e_3D_func, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
 e_3D_func_radial_p = partial(e_3D_func_radial, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
 e_3D_func_for_gradient_p = partial(e_3D_func_for_gradient, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
 
 ## Discretize the Fermi surface ///////////////////////////////////////////////#
-kzf_a = np.linspace(-pi / c, pi / c, 11)
-theta_a = np.linspace(0, 2 * pi, 101)
-kxf_a = np.empty((theta_a.shape[0], kzf_a.shape[0]))
-kyf_a = np.empty((theta_a.shape[0], kzf_a.shape[0]))
-ef_3D = np.empty((theta_a.shape[0], theta_a.shape[0], kzf_a.shape[0]))
+kzf_a = np.linspace(-pi / c, pi / c, mesh_z)
+theta_a = np.linspace(0, 2 * pi, mesh_xy)
+
+kf = np.empty( (mesh_xy * mesh_z, 3))
+
 
 for j, kzf in enumerate(kzf_a):
     for i, theta in enumerate(theta_a):
 
         try:
             rf = brentq(e_3D_func_radial_p, a = 0, b = 0.8, args = (theta, kzf))
-            kxf_a[i ,j] = rf * cos(theta)
-            kyf_a[i ,j] = rf * sin(theta)
+            kf[i + j * mesh_xy, 0] = rf * cos(theta)
+            kf[i + j * mesh_xy, 1] = rf * sin(theta)
+            kf[i + j * mesh_xy, 2] = kzf
 
         except ValueError: # in case the Fermi surface is not continuous
-            kxf_a[i ,j] = np.NaN
-            kyf_a[i ,j] = np.NaN
+            kf[i + j * mesh_xy, 0] = np.NaN
+            kf[i + j * mesh_xy, 1] = np.NaN
+            kf[i + j * mesh_xy, 2] = np.NaN
 
-## Velocity on Fermi surface
-for i in range(len(kxf_a)):
-    for j in range(len(kyf_a)):
-        for l in range(len(kzf_a)):
-            k = np.array([kxf_a[i ,l], kyf_a[i ,l], kzf_a[l]])
-            ef_3D = approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-4)
+## Remove k points NaN
+index_nan_kx = ~np.isnan(kf[:,0])
+index_nan_ky = ~np.isnan(kf[:,1])
+index_nan_kz = ~np.isnan(kf[:,2])
 
+index_row_nan_k = index_nan_kx * index_nan_ky * index_nan_kz
+kf = kf[index_row_nan_k, :]
+
+## Compute Velocity ///////////////////////////////////////////////////////////#
+vf = np.empty( (kf.shape[0], 3))
+for i in range(kf.shape[0]):
+    vf[i,:] = approx_fprime(kf[i,:], e_3D_func_for_gradient_p, epsilon = 1e-6)
+
+## Solve movment equation /////////////////////////////////////////////////////#
+
+def diff_func(k, t, B):
+    v = approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-6)
+    dkdt = np.cross(v, B)
+    return dkdt
+
+t = np.linspace(0, 0.002, 100)
+k0 = np.array([kf[0, 0], kf[0, 1], kf[0, 2]])
+kt = odeint(diff_func, k0, t, args = (B,))
 
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -118,54 +141,87 @@ mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
 mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
                                     # editing the text in illustrator
 
-#///// Create Figure //////#
+
+##>>>> 2D Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
 fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
 # axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
-#///// Allow to shift the label ticks up or down with set_pad /////#
 for tick in axes.xaxis.get_major_ticks():
     tick.set_pad(7)
 for tick in axes.yaxis.get_major_ticks():
     tick.set_pad(8)
 
-#///// Labels //////////////////////////////#
 # fig.text(0.79,0.86, samplename, ha = "right")
 # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
-#//// Plots ////////////////////////////////#
+mesh_graph = 100
+kx = np.linspace(-pi/a, pi/a, mesh_graph)
+ky = np.linspace(-pi/b, pi/b, mesh_graph)
+kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
 line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kxf_a[:,0], kyf_a[:,0])
+line = axes.plot(kf[: mesh_xy*1, 0], kf[: mesh_xy*1, 1])
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
-
+axes.quiver(kf[: mesh_xy*1, 0], kf[: mesh_xy*1, 1], vf[: mesh_xy*1, 0], vf[: mesh_xy*1, 1])
 
 axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
 axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
 axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
+axes.locator_params(axis = 'y', nbins = 6)
 
-# ##///Set ticks space and minor ticks space ///#
-# xtics = 60 # space between two ticks
-# mxtics = xtics / 2.  # space between two minor ticks
+plt.show()
+#//////////////////////////////////////////////////////////////////////////////#
 
-# majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
 
-# axes.xaxis.set_major_locator(MultipleLocator(xtics))
-# axes.xaxis.set_major_formatter(majorFormatter)
-# axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
-# axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+#>>>> k vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
+# axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
+
+for tick in axes.xaxis.get_major_ticks():
+    tick.set_pad(7)
+for tick in axes.yaxis.get_major_ticks():
+    tick.set_pad(8)
+
+# fig.text(0.79,0.86, samplename, ha = "right")
+# fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
+
+mesh_graph = 100
+kx = np.linspace(-pi/a, pi/a, mesh_graph)
+ky = np.linspace(-pi/b, pi/b, mesh_graph)
+kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+
+line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
+line = axes.plot(kf[0, 0], kf[0, 1])
+plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(kt[:, 0], kt[:, 1])
+plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
+
+axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
+axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
+axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
 axes.locator_params(axis = 'y', nbins = 6)
 
-#//////////////////////////////////////////////////////////////////////////////#
 plt.show()
 
-# script_name = os.path.basename(__file__) # donne le nom du script avec l’extension .py
-# figurename = script_name[0:-3] + ".pdf"
-# fig.savefig("../figures/" + figurename, bbox_inches = "tight")
+
+#//////////////////////////////////////////////////////////////////////////////#
 plt.close()
 #//////////////////////////////////////////////////////////////////////////////#
+
+
+
+
+# fig = plt.figure()
+# ax = fig.gca(projection='3d')
+
+# ax.quiver(kf[:,0], kf[:,1], kf[:,2], vf[:,0], vf[:,1], vf[:,2]*10, length=0.00002)
+
+# plt.show()
