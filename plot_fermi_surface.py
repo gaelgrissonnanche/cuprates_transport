@@ -16,11 +16,12 @@ import pickle
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
-hbar = 1.05e34
-e = 1.6e19
-m0 = 9.1e31
-kB = 1.38e23
-jtoev = 6.242e18
+# hbar = 1.05e34
+# e = 1.6e19
+# m0 = 9.1e31
+# kB = 1.38e23
+# jtoev = 6.242e18
+e = 1
 
 ## Parameters //////
 c = 13.2
@@ -40,6 +41,8 @@ mesh_z = 5
 B_amp = 1
 B_theta = 0
 B_phi = 0
+
+tau = 0.02
 
 B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*cos(B_phi), cos(B_theta)])
 
@@ -113,15 +116,37 @@ def diff_func(k, t, B):
     dkdt = np.cross(v, B)
     return dkdt
 
-t = np.linspace(0, 0.002, 100)
+dt = 5e-5
+tmin = 0
+tmax = 0.0025
+t = np.arange(tmin, tmax, dt)
 kft = np.empty( (kft0.shape[0], t.shape[0], 3))
 vft = np.empty( (kft0.shape[0], t.shape[0], 3))
-# xft[index of which k @ t0 on FS, index of t-evolution of this k started at t0, index of (kx,ky,kz)]
+# Xft[index of which k @ t0 on FS, index of t-evolution of this k started at t0, index of (kx,ky,kz)]
 
 for i0 in range(kft0.shape[0]):
-    kft[i0,:,:] = odeint(diff_func, kft0[i0,:], t, args = (B,))
+    kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,))
     for i in range(t.shape[0]):
-        vft[i0,i,:] = approx_fprime(kft[i0,i,:], e_3D_func_for_gradient_p, epsilon = 1e-6)
+        vft[i0, i, :] = approx_fprime(kft[i0, i, :], e_3D_func_for_gradient_p, epsilon = 1e-6)
+
+def sigma_zz(vzft0, vzft, kft0, t, tau):
+
+    prefactor = e**2 / ( 4 * pi**3 )
+
+    dt = t[1] - t[0]
+    dk = np.diff(kft0)
+
+    v_product = np.empty(vzft0.shape[0]-1)
+
+    for i0 in range(vzft0.shape[0]-1):
+        vz_mean = np.sum(vzft[i0, :] * exp(- t / tau)) * dt
+        v_product[i0] = vzft0[i0] * vz_mean
+
+    s_zz = prefactor * np.sum(dk * v_product)
+
+    return s_zz
+
+sigma_zz = sigma_zz(vft0[:,2], vft[:,:,2], kft0, t, tau)
 
 
 
