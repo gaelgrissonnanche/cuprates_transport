@@ -34,8 +34,8 @@ tp = -115
 tpp = 35
 tz = 11
 
-mesh_xy = 101
-mesh_z = 11
+mesh_xy = 21
+mesh_z = 5
 
 B_amp = 1
 B_theta = 0
@@ -78,7 +78,7 @@ e_3D_func_for_gradient_p = partial(e_3D_func_for_gradient, mu = mu, a = a, d = d
 kzf_a = np.linspace(-pi / c, pi / c, mesh_z)
 theta_a = np.linspace(0, 2 * pi, mesh_xy)
 
-kf = np.empty( (mesh_xy * mesh_z, 3))
+kft0 = np.empty( (mesh_xy * mesh_z, 3))
 
 
 for j, kzf in enumerate(kzf_a):
@@ -86,38 +86,45 @@ for j, kzf in enumerate(kzf_a):
 
         try:
             rf = brentq(e_3D_func_radial_p, a = 0, b = 0.8, args = (theta, kzf))
-            kf[i + j * mesh_xy, 0] = rf * cos(theta)
-            kf[i + j * mesh_xy, 1] = rf * sin(theta)
-            kf[i + j * mesh_xy, 2] = kzf
+            kft0[i + j * mesh_xy, 0] = rf * cos(theta)
+            kft0[i + j * mesh_xy, 1] = rf * sin(theta)
+            kft0[i + j * mesh_xy, 2] = kzf
 
         except ValueError: # in case the Fermi surface is not continuous
-            kf[i + j * mesh_xy, 0] = np.NaN
-            kf[i + j * mesh_xy, 1] = np.NaN
-            kf[i + j * mesh_xy, 2] = np.NaN
+            kft0[i + j * mesh_xy, 0] = np.NaN
+            kft0[i + j * mesh_xy, 1] = np.NaN
+            kft0[i + j * mesh_xy, 2] = np.NaN
 
 ## Remove k points NaN
-index_nan_kx = ~np.isnan(kf[:,0])
-index_nan_ky = ~np.isnan(kf[:,1])
-index_nan_kz = ~np.isnan(kf[:,2])
-
+index_nan_kx = ~np.isnan(kft0[:,0])
+index_nan_ky = ~np.isnan(kft0[:,1])
+index_nan_kz = ~np.isnan(kft0[:,2])
 index_row_nan_k = index_nan_kx * index_nan_ky * index_nan_kz
-kf = kf[index_row_nan_k, :]
+kft0 = kft0[index_row_nan_k, :]
 
 ## Compute Velocity ///////////////////////////////////////////////////////////#
-vf = np.empty( (kf.shape[0], 3))
-for i in range(kf.shape[0]):
-    vf[i,:] = approx_fprime(kf[i,:], e_3D_func_for_gradient_p, epsilon = 1e-6)
+vft0 = np.empty( (kft0.shape[0], 3))
+for i0 in range(kft0.shape[0]):
+    vft0[i0,:] = approx_fprime(kft0[i0,:], e_3D_func_for_gradient_p, epsilon = 1e-6)
 
-## Solve movment equation /////////////////////////////////////////////////////#
-
+## Solve movement equation /////////////////////////////////////////////////////#
 def diff_func(k, t, B):
     v = approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-6)
     dkdt = np.cross(v, B)
     return dkdt
 
 t = np.linspace(0, 0.002, 100)
-k0 = np.array([kf[0, 0], kf[0, 1], kf[0, 2]])
-kt = odeint(diff_func, k0, t, args = (B,))
+kft = np.empty( (kft0.shape[0], t.shape[0], 3))
+vft = np.empty( (kft0.shape[0], t.shape[0], 3))
+# xft[index of which k @ t0 on FS, index of t-evolution of this k started at t0, index of (kx,ky,kz)]
+
+for i0 in range(kft0.shape[0]):
+    kft[i0,:,:] = odeint(diff_func, kft0[i0,:], t, args = (B,))
+    for i in range(t.shape[0]):
+        vft[i0,i,:] = approx_fprime(kft[i0,i,:], e_3D_func_for_gradient_p, epsilon = 1e-6)
+
+
+
 
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -162,9 +169,9 @@ ky = np.linspace(-pi/b, pi/b, mesh_graph)
 kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
 line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kf[: mesh_xy*1, 0], kf[: mesh_xy*1, 1])
+line = axes.plot(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1])
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
-axes.quiver(kf[: mesh_xy*1, 0], kf[: mesh_xy*1, 1], vf[: mesh_xy*1, 0], vf[: mesh_xy*1, 1])
+axes.quiver(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1], vft0[: mesh_xy*1, 0], vft0[: mesh_xy*1, 1])
 
 axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
 axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
@@ -197,9 +204,9 @@ ky = np.linspace(-pi/b, pi/b, mesh_graph)
 kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
 line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kf[0, 0], kf[0, 1])
+line = axes.plot(kft0[0, 0], kft0[0, 1])
 plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-line = axes.plot(kt[:, 0], kt[:, 1])
+line = axes.plot(kft[0,:, 0], kft[0,:, 1])
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
 
 axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
