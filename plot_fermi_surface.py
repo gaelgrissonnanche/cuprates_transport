@@ -7,12 +7,10 @@ from scipy.optimize import brentq, approx_fprime
 from scipy.integrate import odeint
 from functools import partial
 import matplotlib as mpl
-from matplotlib import cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
+from matplotlib import cm
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-import os
-import pickle
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
@@ -42,7 +40,7 @@ B_amp = 1
 B_theta = 0
 B_phi = 0
 
-tau = 0.02
+tau = 0.2
 
 B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*cos(B_phi), cos(B_theta)])
 
@@ -77,13 +75,16 @@ e_3D_func_p = partial(e_3D_func, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tp
 e_3D_func_radial_p = partial(e_3D_func_radial, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
 e_3D_func_for_gradient_p = partial(e_3D_func_for_gradient, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
 
-## Discretize the Fermi surface ///////////////////////////////////////////////#
+
+## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+
+## Discretize the Fermi surface ////#
 kzf_a = np.linspace(-pi / c, pi / c, mesh_z)
 theta_a = np.linspace(0, 2 * pi, mesh_xy)
-
 kft0 = np.empty( (mesh_xy * mesh_z, 3))
 
-
+## Compute kf at t = 0 ////#
 for j, kzf in enumerate(kzf_a):
     for i, theta in enumerate(theta_a):
 
@@ -105,12 +106,16 @@ index_nan_kz = ~np.isnan(kft0[:,2])
 index_row_nan_k = index_nan_kx * index_nan_ky * index_nan_kz
 kft0 = kft0[index_row_nan_k, :]
 
-## Compute Velocity ///////////////////////////////////////////////////////////#
+## Compute Velocity at t = 0 ///#
 vft0 = np.empty( (kft0.shape[0], 3))
 for i0 in range(kft0.shape[0]):
     vft0[i0,:] = approx_fprime(kft0[i0,:], e_3D_func_for_gradient_p, epsilon = 1e-6)
 
-## Solve movement equation /////////////////////////////////////////////////////#
+
+## Quasiparticule orbits >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+
+## Movement equation //#
 def diff_func(k, t, B):
     v = approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-6)
     dkdt = np.cross(v, B)
@@ -118,35 +123,47 @@ def diff_func(k, t, B):
 
 dt = 5e-5
 tmin = 0
-tmax = 0.0025
+tmax = 0.0125
 t = np.arange(tmin, tmax, dt)
 kft = np.empty( (kft0.shape[0], t.shape[0], 3))
 vft = np.empty( (kft0.shape[0], t.shape[0], 3))
 # Xft[index of which k @ t0 on FS, index of t-evolution of this k started at t0, index of (kx,ky,kz)]
 
+## Compute kf, vf function of t ///#
 for i0 in range(kft0.shape[0]):
-    kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,))
+    kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,)) # solve differential equation
     for i in range(t.shape[0]):
         vft[i0, i, :] = approx_fprime(kft[i0, i, :], e_3D_func_for_gradient_p, epsilon = 1e-6)
+
+
+## Conductivity sigma_zz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 def sigma_zz(vzft0, vzft, kft0, t, tau):
 
     prefactor = e**2 / ( 4 * pi**3 )
 
     dt = t[1] - t[0]
-    dk = np.diff(kft0)
+    dk_vector = np.diff(kft0, axis = 0) # gives dk vector from one point on the FS to the other
+    dk = np.prod(dk_vector, axis = 1) # gives the dk volume product of dkx*dky*dkz
 
     v_product = np.empty(vzft0.shape[0]-1)
 
     for i0 in range(vzft0.shape[0]-1):
-        vz_mean = np.sum(vzft[i0, :] * exp(- t / tau)) * dt
+        vz_mean = np.sum(vzft[i0, :] * exp(- t / tau)) * - dt # integral over t
         v_product[i0] = vzft0[i0] * vz_mean
 
-    s_zz = prefactor * np.sum(dk * v_product)
+    s_zz = prefactor * np.sum(dk * v_product) # integral over k
 
     return s_zz
 
-sigma_zz = sigma_zz(vft0[:,2], vft[:,:,2], kft0, t, tau)
+
+vzft0 = vft0[:,2]
+vzft = vft[:,:,2]
+
+sigma_zz = sigma_zz(vzft0, vzft, kft0, t, tau)
+
+print("s_zz = " + str(sigma_zz))
 
 
 
