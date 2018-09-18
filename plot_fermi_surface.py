@@ -42,7 +42,7 @@ mesh_z = 11
 B_amp = 0.1
 B_phi = 0
 
-tau = 2e-6
+tau = 2e-3
 
 
 
@@ -147,9 +147,9 @@ def diff_func(k, t, B):
     return dkdt
 
 def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
-    dt = 5e-6
+    dt = 5e-5
     tmin = 0
-    tmax = 0.0105# 0.021 for 605
+    tmax = 0.0105 # 0.021 for 605
     t = np.arange(tmin, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
     vft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -188,22 +188,22 @@ def sigma_zz(vzft0, vzft, kft0, t, tau):
 
     return s_zz
 
-# # Function of B_theta
+# Function of B_theta
 
-# B_theta_a = np.linspace(0, 90, 10)
-# sigma_zz_a = np.empty(B_theta_a.shape[0])
+B_theta_a = np.linspace(0, 90, 5)
+sigma_zz_a = np.empty(B_theta_a.shape[0])
 
-# for j, B_theta in enumerate(B_theta_a):
+for j, B_theta in enumerate(B_theta_a):
 
-#     kft, vft, t = resolve_movement_func(B_amp, B_theta, B_phi, kft0)
-#     vzft0 = vft0[:,2]
-#     vzft = vft[:,:,2]
-#     s_zz = sigma_zz(vzft0, vzft, kft0, t, tau)
-#     sigma_zz_a[j] = s_zz
-#     print("theta = " + str(B_theta) + ", sigma_zz = " + str(s_zz))
+    kft, vft, t = resolve_movement_func(B_amp, B_theta, B_phi, kft0)
+    vzft0 = vft0[:,2]
+    vzft = vft[:,:,2]
+    s_zz = sigma_zz(vzft0, vzft, kft0, t, tau)
+    sigma_zz_a[j] = s_zz
+    print("theta = " + str(B_theta) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
 
 
-# rho_zz_a = 1 / sigma_zz_a
+rho_zz_a = 1 / sigma_zz_a
 
 
 
@@ -307,46 +307,46 @@ axes.locator_params(axis = 'y', nbins = 6)
 plt.show()
 
 
-# #>>>> Rzz vs theta >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#>>>> Rzz vs theta >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
-# fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-# fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
+fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
-# axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
+axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
-# #///// Allow to shift the label ticks up or down with set_pad /////#
-# for tick in axes.xaxis.get_major_ticks():
-#     tick.set_pad(7)
-# for tick in axes.yaxis.get_major_ticks():
-#     tick.set_pad(8)
+#///// Allow to shift the label ticks up or down with set_pad /////#
+for tick in axes.xaxis.get_major_ticks():
+    tick.set_pad(7)
+for tick in axes.yaxis.get_major_ticks():
+    tick.set_pad(8)
 
-# #///// Labels //////#
-# # fig.text(0.79,0.86, samplename, ha = "right")
+#///// Labels //////#
+# fig.text(0.79,0.86, samplename, ha = "right")
 
-# line = axes.plot(B_theta_a, rho_zz_a / rho_zz_a[0])
-# plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(B_theta_a, rho_zz_a / rho_zz_a[0])
+plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
-# axes.set_xlim(0, 90)   # limit for xaxis
-# # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
-# axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
-# axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
+axes.set_xlim(0, 90)   # limit for xaxis
+# axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
+axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
+axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
 
 
-# ##///Set ticks space and minor ticks space ///#
-# xtics = 30 # space between two ticks
-# mxtics = xtics / 2.  # space between two minor ticks
+##///Set ticks space and minor ticks space ///#
+xtics = 30 # space between two ticks
+mxtics = xtics / 2.  # space between two minor ticks
 
-# majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
+majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
 
-# axes.xaxis.set_major_locator(MultipleLocator(xtics))
-# axes.xaxis.set_major_formatter(majorFormatter)
-# axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
-# axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+axes.xaxis.set_major_locator(MultipleLocator(xtics))
+axes.xaxis.set_major_formatter(majorFormatter)
+axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
+axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
-# axes.locator_params(axis = 'y', nbins = 6)
+axes.locator_params(axis = 'y', nbins = 6)
 
-# plt.show()
-# #//////////////////////////////////////////////////////////////////////////////#
+plt.show()
+#//////////////////////////////////////////////////////////////////////////////#
 
 
 #//////////////////////////////////////////////////////////////////////////////#
