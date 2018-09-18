@@ -30,19 +30,19 @@ d = c / 2
 a = 5.3 / sqrt(2)
 b = 5.3 / sqrt(2)
 
-mu = 605 # VHs = 600
+mu = 805 # VHs = 600
 t = 525
 tp = -115
 tpp = 35
 tz = 11
 
-mesh_xy = 101
-mesh_z = 5
+mesh_xy = 21
+mesh_z = 11
 
-B_amp = 1
+B_amp = 0.1
 B_phi = 0
 
-tau = 2e-5
+tau = 2e-6
 
 
 
@@ -142,14 +142,14 @@ def B_func(B_amp, B_theta, B_phi):
 
 ## Movement equation //#
 def diff_func(k, t, B):
-    v = ( -e/hbar ) * approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-6)
+    v = ( -e / hbar ) * approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-9)
     dkdt = np.cross(v, B)
     return dkdt
 
 def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
-    dt = 5e-5
+    dt = 5e-6
     tmin = 0
-    tmax = 0.0055
+    tmax = 0.0105# 0.021 for 605
     t = np.arange(tmin, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
     vft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -181,14 +181,14 @@ def sigma_zz(vzft0, vzft, kft0, t, tau):
     v_product = np.empty(vzft0.shape[0]-1)
 
     for i0 in range(vzft0.shape[0]-1):
-        vz_mean = np.sum(vzft[i0, :] * exp(- t / tau)) * (- dt) # integral over t
-        v_product[i0] = vzft0[i0] * vz_mean
+        vz_sum_over_t = np.sum( vzft[i0, :] * exp(- t / tau) * (- dt) ) # integral over t
+        v_product[i0] = vzft0[i0] * vz_sum_over_t
 
     s_zz = prefactor * np.sum(dk * v_product) # integral over k
 
     return s_zz
 
-## Function of B_theta
+# # Function of B_theta
 
 # B_theta_a = np.linspace(0, 90, 10)
 # sigma_zz_a = np.empty(B_theta_a.shape[0])
@@ -198,8 +198,9 @@ def sigma_zz(vzft0, vzft, kft0, t, tau):
 #     kft, vft, t = resolve_movement_func(B_amp, B_theta, B_phi, kft0)
 #     vzft0 = vft0[:,2]
 #     vzft = vft[:,:,2]
-#     sigma_zz_a[j] = sigma_zz(vzft0, vzft, kft0, t, tau)
-#     print("theta = " + str(B_theta))
+#     s_zz = sigma_zz(vzft0, vzft, kft0, t, tau)
+#     sigma_zz_a[j] = s_zz
+#     print("theta = " + str(B_theta) + ", sigma_zz = " + str(s_zz))
 
 
 # rho_zz_a = 1 / sigma_zz_a
@@ -266,44 +267,44 @@ plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
 
 
-# #>>>> k vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-# fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
+#>>>> k vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
-# # axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
+# axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
-# for tick in axes.xaxis.get_major_ticks():
-#     tick.set_pad(7)
-# for tick in axes.yaxis.get_major_ticks():
-#     tick.set_pad(8)
+for tick in axes.xaxis.get_major_ticks():
+    tick.set_pad(7)
+for tick in axes.yaxis.get_major_ticks():
+    tick.set_pad(8)
 
-# # fig.text(0.79,0.86, samplename, ha = "right")
-# # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
+# fig.text(0.79,0.86, samplename, ha = "right")
+# fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
-# mesh_graph = 100
-# kx = np.linspace(-pi/a, pi/a, mesh_graph)
-# ky = np.linspace(-pi/b, pi/b, mesh_graph)
-# kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+mesh_graph = 100
+kx = np.linspace(-pi/a, pi/a, mesh_graph)
+ky = np.linspace(-pi/b, pi/b, mesh_graph)
+kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-# ## Compute t-dependence
-# kft, vft, t = resolve_movement_func(B_amp = 1, B_theta = 0, B_phi = 0, kft0 = kft0)
+## Compute t-dependence
+kft, vft, t = resolve_movement_func(B_amp = B_amp, B_theta = 0, B_phi = 0, kft0 = kft0)
 # vzft0 = vft0[:,2]
 # vzft = vft[:,:,2]
 
-# line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
-# line = axes.plot(kft0[0, 0], kft0[0, 1])
-# plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-# line = axes.plot(kft[0,:, 0], kft[0,:, 1])
-# plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
+line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
+line = axes.plot(kft0[0, 0], kft0[0, 1])
+plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(kft[0,:, 0], kft[0,:, 1])
+plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
 
-# axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
-# axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
-# axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-# axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
+axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
+axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-# axes.locator_params(axis = 'y', nbins = 6)
+axes.locator_params(axis = 'y', nbins = 6)
 
-# plt.show()
+plt.show()
 
 
 # #>>>> Rzz vs theta >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
