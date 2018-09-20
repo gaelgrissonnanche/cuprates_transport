@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib import cm
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+from band_structure import *
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
@@ -52,40 +53,17 @@ dt = 5e-5
 tmin = 0
 tmax = 10 * tau
 
-## Band structure /////////////////////////////////////////////////////////////#
-def e_2D_func(kx, ky, mu, a, t, tp, tpp):
-    e_2D = -mu + 2 * t * ( cos(kx*a) + cos(ky*a) ) + 4 * tp * cos(kx*a) * cos(ky*a) + 2 * tpp * ( cos(2*kx*a) + cos(2*ky*a) )
-    return e_2D
 
-def e_z_func(kx, ky, kz, tz, a, d):
-    sigma = cos(kx*a/2) * cos(ky*a/2)
-    e_z = 2 * tz * sigma * ( cos(kx*a) - cos(ky*a) )**2 * cos(kz*d)
-    return e_z
 
-def e_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz):
-    e_3D = e_2D_func(kx, ky, mu, a, t, tp, tpp) + \
-           e_z_func(kx, ky, kz, tz, a, d)
-    return e_3D
-
-def e_3D_func_radial(r, theta, kz, mu, a, d, t, tp, tpp, tz):
-    kx = r * cos(theta)
-    ky = r * sin(theta)
-    return e_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz)
-
-def e_3D_func_for_gradient(k, mu, a, d, t, tp, tpp, tz):
-    kx = k[0]
-    ky = k[1]
-    kz = k[2]
-    return e_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz)
+## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## Create partial functions
 e_3D_func_p = partial(e_3D_func, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
 e_3D_func_radial_p = partial(e_3D_func_radial, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
 e_3D_func_for_gradient_p = partial(e_3D_func_for_gradient, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
-
-
-## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+e_3D_func_for_gradient_p = partial(e_3D_func_for_gradient, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
+v_3D_func_p = partial(v_3D_func, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
 
 ## 1st unregular discretization of the Fermi surface //////////////////////////#
 mesh_xy_rough = mesh_xy * 4 + 1 # the rough discretization needs
@@ -136,10 +114,7 @@ for j, kzf in enumerate(kzf_a):
     kft0[mesh_xy*j: mesh_xy*(j+1), 2] = kzf
 
 ## Compute Velocity at t = 0
-vft0 = np.empty((kft0.shape[0], 3))
-for i0 in range(kft0.shape[0]):
-    vft0[i0,:] = approx_fprime(kft0[i0,:], e_3D_func_for_gradient_p, epsilon = 1e-8)
-
+vft0 = v_3D_func_p(kft0[:,0], kft0[:,1], kft0[:,2])
 
 ## Quasiparticule orbits >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -150,8 +125,8 @@ def B_func(B_amp, B_theta, B_phi):
 
 ## Movement equation //#
 def diff_func(k, t, B):
-    v = ( - e / hbar ) * approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-6)
-    dkdt = np.cross(v, - B) # (-) represent -t in vz(-t, kt0) in the Chambers formula
+    v =  v_3D_func_p(k[0], k[1], k[2])
+    dkdt = ( - e / hbar ) * np.cross(v, - B) # (-) represent -t in vz(-t, kt0) in the Chambers formula
                             # integrated from 0 to +infinity
     return dkdt
 
@@ -170,8 +145,7 @@ def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
     ## Compute kf, vf function of t ///#
     for i0 in range(kft0.shape[0]):
         kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,)) # solve differential equation
-        for i in range(t.shape[0]):
-            vft[i0, i, :] = approx_fprime(kft[i0, i, :], e_3D_func_for_gradient_p, epsilon = 1e-6)
+        vft[i0, :, :] = v_3D_func_p(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2])
 
     return kft, vft, t
 
