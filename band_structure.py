@@ -3,6 +3,7 @@
 ## Modules <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 import numpy as np
 from numpy import cos, sin
+from numba import jit
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
@@ -17,32 +18,45 @@ m = 1
 
 
 ## Band structure /////////////////////////////////////////////////////////////#
+@jit(nopython=True)
 def e_2D_func(kx, ky, mu, a, t, tp, tpp):
     e_2D = -mu + 2 * t * ( cos(kx*a) + cos(ky*a) ) + 4 * tp * cos(kx*a) * cos(ky*a) + 2 * tpp * ( cos(2*kx*a) + cos(2*ky*a) )
     return e_2D
 
+@jit(nopython=True)
 def e_z_func(kx, ky, kz, tz, a, d):
     sigma = cos(kx*a/2) * cos(ky*a/2)
     e_z = 2 * tz * sigma * ( cos(kx*a) - cos(ky*a) )**2 * cos(kz*d)
     return e_z
 
-def e_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz):
+@jit(nopython=True)
+def e_3D_func(kx, ky, kz, band_parameters):
+    mu = band_parameters[0]
+    a = band_parameters[1]
+    d = band_parameters[2]
+    t = band_parameters[3]
+    tp = band_parameters[4]
+    tpp = band_parameters[5]
+    tz = band_parameters[6]
+
     e_3D = e_2D_func(kx, ky, mu, a, t, tp, tpp) + \
            e_z_func(kx, ky, kz, tz, a, d)
     return e_3D
 
-def e_3D_func_radial(r, theta, kz, mu, a, d, t, tp, tpp, tz):
+@jit(nopython=True)
+def e_3D_func_radial(r, theta, kz, band_parameters):
     kx = r * cos(theta)
     ky = r * sin(theta)
-    return e_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz)
+    return e_3D_func(kx, ky, kz, band_parameters)
 
-def e_3D_func_for_gradient(k, mu, a, d, t, tp, tpp, tz):
-    kx = k[0]
-    ky = k[1]
-    kz = k[2]
-    return e_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz)
-
-def v_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz):
+@jit(nopython=True)
+def v_3D_func(kx, ky, kz, band_parameters):
+    a = band_parameters[1]
+    d = band_parameters[2]
+    t = band_parameters[3]
+    tp = band_parameters[4]
+    tpp = band_parameters[5]
+    tz = band_parameters[6]
 
     # Velocity from e_2D
     d_e2D_dkx = -2 * t * a * sin(kx*a) - 4 * tp * a * sin(kx*a)*cos(ky*a) - 4 * tpp * a * sin(2*kx*a)
@@ -64,7 +78,5 @@ def v_3D_func(kx, ky, kz, mu, a, d, t, tp, tpp, tz):
     vy = d_e2D_dky + d_ez_dky
     vz = d_e2D_dkz + d_ez_dkz
 
-    v = np.array([vx, vy, vz])
-    v = np.transpose(v)
-    return v
+    return vx, vy, vz
 

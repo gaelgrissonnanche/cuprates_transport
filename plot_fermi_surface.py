@@ -13,6 +13,9 @@ from mpl_toolkits.mplot3d import axes3d
 from matplotlib import cm
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from band_structure import *
+import time
+from numba import jit, prange
+
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
@@ -37,33 +40,29 @@ tp = -115
 tpp = 35
 tz = 11
 
-mesh_xy = 51
-mesh_z = 15
+mesh_xy = 4001
+mesh_z = 60
 
 B_amp = 0.02
 B_phi = 0
 
 tau = 1e-3
 
-mesh_B_theta = 2
-B_theta_a = np.array([0, pi/4])
-# B_theta_a = np.linspace(0, 90 * pi / 180, mesh_B_theta)
+mesh_B_theta = 30
+B_theta_a = np.array([0, pi])
+# B_theta_a = np.linspace(0, 180 * pi / 180, mesh_B_theta)
 
 dt = 5e-5
 tmin = 0
 tmax = 10 * tau
 
 
-
 ## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
-## Create partial functions
-e_3D_func_p = partial(e_3D_func, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
-e_3D_func_radial_p = partial(e_3D_func_radial, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
-e_3D_func_for_gradient_p = partial(e_3D_func_for_gradient, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
-e_3D_func_for_gradient_p = partial(e_3D_func_for_gradient, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
-v_3D_func_p = partial(v_3D_func, mu = mu, a = a, d = d, t = t, tp = tp, tpp = tpp, tz= tz)
+band_parameters = np.array([mu, a, d, t, tp, tpp, tz])
+
+start_time_FS = time.time()
 
 ## 1st unregular discretization of the Fermi surface //////////////////////////#
 mesh_xy_rough = mesh_xy * 4 + 1 # the rough discretization needs
@@ -77,7 +76,7 @@ for j, kzf in enumerate(kzf_a):
     for i, theta in enumerate(theta_a):
 
         try:
-            rf = brentq(e_3D_func_radial_p, a = 0, b = 0.8, args = (theta, kzf))
+            rf = brentq(e_3D_func_radial, a = 0, b = 0.8, args = (theta, kzf, band_parameters))
             kft0_rough[i + j * mesh_xy_rough, 0] = rf * cos(theta)
             kft0_rough[i + j * mesh_xy_rough, 1] = rf * sin(theta)
             kft0_rough[i + j * mesh_xy_rough, 2] = kzf
@@ -102,33 +101,49 @@ for j, kzf in enumerate(kzf_a):
     x = kft0_rough[mesh_xy_rough*j: mesh_xy_rough*(j+1), 0]
     y = kft0_rough[mesh_xy_rough*j: mesh_xy_rough*(j+1), 1]
 
-    dr = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-    r = np.zeros_like(x)
-    r[1:] = np.cumsum(dr) # integrate path
-    r_int = np.linspace(0, r.max(), mesh_xy) # regular spaced path
-    x_int = np.interp(r_int, r, x) # interpolate
-    y_int = np.interp(r_int, r, y)
+    ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
+    s = np.zeros_like(x) # arrays of zeros
+    s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
+
+    s_int = np.linspace(0, s.max(), mesh_xy) # regular spaced path
+    x_int = np.interp(s_int, s, x) # interpolate
+    y_int = np.interp(s_int, s, y)
 
     kft0[mesh_xy*j: mesh_xy*(j+1), 0] = x_int
     kft0[mesh_xy*j: mesh_xy*(j+1), 1] = y_int
     kft0[mesh_xy*j: mesh_xy*(j+1), 2] = kzf
 
 ## Compute Velocity at t = 0
-vft0 = v_3D_func_p(kft0[:,0], kft0[:,1], kft0[:,2])
+vx, vy, vz = v_3D_func(kft0[:,0], kft0[:,1], kft0[:,2], band_parameters)
+vft0 = np.array([vx, vy, vz]).transpose()
+
+print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
 
 ## Quasiparticule orbits >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
+@jit(nopython=True)
 def B_func(B_amp, B_theta, B_phi):
     B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*cos(B_phi), cos(B_theta)])
     return B
 
+@jit(nopython=True)
+def cross_product(u, v):
+    product = np.empty(u.shape[0])
+    product[0] = u[1] * v[2] - u[2] * v[1]
+    product[1] = u[2] * v[0] - u[0] * v[2]
+    product[2] = u[0] * v[1] - u[1] * v[0]
+    return product
+
 ## Movement equation //#
+@jit(nopython=True)
 def diff_func(k, t, B):
-    v =  v_3D_func_p(k[0], k[1], k[2])
-    dkdt = ( - e / hbar ) * np.cross(v, - B) # (-) represent -t in vz(-t, kt0) in the Chambers formula
+    vx, vy, vz =  v_3D_func(k[0], k[1], k[2], band_parameters)
+    v = np.array([vx, vy, vz]).transpose()
+    dkdt = ( - e / hbar ) * cross_product(v, - B) # (-) represent -t in vz(-t, kt0) in the Chambers formula
                             # integrated from 0 to +infinity
     return dkdt
+
 
 def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
     # dt = 5e-5
@@ -141,17 +156,28 @@ def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
 
     ## Compute B ////#
     B = B_func(B_amp, B_theta, B_phi)
+    print("B = " + str(B))
 
     ## Compute kf, vf function of t ///#
     for i0 in range(kft0.shape[0]):
         kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,)) # solve differential equation
-        vft[i0, :, :] = v_3D_func_p(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2])
+        vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
+        vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
 
     return kft, vft, t
 
 
 ## Conductivity sigma_zz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+
+# @jit(nopython=True)
+# def sum_function(vzft0, vzft, t, dt, tau):
+#     v_product = np.empty(vzft0.shape[0]-1)
+#     for i0 in prange(vzft0.shape[0]-1):
+#         vz_sum_over_t = np.sum( vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
+#         v_product[i0] = vzft0[i0] * vz_sum_over_t
+#     return v_product
+
 
 def sigma_zz(vzft0, vzft, kft0, t, tau):
 
@@ -162,15 +188,14 @@ def sigma_zz(vzft0, vzft, kft0, t, tau):
     # but it 0does not work for dkz as kz constant over a 2D slice of FS
     # needs to implement manually the dkz
     dk_vector[:, 2] = np.ones(dk_vector.shape[0]) * ( 2 * pi / c ) / (mesh_z - 1)
-    dk = np.prod(dk_vector, axis = 1) # gives the dk volume product of dkx*dky*dkz
+    dk = np.abs(np.prod(dk_vector, axis = 1)) # gives the dk volume product of dkx*dky*dkz
 
     v_product = np.empty(vzft0.shape[0]-1)
-
-    for i0 in range(vzft0.shape[0]-1):
+    for i0 in prange(vzft0.shape[0]-1):
         vz_sum_over_t = np.sum( vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
         v_product[i0] = vzft0[i0] * vz_sum_over_t
 
-    s_zz = - prefactor * np.sum(dk * v_product) # integral over k
+    s_zz = prefactor * np.sum(dk * v_product) # integral over k
 
     return s_zz
 
@@ -179,12 +204,16 @@ sigma_zz_a = np.empty(B_theta_a.shape[0])
 
 for j, B_theta in enumerate(B_theta_a):
 
+    start_time = time.time()
     kft, vft, t = resolve_movement_func(B_amp, B_theta, B_phi, kft0)
     vzft0 = vft0[:,2]
     vzft = vft[:,:,2]
     s_zz = sigma_zz(vzft0, vzft, kft0, t, tau)
     sigma_zz_a[j] = s_zz
     print("theta = " + str(B_theta * 180 / pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
+    print("Calculation time : %.6s seconds" % (time.time() - start_time))
+
+
 
 rho_zz_a = 1 / sigma_zz_a
 
@@ -237,7 +266,7 @@ kx = np.linspace(-pi/a, pi/a, mesh_graph)
 ky = np.linspace(-pi/b, pi/b, mesh_graph)
 kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
+line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
 line = axes.plot(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
 axes.quiver(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1], vft0[: mesh_xy*1, 0], vft0[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
@@ -272,10 +301,8 @@ kx = np.linspace(-pi/a, pi/a, mesh_graph)
 ky = np.linspace(-pi/b, pi/b, mesh_graph)
 kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
+line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
 line = axes.plot(kft0[0, 0], kft0[0, 1])
-
-
 plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 line = axes.plot(kft[0,:, 0], kft[0,:, 1])
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
@@ -375,7 +402,7 @@ for tick in axes.yaxis.get_major_ticks():
 line = axes.plot(B_theta_a * 180 / pi, rho_zz_a / rho_zz_a[0])
 plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
-axes.set_xlim(0, 110)   # limit for xaxis
+axes.set_xlim(0, 180)   # limit for xaxis
 # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
