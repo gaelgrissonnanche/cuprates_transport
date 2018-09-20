@@ -37,14 +37,20 @@ tpp = 35
 tz = 11
 
 mesh_xy = 51
-mesh_z = 20
+mesh_z = 15
 
-B_amp = 0.2
+B_amp = 0.02
 B_phi = 0
 
 tau = 1e-3
 
-mesh_B_theta = 60
+mesh_B_theta = 2
+B_theta_a = np.array([0, pi/4])
+# B_theta_a = np.linspace(0, 90 * pi / 180, mesh_B_theta)
+
+dt = 5e-5
+tmin = 0
+tmax = 10 * tau
 
 ## Band structure /////////////////////////////////////////////////////////////#
 def e_2D_func(kx, ky, mu, a, t, tp, tpp):
@@ -134,8 +140,6 @@ vft0 = np.empty((kft0.shape[0], 3))
 for i0 in range(kft0.shape[0]):
     vft0[i0,:] = approx_fprime(kft0[i0,:], e_3D_func_for_gradient_p, epsilon = 1e-8)
 
-# print(vft0[mesh_xy*7:mesh_xy*8,2])
-# print(np.sum(vft0[:,2]))
 
 ## Quasiparticule orbits >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -146,14 +150,15 @@ def B_func(B_amp, B_theta, B_phi):
 
 ## Movement equation //#
 def diff_func(k, t, B):
-    v = ( -e / hbar ) * approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-6)
-    dkdt = np.cross(v, B)
+    v = ( - e / hbar ) * approx_fprime(k, e_3D_func_for_gradient_p, epsilon = 1e-6)
+    dkdt = np.cross(v, - B) # (-) represent -t in vz(-t, kt0) in the Chambers formula
+                            # integrated from 0 to +infinity
     return dkdt
 
 def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
-    dt = 5e-5
-    tmin = 0
-    tmax = 10 * tau # 0.021 for 605
+    # dt = 5e-5
+    # tmin = 0
+    # tmax = 10 * tau
     t = np.arange(tmin, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
     vft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -188,7 +193,7 @@ def sigma_zz(vzft0, vzft, kft0, t, tau):
     v_product = np.empty(vzft0.shape[0]-1)
 
     for i0 in range(vzft0.shape[0]-1):
-        vz_sum_over_t = np.sum( vzft[i0, :] * exp(- t / tau) * (dt) ) # integral over t
+        vz_sum_over_t = np.sum( vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
         v_product[i0] = vzft0[i0] * vz_sum_over_t
 
     s_zz = - prefactor * np.sum(dk * v_product) # integral over k
@@ -196,7 +201,6 @@ def sigma_zz(vzft0, vzft, kft0, t, tau):
     return s_zz
 
 # Function of B_theta
-B_theta_a = np.linspace(0, 110 * pi / 180, mesh_B_theta)
 sigma_zz_a = np.empty(B_theta_a.shape[0])
 
 for j, B_theta in enumerate(B_theta_a):
@@ -220,8 +224,7 @@ rho_zz_a = 1 / sigma_zz_a
 
 ## For figures, compute t-dependence
 kft, vft, t = resolve_movement_func(B_amp = B_amp, B_theta = 0, B_phi = 0, kft0 = kft0)
-# vzft0 = vft0[:,2]
-# vzft = vft[:,:,2]
+
 
 #///// RC Parameters //////#
 mpl.rcdefaults()
@@ -276,41 +279,41 @@ plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
 
 
-# #>>>> k vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-# fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
+#>>>> k vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
-# # axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
+# axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
-# for tick in axes.xaxis.get_major_ticks():
-#     tick.set_pad(7)
-# for tick in axes.yaxis.get_major_ticks():
-#     tick.set_pad(8)
+for tick in axes.xaxis.get_major_ticks():
+    tick.set_pad(7)
+for tick in axes.yaxis.get_major_ticks():
+    tick.set_pad(8)
 
-# # fig.text(0.79,0.86, samplename, ha = "right")
-# # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
+# fig.text(0.79,0.86, samplename, ha = "right")
+# fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
-# mesh_graph = 100
-# kx = np.linspace(-pi/a, pi/a, mesh_graph)
-# ky = np.linspace(-pi/b, pi/b, mesh_graph)
-# kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+mesh_graph = 100
+kx = np.linspace(-pi/a, pi/a, mesh_graph)
+ky = np.linspace(-pi/b, pi/b, mesh_graph)
+kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-# line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
-# line = axes.plot(kft0[0, 0], kft0[0, 1])
+line = axes.contour(kxx, kyy, e_3D_func_p(kx = kxx, ky = kyy, kz = - pi / c), 0, colors = '#FF0000', linewidths = 3)
+line = axes.plot(kft0[0, 0], kft0[0, 1])
 
 
-# plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-# line = axes.plot(kft[0,:, 0], kft[0,:, 1])
-# plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
+plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(kft[0,:, 0], kft[0,:, 1])
+plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
 
-# axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
-# axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
-# axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-# axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
+axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
+axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-# axes.locator_params(axis = 'y', nbins = 6)
+axes.locator_params(axis = 'y', nbins = 6)
 
-# plt.show()
+plt.show()
 
 #>>>> vf vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
@@ -372,7 +375,7 @@ plt.setp(line, ls ="-", c = 'b', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "
 # axes.set_xlim(0, 90)   # limit for xaxis
 # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$t$", labelpad = 8)
-axes.set_ylabel(r"cum sum  velocity", labelpad = 8)
+axes.set_ylabel(r"cum sum velocity", labelpad = 8)
 
 axes.locator_params(axis = 'y', nbins = 6)
 
