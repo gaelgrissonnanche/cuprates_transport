@@ -40,7 +40,7 @@ tp = -115
 tpp = 35
 tz = 11
 
-mesh_xy = 50
+mesh_xy = 2000
 mesh_z = 100
 
 B_amp = 0.002
@@ -65,15 +65,15 @@ band_parameters = np.array([mu, a, d, t, tp, tpp, tz])
 start_time_FS = time.time()
 
 ## 1st unregular discretization of the Fermi surface //////////////////////////#
-mesh_xy_rough = mesh_xy * 100 + 1 # higher it is the rough, better is the interpolated one
+mesh_xy_rough = mesh_xy # * 100 + 1 # higher it is the rough, better is the interpolated one
 
 kzf_a = np.linspace(-pi / c, pi / c, mesh_z)
-theta_a = np.linspace(0, 2 * pi, mesh_xy_rough)
+theta_a = np.linspace(0, 2 * pi, mesh_xy_rough) # add 1 to then remove 2*pi
 kft0_rough = np.empty( (mesh_xy_rough * mesh_z, 3) )
 
 ## Compute kf at t = 0
 for j, kzf in enumerate(kzf_a):
-    for i, theta in enumerate(theta_a):
+    for i, theta in enumerate(theta_a): # remove 2*pi to not get 0 again.
 
         try:
             rf = brentq(e_3D_func_radial, a = 0, b = 0.8, args = (theta, kzf, band_parameters))
@@ -95,51 +95,47 @@ index_nan_kz = ~np.isnan(kft0_rough[:,2])
 index_row_nan_k = index_nan_kx * index_nan_ky * index_nan_kz
 kft0_rough = kft0_rough[index_row_nan_k, :]
 
+kft0 = kft0_rough
+# ## 2nd regular discretization of the Fermi surface ////////////////////////////#
+# kft0 = np.empty( (mesh_xy * mesh_z, 3) )
 
-## 2nd regular discretization of the Fermi surface ////////////////////////////#
-kft0 = np.empty( (mesh_xy * mesh_z, 3) )
+# for j, kzf in enumerate(kzf_a):
+#     x = kft0_rough[mesh_xy_rough*j: mesh_xy_rough*(j+1), 0]
+#     y = kft0_rough[mesh_xy_rough*j: mesh_xy_rough*(j+1), 1]
+#     ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
+#     s = np.zeros_like(x) # arrays of zeros
+#     s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
 
-for j, kzf in enumerate(kzf_a):
-    x = kft0_rough[mesh_xy_rough*j: mesh_xy_rough*(j+1), 0]
-    y = kft0_rough[mesh_xy_rough*j: mesh_xy_rough*(j+1), 1]
-    ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-    s = np.zeros_like(x) # arrays of zeros
-    s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
+#     s_int = np.linspace(0, s.max(), mesh_xy + 1) # regular spaced path, last point will be removed
+#     x_int = np.interp(s_int[:-1], s, x) # interpolate and remove the last point to not get again the 2*pi point
+#     y_int = np.interp(s_int[:-1], s, y)
+#     ds_int = s_int[1] - s_int[0]
 
-    s_int = np.linspace(0, s.max(), mesh_xy) # regular spaced path
-    x_int = np.interp(s_int, s, x) # interpolate
-    y_int = np.interp(s_int, s, y)
-    ds_int = s_int[1] - s_int[0]
+#     kft0[mesh_xy*j: mesh_xy*(j+1), 0] = x_int
+#     kft0[mesh_xy*j: mesh_xy*(j+1), 1] = y_int
+#     kft0[mesh_xy*j: mesh_xy*(j+1), 2] = kzf
 
-    kft0[mesh_xy*j: mesh_xy*(j+1), 0] = x_int
-    kft0[mesh_xy*j: mesh_xy*(j+1), 1] = y_int
-    kft0[mesh_xy*j: mesh_xy*(j+1), 2] = kzf
-
-
-# print(kft0_rough[0:mesh_xy_rough, 2])
-# print(kft0[0:mesh_xy, 2])
-# r = sqrt(kft0[:-1,0]**2 + kft0[:-1,1]**2)
-# dk = np.diff(kft0, axis = 0) # gives dk vector from one point on the FS to the other
-# # dr = sqrt(dk[:,0]**2 + dk[:,1]**2)
-# h_r = sqrt((kft0[:-1,0] + dk[:,0])**2 + (kft0[:-1,1] + dk[:,1])**2)
-# g_r = sqrt(kft0[:-1,0]**2 + kft0[:-1,1]**2)
-# dr = h_r - g_r
-# h_theta = np.arctan2((kft0[:-1,1] + dk[:,1]), (kft0[:-1,0] + dk[:,0]))
-# g_theta = np.arctan2((kft0[:-1,1]), (kft0[:-1,0]))
-# dtheta = np.abs(np.abs(h_theta) - np.abs(g_theta))
-
-dkft0 = 1 / (mesh_xy * mesh_z) #r * np.abs(dr) * dtheta * ( 2 * pi / c ) / (mesh_z - 1)
+r = sqrt(kft0[:-1,0]**2 + kft0[:-1,1]**2)
+dk = np.diff(kft0, axis = 0) # gives dk vector from one point on the FS to the other
+# dr = sqrt(dk[:,0]**2 + dk[:,1]**2)
+h_r = sqrt((kft0[:-1,0] + dk[:,0])**2 + (kft0[:-1,1] + dk[:,1])**2)
+g_r = sqrt(kft0[:-1,0]**2 + kft0[:-1,1]**2)
+dr = h_r - g_r
+h_theta = np.arctan2((kft0[:-1,1] + dk[:,1]), (kft0[:-1,0] + dk[:,0]))
+g_theta = np.arctan2((kft0[:-1,1]), (kft0[:-1,0]))
+dtheta = np.abs(np.abs(h_theta) - np.abs(g_theta))
+dkft0 = 1 #r * np.abs(dr) * dtheta * ( 2 * pi / c ) / (mesh_z - 1)
 
 # print(h)
 # print(dr)
 # print(dtheta)
 
 dk_vector = np.diff(kft0, axis = 0) # gives dk vector from one point on the FS to the other
-# but it 0does not work for dkz as kz constant over a 2D slice of FS
-# needs to implement manually the dkz
+# # but it 0does not work for dkz as kz constant over a 2D slice of FS
+# # needs to implement manually the dkz
 kft0_mid = kft0[:-1,:] + dk_vector / 2
-
-
+kft0 = kft0_mid
+# dk_vector_mid = np.diff(kft0_mid, axis = 0)
 # dr = sqrt(dk_vector_mid[:,0]**2 + dk_vector_mid[:,1]**2)
 # dtheta = np.arctan2((kft0[:-2,1] + dk_vector_mid[:,1]), (kft0[:-2,0] + dk_vector_mid[:,0])) - np.arctan2((kft0[:-2,1]), (kft0[:-2,0]))
 # # index = dtheta < 0
@@ -265,10 +261,6 @@ np.savetxt(file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz
 ## For figures, compute t-dependence
 kft, vft, t = resolve_movement_func(B_amp = B_amp, B_theta = 0, B_phi = 0, kft0 = kft0)
 
-mesh_graph = 1000
-kx = np.linspace(-pi/a, pi/a, mesh_graph)
-ky = np.linspace(-pi/b, pi/b, mesh_graph)
-kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
 #///// RC Parameters //////#
 mpl.rcdefaults()
@@ -302,13 +294,16 @@ for tick in axes.yaxis.get_major_ticks():
 # fig.text(0.79,0.86, samplename, ha = "right")
 # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
+mesh_graph = 1000
+kx = np.linspace(-pi/a, pi/a, mesh_graph)
+ky = np.linspace(-pi/b, pi/b, mesh_graph)
+kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+
 line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kft0_rough[: mesh_xy_rough*1, 0], kft0_rough[: mesh_xy_rough*1, 1]) # mesh_xy means all points for kz = - pi / c
+line = axes.plot(kft0_rough[: mesh_xy*1, 0], kft0_rough[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-line = axes.plot(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
-plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)
 line = axes.plot(kft0_mid[: mesh_xy*1, 0], kft0_mid[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
-plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = '#00E1C9', ms = 5, mec = "#7E2320", mew= 0)
+plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)
 
 # axes.quiver(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1], vft0[: mesh_xy*1, 0], vft0[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
 
@@ -336,6 +331,11 @@ for tick in axes.yaxis.get_major_ticks():
 
 # fig.text(0.79,0.86, samplename, ha = "right")
 # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
+
+mesh_graph = 100
+kx = np.linspace(-pi/a, pi/a, mesh_graph)
+ky = np.linspace(-pi/b, pi/b, mesh_graph)
+kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
 line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
 line = axes.plot(kft0[0, 0], kft0[0, 1])
