@@ -44,12 +44,11 @@ mesh_xy = 50
 mesh_z = 100
 
 B_amp = 0.002
-B_phi = 0
+B_phi = 0 * pi / 180
 
 tau = 1e-3
 
 mesh_B_theta = 31
-# B_theta_a = np.array([0, pi])
 B_theta_a = np.linspace(0, 180 * pi / 180, mesh_B_theta)
 
 dt = tau / 20
@@ -115,41 +114,8 @@ for j, kzf in enumerate(kzf_a):
     kft0[mesh_xy*j: mesh_xy*(j+1), 1] = y_int
     kft0[mesh_xy*j: mesh_xy*(j+1), 2] = kzf
 
-
-# print(kft0_rough[0:mesh_xy_rough, 2])
-# print(kft0[0:mesh_xy, 2])
-# r = sqrt(kft0[:-1,0]**2 + kft0[:-1,1]**2)
-# dk = np.diff(kft0, axis = 0) # gives dk vector from one point on the FS to the other
-# # dr = sqrt(dk[:,0]**2 + dk[:,1]**2)
-# h_r = sqrt((kft0[:-1,0] + dk[:,0])**2 + (kft0[:-1,1] + dk[:,1])**2)
-# g_r = sqrt(kft0[:-1,0]**2 + kft0[:-1,1]**2)
-# dr = h_r - g_r
-# h_theta = np.arctan2((kft0[:-1,1] + dk[:,1]), (kft0[:-1,0] + dk[:,0]))
-# g_theta = np.arctan2((kft0[:-1,1]), (kft0[:-1,0]))
-# dtheta = np.abs(np.abs(h_theta) - np.abs(g_theta))
-
-dkft0 = 1 / (mesh_xy * mesh_z) #r * np.abs(dr) * dtheta * ( 2 * pi / c ) / (mesh_z - 1)
-
-# print(h)
-# print(dr)
-# print(dtheta)
-
-dk_vector = np.diff(kft0, axis = 0) # gives dk vector from one point on the FS to the other
-# but it 0does not work for dkz as kz constant over a 2D slice of FS
-# needs to implement manually the dkz
-kft0_mid = kft0[:-1,:] + dk_vector / 2
-
-
-# dr = sqrt(dk_vector_mid[:,0]**2 + dk_vector_mid[:,1]**2)
-# dtheta = np.arctan2((kft0[:-2,1] + dk_vector_mid[:,1]), (kft0[:-2,0] + dk_vector_mid[:,0])) - np.arctan2((kft0[:-2,1]), (kft0[:-2,0]))
-# # index = dtheta < 0
-# # dtheta[index] = 0.3
-# print(dtheta)
-# r = sqrt(kft0[:-2,0]**2 + kft0[:-2,1]**2)
-# dk_vector_mid[:, 2] = np.ones(dk_vector_mid.shape[0]) * ( 2 * pi / c ) / (mesh_z - 1)
-# # dkft0 = np.abs(np.prod(dk_vector_mid, axis = 1)) # gives the dk volume product of dkx*dky*dkz
-# dkft0 = r * dtheta *  dr * dk_vector_mid[:, 2]
-
+## Integration Delta
+dkft0 = 1 / (mesh_xy * mesh_z)
 
 ## Compute Velocity at t = 0
 vx, vy, vz = v_3D_func(kft0[:,0], kft0[:,1], kft0[:,2], band_parameters)
@@ -182,11 +148,7 @@ def diff_func(k, t, B):
                             # integrated from 0 to +infinity
     return dkdt
 
-
 def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
-    # dt = 5e-5
-    # tmin = 0
-    # tmax = 10 * tau
     t = np.arange(tmin, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
     vft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -206,15 +168,6 @@ def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
 
 ## Conductivity sigma_zz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-
-# @jit(nopython=True)
-# def sum_function(vzft0, vzft, t, dt, tau):
-#     v_product = np.empty(vzft0.shape[0]-1)
-#     for i0 in prange(vzft0.shape[0]-1):
-#         vz_sum_over_t = np.sum( vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
-#         v_product[i0] = vzft0[i0] * vz_sum_over_t
-#     return v_product
-
 
 def sigma_zz(vzft0, vzft, kft0, dkft0, t, tau):
 
@@ -252,9 +205,7 @@ rho_zz_0 = interpolate.interp1d(B_theta_a, rho_zz_a)( 0 )
 ## Save Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 Data = np.vstack((B_theta_a, rho_zz_a / rho_zz_0))
 Data = Data.transpose()
-
 file_name =  "data.dat"
-
 np.savetxt(file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz(0)", comments = "#")
 
 
@@ -303,14 +254,10 @@ for tick in axes.yaxis.get_major_ticks():
 # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
 line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kft0_rough[: mesh_xy_rough*1, 0], kft0_rough[: mesh_xy_rough*1, 1]) # mesh_xy means all points for kz = - pi / c
-plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
 line = axes.plot(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
-plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)
-line = axes.plot(kft0_mid[: mesh_xy*1, 0], kft0_mid[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
-plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = '#00E1C9', ms = 5, mec = "#7E2320", mew= 0)
+plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
 
-# axes.quiver(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1], vft0[: mesh_xy*1, 0], vft0[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
+axes.quiver(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1], vft0[: mesh_xy*1, 0], vft0[: mesh_xy*1, 1], color = 'k') # mesh_xy means all points for kz = - pi / c
 
 axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
 axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
