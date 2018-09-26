@@ -40,7 +40,7 @@ tp = -115
 tpp = 35
 tz = 11
 
-mesh_xy = 50
+mesh_xy = 51
 mesh_z = 100
 
 B_amp = 0.002
@@ -148,7 +148,7 @@ def diff_func(k, t, B):
                             # integrated from 0 to +infinity
     return dkdt
 
-def resolve_movement_func(B_amp, B_theta, B_phi, kft0):
+def solve_movement_func(B_amp, B_theta, B_phi, kft0):
     t = np.arange(tmin, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
     vft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -190,7 +190,7 @@ sigma_zz_a = np.empty(B_theta_a.shape[0])
 for j, B_theta in enumerate(B_theta_a):
 
     start_time = time.time()
-    kft, vft, t = resolve_movement_func(B_amp, B_theta, B_phi, kft0)
+    kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kft0)
     vzft0 = vft0[:,2]
     vzft = vft[:,:,2]
     s_zz = sigma_zz(vzft0, vzft, kft0, dkft0, t, tau)
@@ -214,7 +214,7 @@ np.savetxt(file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## For figures, compute t-dependence
-kft, vft, t = resolve_movement_func(B_amp = B_amp, B_theta = 0, B_phi = 0, kft0 = kft0)
+kft, vft, t = solve_movement_func(B_amp = B_amp, B_theta = 0, B_phi = 0, kft0 = kft0)
 
 mesh_graph = 1000
 kx = np.linspace(-pi/a, pi/a, mesh_graph)
