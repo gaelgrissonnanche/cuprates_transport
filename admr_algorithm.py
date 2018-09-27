@@ -131,7 +131,7 @@ def B_func(B_amp, B_theta, B_phi):
     B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*cos(B_phi), cos(B_theta)])
     return B
 
-@jit(nopython=True)
+@jit("f8[:](f8[:], f8[:])", nopython=True)
 def cross_product(u, v):
     product = np.empty(u.shape[0])
     product[0] = u[1] * v[2] - u[2] * v[1]
@@ -139,8 +139,16 @@ def cross_product(u, v):
     product[2] = u[0] * v[1] - u[1] * v[0]
     return product
 
+@jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True)
+def cross_product_vector(ux, uy, uz, vx, vy ,vz):
+    product = np.empty((ux.shape[0], 3))
+    product[:, 0] = uy[:] * vz - uz[:] * vy
+    product[:, 1] = uz[:] * vx - ux[:] * vz
+    product[:, 2] = ux[:] * vy - uy[:] * vx
+    return product
+
 ## Movement equation //#
-@jit(nopython=True)
+@jit("f8[:](f8[:], f8, f8[:])", nopython=True)
 def diff_func(k, t, B):
     vx, vy, vz =  v_3D_func(k[0], k[1], k[2], band_parameters)
     v = np.array([vx, vy, vz]).transpose()
@@ -148,6 +156,52 @@ def diff_func(k, t, B):
                             # integrated from 0 to +infinity
     return dkdt
 
+
+@jit("f8[:,:](f8[:,:], f8, f8[:])", nopython=True)
+def diff_func_vector(k, t, B):
+    vx, vy, vz =  v_3D_func(k[:,0], k[:,1], k[:,2], band_parameters)
+    dkdt = ( - e / hbar ) * cross_product_vector(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, kt0) in the Chambers formula
+                            # integrated from 0 to +infinity
+    return dkdt
+
+@jit("f8[:,:,:](f8[:,:], f8[:], f8[:])", nopython=True, nogil = True)
+def rgk4_algorithm(kft0, t, B):
+    dt = t[1] - t[0]
+    kft = np.empty( (kft0.shape[0], t.shape[0], 3))
+
+    k = kft0
+    for i in range(t.shape[0]):
+        k1 = dt * diff_func_vector(k, t[i], B)
+        k2 = dt * diff_func_vector(k + k1/2, t[i] + dt/2, B)
+        k3 = dt * diff_func_vector(k + k2/2, t[i] + dt/2, B)
+        k4 = dt * diff_func_vector(k + k3, t[i] + dt, B)
+        k_next = k + (1/6)*k1 + (1/3)*k2 + (1/3)*k3 + (1/6)*k4
+        kft[:, i, :] = k_next
+        k = k_next
+
+    return kft
+
+# t = np.arange(tmin, tmax, dt)
+# B = B_func(B_amp, 0, 0)
+
+
+# start_time_odeint = time.time()
+# kft = np.empty( (kft0.shape[0], t.shape[0], 3))
+# vft = np.empty( (kft0.shape[0], t.shape[0], 3))
+# ## Compute kf, vf function of t ///#
+# for i0 in range(kft0.shape[0]):
+#     kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,)) # solve differential equation
+#     vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
+#     vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
+# print("Odeint time : %.6s seconds" % (time.time() - start_time_odeint))
+
+# start_time_rgk4 = time.time()
+# kftp = rgk4_algorithm(kft0, t, B)
+# vftp = np.empty(kftp.shape)
+# vftp[:,:,0], vftp[:,:,1], vftp[:,:,2] = v_3D_func(kftp[:, :, 0], kftp[:, :, 1], kftp[:, :, 2], band_parameters)
+# print("Rgk4 time : %.6s seconds" % (time.time() - start_time_rgk4))
+
+@jit(nopython=True)
 def solve_movement_func(B_amp, B_theta, B_phi, kft0):
     t = np.arange(tmin, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -157,18 +211,30 @@ def solve_movement_func(B_amp, B_theta, B_phi, kft0):
     ## Compute B ////#
     B = B_func(B_amp, B_theta, B_phi)
 
-    ## Compute kf, vf function of t ///#
-    for i0 in range(kft0.shape[0]):
-        kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,)) # solve differential equation
-        vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
-        vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
+    # start_time_odeint = time.time()
+    # ## Compute kf, vf function of t ///#
+    # for i0 in range(kft0.shape[0]):
+    #     kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,)) # solve differential equation
+    #     vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
+    #     vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
+    # print("Odeint time : %.6s seconds" % (time.time() - start_time_odeint))
 
-    return kft, vft, t
+    # start_time_rgk4 = time.time()
+    kftp = rgk4_algorithm(kft0, t, B)
+    vftp = np.empty(kftp.shape)
+    vftp[:,:,0], vftp[:,:,1], vftp[:,:,2] = v_3D_func(kftp[:, :, 0], kftp[:, :, 1], kftp[:, :, 2], band_parameters)
+    # print("Rgk4 time : %.6s seconds" % (time.time() - start_time_rgk4))
+
+    kft = kftp
+    vft = vftp
+
+    return kft, vft, t, kftp, vftp
 
 
 ## Conductivity sigma_zz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
+@jit(nopython=True)
 def sigma_zz(vzft0, vzft, kft0, dkft0, t, tau):
 
     prefactor = e**2 / ( 4 * pi**3 )
@@ -190,9 +256,9 @@ sigma_zz_a = np.empty(B_theta_a.shape[0])
 for j, B_theta in enumerate(B_theta_a):
 
     start_time = time.time()
-    kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kft0)
+    kft, vft, t, kftp, vftp = solve_movement_func(B_amp, B_theta, B_phi, kft0)
     vzft0 = vft0[:,2]
-    vzft = vft[:,:,2]
+    vzft = vftp[:,:,2]
     s_zz = sigma_zz(vzft0, vzft, kft0, dkft0, t, tau)
     sigma_zz_a[j] = s_zz
     print("theta = " + str(B_theta * 180 / pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
@@ -214,7 +280,7 @@ np.savetxt(file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## For figures, compute t-dependence
-kft, vft, t = solve_movement_func(B_amp = B_amp, B_theta = 0, B_phi = 0, kft0 = kft0)
+kft, vft, t, kftp, vftp = solve_movement_func(B_amp = B_amp, B_theta = 0, B_phi = 0, kft0 = kft0)
 
 mesh_graph = 1000
 kx = np.linspace(-pi/a, pi/a, mesh_graph)
@@ -289,6 +355,8 @@ line = axes.plot(kft0[0, 0], kft0[0, 1])
 plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 line = axes.plot(kft[0,:, 0], kft[0,:, 1])
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(kftp[0,:, 0], kftp[0,:, 1])
+plt.setp(line, ls ="", c = 'b', lw = 3, marker = "s", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # set properties
 
 axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
 axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
@@ -300,7 +368,6 @@ axes.locator_params(axis = 'y', nbins = 6)
 plt.show()
 
 #>>>> vf vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-
 fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
 fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
@@ -333,7 +400,6 @@ plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
 
 #>>>> Cumulated velocity vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-
 fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
 fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
@@ -367,7 +433,6 @@ plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
 
 #>>>> Rzz vs theta >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-
 fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
 fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
