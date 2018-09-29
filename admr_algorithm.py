@@ -29,29 +29,44 @@ hbar = 1
 m = 1
 
 ## Parameters //////
-c = 13.2
+# c = 13.2
+# d = c / 2
+# a = 5.3 / sqrt(2)
+# b = 5.3 / sqrt(2)
+
+# mu = 805 # VHs = 600
+# t = 525
+# tp = -115
+# tpp = 35
+# tz = 11
+
+# tau = 1e-3
+
+c = 1
 d = c / 2
-a = 5.3 / sqrt(2)
-b = 5.3 / sqrt(2)
+a = 1
+b = 1
 
-mu = 805 # VHs = 600
-t = 525
-tp = -115
-tpp = 35
-tz = 11
+t   =  1.
+tp  = -0.21
+tpp =  0.066
+tz  =  0.020
+mu  = 1.53
+tau =  25
 
-mesh_xy = 51
-mesh_z = 100
 
-B_amp = 0.002
+divided_FS_by = 1 # number of time the Fermi surface has been divided by
+mesh_xy = 301
+mesh_z = 51
+
+B_amp = 0.02
 B_phi = 0 * pi / 180
-
-tau = 1e-3
 
 mesh_B_theta = 31
 B_theta_a = np.linspace(0, 180 * pi / 180, mesh_B_theta)
 
 dt = tau / 20
+
 tmin = 0
 tmax = 10 * tau
 
@@ -67,7 +82,7 @@ start_time_FS = time.time()
 mesh_xy_rough = mesh_xy * 100 + 1 # higher it is the rough, better is the interpolated one
 
 kzf_a = np.linspace(-pi / c, pi / c, mesh_z)
-theta_a = np.linspace(0, 2 * pi, mesh_xy_rough)
+theta_a = np.linspace(0, 2 / divided_FS_by * pi, mesh_xy_rough)
 kft0_rough = np.empty( (mesh_xy_rough * mesh_z, 3) )
 
 ## Compute kf at t = 0
@@ -75,11 +90,10 @@ for j, kzf in enumerate(kzf_a):
     for i, theta in enumerate(theta_a):
 
         try:
-            rf = brentq(e_3D_func_radial, a = 0, b = 0.8, args = (theta, kzf, band_parameters))
+            rf = brentq(e_3D_func_radial, a = 0, b = 3.14, args = (theta, kzf, band_parameters))
             kft0_rough[i + j * mesh_xy_rough, 0] = rf * cos(theta)
             kft0_rough[i + j * mesh_xy_rough, 1] = rf * sin(theta)
             kft0_rough[i + j * mesh_xy_rough, 2] = kzf
-
 
         except ValueError: # in case the Fermi surface is not continuous
             kft0_rough[i + j * mesh_xy_rough, 0] = np.NaN
@@ -93,7 +107,6 @@ index_nan_ky = ~np.isnan(kft0_rough[:,1])
 index_nan_kz = ~np.isnan(kft0_rough[:,2])
 index_row_nan_k = index_nan_kx * index_nan_ky * index_nan_kz
 kft0_rough = kft0_rough[index_row_nan_k, :]
-
 
 ## 2nd regular discretization of the Fermi surface ////////////////////////////#
 kft0 = np.empty( (mesh_xy * mesh_z, 3) )
@@ -115,7 +128,7 @@ for j, kzf in enumerate(kzf_a):
     kft0[mesh_xy*j: mesh_xy*(j+1), 2] = kzf
 
 ## Integration Delta
-dkft0 = 1 / (mesh_xy * mesh_z)
+dkft0 = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c )
 
 ## Compute Velocity at t = 0
 vx, vy, vz = v_3D_func(kft0[:,0], kft0[:,1], kft0[:,2], band_parameters)
@@ -139,14 +152,6 @@ def cross_product(u, v):
     product[2] = u[0] * v[1] - u[1] * v[0]
     return product
 
-@jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True)
-def cross_product_vector(ux, uy, uz, vx, vy ,vz):
-    product = np.empty((ux.shape[0], 3))
-    product[:, 0] = uy[:] * vz - uz[:] * vy
-    product[:, 1] = uz[:] * vx - ux[:] * vz
-    product[:, 2] = ux[:] * vy - uy[:] * vx
-    return product
-
 ## Movement equation //#
 @jit("f8[:](f8[:], f8, f8[:])", nopython=True)
 def diff_func(k, t, B):
@@ -156,6 +161,14 @@ def diff_func(k, t, B):
                             # integrated from 0 to +infinity
     return dkdt
 
+
+@jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True)
+def cross_product_vector(ux, uy, uz, vx, vy ,vz):
+    product = np.empty((ux.shape[0], 3))
+    product[:, 0] = uy[:] * vz - uz[:] * vy
+    product[:, 1] = uz[:] * vx - ux[:] * vz
+    product[:, 2] = ux[:] * vy - uy[:] * vx
+    return product
 
 @jit("f8[:,:](f8[:,:], f8, f8[:])", nopython=True)
 def diff_func_vector(k, t, B):
@@ -181,25 +194,6 @@ def rgk4_algorithm(kft0, t, B):
 
     return kft
 
-# t = np.arange(tmin, tmax, dt)
-# B = B_func(B_amp, 0, 0)
-
-
-# start_time_odeint = time.time()
-# kft = np.empty( (kft0.shape[0], t.shape[0], 3))
-# vft = np.empty( (kft0.shape[0], t.shape[0], 3))
-# ## Compute kf, vf function of t ///#
-# for i0 in range(kft0.shape[0]):
-#     kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B,)) # solve differential equation
-#     vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
-#     vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
-# print("Odeint time : %.6s seconds" % (time.time() - start_time_odeint))
-
-# start_time_rgk4 = time.time()
-# kftp = rgk4_algorithm(kft0, t, B)
-# vftp = np.empty(kftp.shape)
-# vftp[:,:,0], vftp[:,:,1], vftp[:,:,2] = v_3D_func(kftp[:, :, 0], kftp[:, :, 1], kftp[:, :, 2], band_parameters)
-# print("Rgk4 time : %.6s seconds" % (time.time() - start_time_rgk4))
 
 @jit(nopython=True)
 def solve_movement_func(B_amp, B_theta, B_phi, kft0):
@@ -246,7 +240,7 @@ def sigma_zz(vzft0, vzft, kft0, dkft0, t, tau):
         vz_sum_over_t = np.sum( vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
         v_product[i0] = vzft0[i0] * vz_sum_over_t
 
-    s_zz = prefactor * np.sum(dkft0 * v_product) # integral over k
+    s_zz = divided_FS_by * prefactor * np.sum(dkft0 * v_product) # integral over k
 
     return s_zz
 
@@ -258,7 +252,7 @@ for j, B_theta in enumerate(B_theta_a):
     start_time = time.time()
     kft, vft, t, kftp, vftp = solve_movement_func(B_amp, B_theta, B_phi, kft0)
     vzft0 = vft0[:,2]
-    vzft = vftp[:,:,2]
+    vzft = vft[:,:,2]
     s_zz = sigma_zz(vzft0, vzft, kft0, dkft0, t, tau)
     sigma_zz_a[j] = s_zz
     print("theta = " + str(B_theta * 180 / pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
@@ -402,8 +396,6 @@ plt.show()
 #>>>> Cumulated velocity vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
 fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
-
-axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
 #///// Allow to shift the label ticks up or down with set_pad /////#
 for tick in axes.xaxis.get_major_ticks():
