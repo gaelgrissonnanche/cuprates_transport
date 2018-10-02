@@ -12,10 +12,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib import cm
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-from band_structure import *
-import time
 from numba import jit, prange
+import time
 
+from band_structure import *
+from diff_equation import *
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
@@ -48,19 +49,19 @@ a = 1
 b = 1
 
 t   =  1.
-tp  = -0.21
-tpp =  0.066
-tz  =  0.020
+tp  = -0.21 * t
+tpp =  0.066 * t
+tz  =  0.020 * t
 mu  = 1.53
 tau =  25
 
 
 divided_FS_by = 1 # number of time the Fermi surface has been divided by
-mesh_xy = 301
-mesh_z = 51
+mesh_xy = 201 # 301 ideal
+mesh_z = 31 # 15 ideal
 
-B_amp = 0.02
-B_phi = 0 * pi / 180
+B_amp = 0.03
+B_phi = 15 * pi / 180
 
 mesh_B_theta = 31
 B_theta_a = np.linspace(0, 180 * pi / 180, mesh_B_theta)
@@ -82,17 +83,17 @@ start_time_FS = time.time()
 mesh_xy_rough = mesh_xy * 100 + 1 # higher it is the rough, better is the interpolated one
 
 kzf_a = np.linspace(-pi / c, pi / c, mesh_z)
-theta_a = np.linspace(0, 2 / divided_FS_by * pi, mesh_xy_rough)
+phi_a = np.linspace(0, 2 / divided_FS_by * pi, mesh_xy_rough)
 kft0_rough = np.empty( (mesh_xy_rough * mesh_z, 3) )
 
 ## Compute kf at t = 0
 for j, kzf in enumerate(kzf_a):
-    for i, theta in enumerate(theta_a):
+    for i, phi in enumerate(phi_a):
 
         try:
-            rf = brentq(e_3D_func_radial, a = 0, b = 3.14, args = (theta, kzf, band_parameters))
-            kft0_rough[i + j * mesh_xy_rough, 0] = rf * cos(theta)
-            kft0_rough[i + j * mesh_xy_rough, 1] = rf * sin(theta)
+            rf = brentq(e_3D_func_radial, a = 0, b = 3.14, args = (phi, kzf, band_parameters))
+            kft0_rough[i + j * mesh_xy_rough, 0] = rf * cos(phi)
+            kft0_rough[i + j * mesh_xy_rough, 1] = rf * sin(phi)
             kft0_rough[i + j * mesh_xy_rough, 2] = kzf
 
         except ValueError: # in case the Fermi surface is not continuous
@@ -107,6 +108,7 @@ index_nan_ky = ~np.isnan(kft0_rough[:,1])
 index_nan_kz = ~np.isnan(kft0_rough[:,2])
 index_row_nan_k = index_nan_kx * index_nan_ky * index_nan_kz
 kft0_rough = kft0_rough[index_row_nan_k, :]
+
 
 ## 2nd regular discretization of the Fermi surface ////////////////////////////#
 kft0 = np.empty( (mesh_xy * mesh_z, 3) )
@@ -136,67 +138,11 @@ vft0 = np.array([vx, vy, vz]).transpose()
 
 print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
 
-## Quasiparticule orbits >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+## Solve differential equation >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 @jit(nopython=True)
-def B_func(B_amp, B_theta, B_phi):
-    B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*cos(B_phi), cos(B_theta)])
-    return B
-
-@jit("f8[:](f8[:], f8[:])", nopython=True)
-def cross_product(u, v):
-    product = np.empty(u.shape[0])
-    product[0] = u[1] * v[2] - u[2] * v[1]
-    product[1] = u[2] * v[0] - u[0] * v[2]
-    product[2] = u[0] * v[1] - u[1] * v[0]
-    return product
-
-## Movement equation //#
-@jit("f8[:](f8[:], f8, f8[:])", nopython=True)
-def diff_func(k, t, B):
-    vx, vy, vz =  v_3D_func(k[0], k[1], k[2], band_parameters)
-    v = np.array([vx, vy, vz]).transpose()
-    dkdt = ( - e / hbar ) * cross_product(v, - B) # (-) represent -t in vz(-t, kt0) in the Chambers formula
-                            # integrated from 0 to +infinity
-    return dkdt
-
-
-@jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True)
-def cross_product_vector(ux, uy, uz, vx, vy ,vz):
-    product = np.empty((ux.shape[0], 3))
-    product[:, 0] = uy[:] * vz - uz[:] * vy
-    product[:, 1] = uz[:] * vx - ux[:] * vz
-    product[:, 2] = ux[:] * vy - uy[:] * vx
-    return product
-
-@jit("f8[:,:](f8[:,:], f8, f8[:])", nopython=True)
-def diff_func_vector(k, t, B):
-    vx, vy, vz =  v_3D_func(k[:,0], k[:,1], k[:,2], band_parameters)
-    dkdt = ( - e / hbar ) * cross_product_vector(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, kt0) in the Chambers formula
-                            # integrated from 0 to +infinity
-    return dkdt
-
-@jit("f8[:,:,:](f8[:,:], f8[:], f8[:])", nopython=True, nogil = True)
-def rgk4_algorithm(kft0, t, B):
-    dt = t[1] - t[0]
-    kft = np.empty( (kft0.shape[0], t.shape[0], 3))
-
-    k = kft0
-    for i in range(t.shape[0]):
-        k1 = dt * diff_func_vector(k, t[i], B)
-        k2 = dt * diff_func_vector(k + k1/2, t[i] + dt/2, B)
-        k3 = dt * diff_func_vector(k + k2/2, t[i] + dt/2, B)
-        k4 = dt * diff_func_vector(k + k3, t[i] + dt, B)
-        k_next = k + (1/6)*k1 + (1/3)*k2 + (1/3)*k3 + (1/6)*k4
-        kft[:, i, :] = k_next
-        k = k_next
-
-    return kft
-
-
-@jit(nopython=True)
-def solve_movement_func(B_amp, B_theta, B_phi, kft0):
+def solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters):
     t = np.arange(tmin, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
     vft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -214,7 +160,7 @@ def solve_movement_func(B_amp, B_theta, B_phi, kft0):
     # print("Odeint time : %.6s seconds" % (time.time() - start_time_odeint))
 
     # start_time_rgk4 = time.time()
-    kftp = rgk4_algorithm(kft0, t, B)
+    kftp = rgk4_algorithm(kft0, t, B, band_parameters)
     vftp = np.empty(kftp.shape)
     vftp[:,:,0], vftp[:,:,1], vftp[:,:,2] = v_3D_func(kftp[:, :, 0], kftp[:, :, 1], kftp[:, :, 2], band_parameters)
     # print("Rgk4 time : %.6s seconds" % (time.time() - start_time_rgk4))
@@ -229,16 +175,21 @@ def solve_movement_func(B_amp, B_theta, B_phi, kft0):
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 @jit(nopython=True)
-def sigma_zz(vzft0, vzft, kft0, dkft0, t, tau):
+def sigma_zz(vft0, vzft, kft0, dkft0, t, tau):
 
     prefactor = e**2 / ( 4 * pi**3 )
 
+    # Time increment
     dt = t[1] - t[0]
+    # Density of State
+    dos = hbar * sqrt( vft0[:,0]**2 + vft0[:,1]**2 + vft0[:,2]**2 )
+
+    vzft0 = vft0[:,2]
 
     v_product = np.empty(vzft0.shape[0])
     for i0 in prange(vzft0.shape[0]):
-        vz_sum_over_t = np.sum( vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
-        v_product[i0] = vzft0[i0] * vz_sum_over_t
+        vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
+        v_product[i0] = vzft0[i0] * vz_sum_over_t # integral over z
 
     s_zz = divided_FS_by * prefactor * np.sum(dkft0 * v_product) # integral over k
 
@@ -250,31 +201,32 @@ sigma_zz_a = np.empty(B_theta_a.shape[0])
 for j, B_theta in enumerate(B_theta_a):
 
     start_time = time.time()
-    kft, vft, t, kftp, vftp = solve_movement_func(B_amp, B_theta, B_phi, kft0)
-    vzft0 = vft0[:,2]
-    vzft = vft[:,:,2]
-    s_zz = sigma_zz(vzft0, vzft, kft0, dkft0, t, tau)
+
+    kft, vft, t, kftp, vftp = solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters)
+
+    s_zz = sigma_zz(vft0, vft[:,:,2], kft0, dkft0, t, tau)
     sigma_zz_a[j] = s_zz
+
     print("theta = " + str(B_theta * 180 / pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
     print("Calculation time : %.6s seconds" % (time.time() - start_time))
 
 
 rho_zz_a = 1 / sigma_zz_a
-rho_zz_0 = interpolate.interp1d(B_theta_a, rho_zz_a)( 0 )
+rho_zz_0 = rho_zz_a[0]
 
 ## Save Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-Data = np.vstack((B_theta_a, rho_zz_a / rho_zz_0))
+Data = np.vstack((B_theta_a, rho_zz_a / rho_zz_0, ))
 Data = Data.transpose()
-file_name =  "data.dat"
-np.savetxt(file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz(0)", comments = "#")
-
+folder = "../data_sim/"
+file_name =  "Rzz" + "_" + str(B_amp) + "_" + str(tau) + "_" + str(mu) + "_" + str(tp) + "_" + str(tpp) + "_" + str(tz) + ".dat"
+np.savetxt(folder + file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz(0)\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 ## Figures ////////////////////////////////////////////////////////////////////#
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## For figures, compute t-dependence
-kft, vft, t, kftp, vftp = solve_movement_func(B_amp = B_amp, B_theta = 0, B_phi = 0, kft0 = kft0)
+kft, vft, t, kftp, vftp = solve_movement_func(B_amp, 0, 0, kft0, band_parameters)
 
 mesh_graph = 1000
 kx = np.linspace(-pi/a, pi/a, mesh_graph)
@@ -440,7 +392,7 @@ for tick in axes.yaxis.get_major_ticks():
 # fig.text(0.79,0.86, samplename, ha = "right")
 
 line = axes.plot(B_theta_a * 180 / pi, rho_zz_a / rho_zz_a[0])
-plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+plt.setp(line, ls ="-", c = '#FF2D2D', lw = 3, marker = "", mfc = '#FF2D2D', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
 axes.set_xlim(0, 180)   # limit for xaxis
 # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
@@ -462,11 +414,10 @@ axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 axes.locator_params(axis = 'y', nbins = 6)
 
 plt.show()
-#//////////////////////////////////////////////////////////////////////////////#
 
-
-#//////////////////////////////////////////////////////////////////////////////#
-plt.close()
+folder = "../figures_sim/"
+figure_name = "Rzz" + "_" + str(B_amp) + "_" + str(tau) + "_" + str(mu) + "_" + str(tp) + "_" + str(tpp) + "_" + str(tz) + ".pdf"
+fig.savefig(folder + figure_name, bbox_inches = "tight")
 #//////////////////////////////////////////////////////////////////////////////#
 
 
