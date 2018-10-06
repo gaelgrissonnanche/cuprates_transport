@@ -20,12 +20,12 @@ m = 1
 
 
 ## Functions for ODEINT ///////////////////////////////////////////////////////#
-@jit(nopython=True)
+@jit(nopython=True, cache = True)
 def B_func(B_amp, B_theta, B_phi):
     B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*cos(B_phi), cos(B_theta)])
     return B
 
-@jit("f8[:](f8[:], f8[:])", nopython=True)
+@jit("f8[:](f8[:], f8[:])", nopython=True, cache = True)
 def cross_product(u, v):
     product = np.empty(u.shape[0])
     product[0] = u[1] * v[2] - u[2] * v[1]
@@ -34,7 +34,7 @@ def cross_product(u, v):
     return product
 
 ## Movement equation //#
-@jit("f8[:](f8[:], f8, f8[:], f8[:])", nopython=True)
+@jit("f8[:](f8[:], f8, f8[:], f8[:])", nopython=True, cache = True)
 def diff_func(k, t, B, band_parameters):
     vx, vy, vz =  v_3D_func(k[0], k[1], k[2], band_parameters)
     v = np.array([vx, vy, vz]).transpose()
@@ -45,7 +45,7 @@ def diff_func(k, t, B, band_parameters):
 
 
 ## Functions for Runge-Kutta //////////////////////////////////////////////////#
-@jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True)
+@jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True, cache = True)
 def cross_product_vector(ux, uy, uz, vx, vy ,vz):
     product = np.empty((ux.shape[0], 3))
     product[:, 0] = uy[:] * vz - uz[:] * vy
@@ -53,14 +53,14 @@ def cross_product_vector(ux, uy, uz, vx, vy ,vz):
     product[:, 2] = ux[:] * vy - uy[:] * vx
     return product
 
-@jit("f8[:,:](f8[:,:], f8, f8[:], f8[:])", nopython=True)
+@jit("f8[:,:](f8[:,:], f8, f8[:], f8[:])", nopython=True, cache = True)
 def diff_func_vector(k, t, B, band_parameters):
     vx, vy, vz =  v_3D_func(k[:,0], k[:,1], k[:,2], band_parameters)
     dkdt = ( - e / hbar ) * cross_product_vector(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, kt0) in the Chambers formula
                             # integrated from 0 to +infinity
     return dkdt
 
-@jit("f8[:,:,:](f8[:,:], f8[:], f8[:], f8[:])", nopython=True, nogil = True)
+@jit("f8[:,:,:](f8[:,:], f8[:], f8[:], f8[:])", nopython=True, cache = True, nogil = True)
 def rgk4_algorithm(kft0, t, B, band_parameters):
     dt = t[1] - t[0]
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))

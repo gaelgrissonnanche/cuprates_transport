@@ -60,11 +60,11 @@ mu  = 1.53 * t
 tau =  25
 
 
-divided_FS_by = 1 # number of time the Fermi surface has been divided by
-mesh_xy = 32 # must be a multiple of 4
+symmetry_FS = 1 # number of time the Fermi surface has been divided by
+mesh_xy = 48 # must be a multiple of 4
 mesh_z = 11 # 11 ideal to be fast and accurate
 
-B_amp = 0.02
+B_amp = 0.03
 B_phi = 15 * pi / 180
 
 mesh_B_theta = 31
@@ -75,106 +75,50 @@ tmin = 0
 tmax = 10 * tau
 dt = tmax / 200
 
+band_parameters = np.array([mu, a, d, t, tp, tpp, tz])
 
 ## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## Make mesh_xy a multiple of 4 to preserve symmetry
-if mesh_xy % 4 != 0:
-    mesh_xy = mesh_xy - (mesh_xy % 4)
+mesh_xy = mesh_xy - (mesh_xy % 4)
 
-band_parameters = np.array([mu, a, d, t, tp, tpp, tz])
 
 start_time_FS = time.time()
 
-# mesh_xy_rough = mesh_xy*10 + 1 # higher it is the rough, better is the interpolated one
+mesh_xy_rough = mesh_xy*10 + 1 # higher it is the rough, better is the interpolated one
 
-# kft0 = np.empty( (mesh_xy * mesh_z, 3) )
-
-# kx = np.linspace(-pi/a, pi/a, mesh_xy_rough)
-# ky = np.linspace(-pi/b, pi/b, mesh_xy_rough)
-# kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
-
-# kzf_a = np.linspace(-pi / c, pi / c, mesh_z)
-
-# for j, kzf in enumerate(kzf_a):
-#     bands = e_3D_func(kxx, kyy, kzf, band_parameters)
-#     contour = measure.find_contours(bands, 0)[0]
-#     # for contour in contours:
-
-#     # Contour in units proportionnal to size of meshgrid
-#     x_raw = contour[:, 0]
-#     y_raw = contour[:, 1]
-
-#     # Scale the contour to units of kx and ky
-#     x = (x_raw/(mesh_xy_rough-1)-0.5)*2*pi/a
-#     y = (y_raw/(mesh_xy_rough-1)-0.5)*2*pi/b
-
-#     # Make the contour start at a high point of symmetry, for example for ky = 0
-#     index_xmax = np.argmax(x) # find the index of the first maximum of x
-#     x = np.roll(x, x.shape - index_xmax) # roll the elements to get maximum of x first
-#     y = np.roll(y, x.shape - index_xmax) # roll the elements to get maximum of x first
-
-#     # Closed contour?
-#     if x[1] == x[-1]: # meaning a closed contour
-#         x = np.append(x, x[0]) # add the first element to get a closed contour
-#         y = np.append(y, y[0]) # to calculate the total length
-#         mesh_xy = mesh_xy - (mesh_xy % 4) # respects the 4-order symmetry
-
-#     ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-#     s = np.zeros_like(x) # arrays of zeros
-#     s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
-
-#     s_int = np.linspace(0, s.max(), mesh_xy + 1) # regular spaced path
-#     x_int = np.interp(s_int, s, x)[:-1] # interpolate
-#     y_int = np.interp(s_int, s, y)[:-1]
-
-#     kft0[mesh_xy*j: mesh_xy*(j+1), 0] = x_int
-#     kft0[mesh_xy*j: mesh_xy*(j+1), 1] = y_int
-#     kft0[mesh_xy*j: mesh_xy*(j+1), 2] = kzf
-
-
-
-
-
-
-## 1st unregular discretization of the Fermi surface //////////////////////////#
-mesh_xy_rough = mesh_xy * 100 + 1 # higher it is the rough, better is the interpolated one
-
-kzf_a = np.linspace(-pi / c, pi / c, mesh_z)
-phi_a = np.linspace(0, 2 / divided_FS_by * pi, mesh_xy_rough)
-kft0_rough = np.empty( (mesh_xy_rough * mesh_z, 3) )
-
-## Compute kf at t = 0
-for j, kzf in enumerate(kzf_a):
-    for i, phi in enumerate(phi_a):
-
-        try:
-            rf = brentq(e_3D_func_radial, a = 0, b = 3.14, args = (phi, kzf, band_parameters))
-            kft0_rough[i + j * mesh_xy_rough, 0] = rf * cos(phi)
-            kft0_rough[i + j * mesh_xy_rough, 1] = rf * sin(phi)
-            kft0_rough[i + j * mesh_xy_rough, 2] = kzf
-
-        except ValueError: # in case the Fermi surface is not continuous
-            kft0_rough[i + j * mesh_xy_rough, 0] = np.NaN
-            kft0_rough[i + j * mesh_xy_rough, 1] = np.NaN
-            kft0_rough[i + j * mesh_xy_rough, 2] = np.NaN
-
-
-## Remove k points NaN
-index_nan_kx = ~np.isnan(kft0_rough[:,0])
-index_nan_ky = ~np.isnan(kft0_rough[:,1])
-index_nan_kz = ~np.isnan(kft0_rough[:,2])
-index_row_nan_k = index_nan_kx * index_nan_ky * index_nan_kz
-kft0_rough = kft0_rough[index_row_nan_k, :]
-
-
-## 2nd regular discretization of the Fermi surface ////////////////////////////#
 kft0 = np.empty( (mesh_xy * mesh_z, 3) )
 
+kx = np.linspace(-pi/a, pi/a, mesh_xy_rough)
+ky = np.linspace(-pi/b, pi/b, mesh_xy_rough)
+kzf_a = np.linspace(-pi/c, pi/c, mesh_z) # 2*pi/c because bodycentered unit cell
+kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+
 for j, kzf in enumerate(kzf_a):
-    x = kft0_rough[mesh_xy_rough*j: mesh_xy_rough*(j+1), 0]
-    y = kft0_rough[mesh_xy_rough*j: mesh_xy_rough*(j+1), 1]
+    bands = e_3D_func(kxx, kyy, kzf, band_parameters)
+    contour = measure.find_contours(bands, 0)[0]
+    # for contour in contours:
+
+    # Contour in units proportionnal to size of meshgrid
+    x_raw = contour[:, 0]
+    y_raw = contour[:, 1]
+
+    # Scale the contour to units of kx and ky
+    x = (x_raw/(mesh_xy_rough-1)-0.5)*2*pi/a
+    y = (y_raw/(mesh_xy_rough-1)-0.5)*2*pi/b
+
+    # Make the contour start at a high point of symmetry, for example for ky = 0
+    index_xmax = np.argmax(x) # find the index of the first maximum of x
+    x = np.roll(x, x.shape - index_xmax) # roll the elements to get maximum of x first
+    y = np.roll(y, x.shape - index_xmax) # roll the elements to get maximum of x first
+
+    # Closed contour?
+    if x[1] == x[-1]: # meaning a closed contour
+        x = np.append(x, x[0]) # add the first element to get a closed contour
+        y = np.append(y, y[0]) # to calculate the total length
+        mesh_xy = mesh_xy - (mesh_xy % 4) # respects the 4-order symmetry
+
     ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
     s = np.zeros_like(x) # arrays of zeros
     s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
@@ -187,9 +131,8 @@ for j, kzf in enumerate(kzf_a):
     kft0[mesh_xy*j: mesh_xy*(j+1), 1] = y_int
     kft0[mesh_xy*j: mesh_xy*(j+1), 2] = kzf
 
-
 ## Integration Delta
-dkft0 = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c )
+dkft0 = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c ) / symmetry_FS
 
 ## Compute Velocity at t = 0
 vx, vy, vz = v_3D_func(kft0[:,0], kft0[:,1], kft0[:,2], band_parameters)
@@ -200,7 +143,7 @@ print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
 ## Solve differential equation >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
-@jit(nopython=True)
+@jit(nopython = True, cache = True)
 def solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters):
     t = np.arange(tmin, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -233,7 +176,7 @@ def solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters):
 ## Conductivity sigma_zz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
-@jit(nopython=True)
+@jit(nopython = True, cache = True)
 def sigma_zz(vft0, vzft, kft0, dkft0, t, tau):
 
     prefactor = e**2 / ( 4 * pi**3 )
@@ -250,7 +193,7 @@ def sigma_zz(vft0, vzft, kft0, dkft0, t, tau):
         vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
         v_product[i0] = vzft0[i0] * vz_sum_over_t # integral over z
 
-    s_zz = divided_FS_by * prefactor * np.sum(dkft0 * v_product) # integral over k
+    s_zz = prefactor * np.sum(dkft0 * v_product) # integral over k
 
     return s_zz
 
