@@ -57,16 +57,16 @@ t   =  1.
 tp  = -0.21 * t
 tpp =  0.066 * t
 tz  =  0.020 * t
-mu  = 1.53 * t
+mu  = 1.53 * t # Van Hove at 1.1
 tau =  25
 
 
 symmetry_FS_xy = 2 # number of time the Fermi surface has been divided by along xy
 symmetry_FS_z = 2 # number of time the Fermi surface has been divided by along z
-mesh_xy = 28 # must be a multiple of 4
+mesh_xy = 28 # 28 must be a multiple of 4
 mesh_z = 11 # 11 ideal to be fast and accurate
 
-B_amp = 0.02
+B_amp = 0.05
 B_phi = 15 * pi / 180
 
 mesh_B_theta = 31
@@ -75,7 +75,7 @@ B_theta_a = np.linspace(0, 180 * pi / 180, mesh_B_theta)
 
 tmin = 0
 tmax = 10 * tau
-dt = tmax / 200
+dt = tmax / 300
 
 band_parameters = np.array([mu, a, d, t, tp, tpp, tz])
 
@@ -98,43 +98,63 @@ kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
 for j, kzf in enumerate(kzf_a):
     bands = e_3D_func(kxx, kyy, kzf, band_parameters)
-    contour = measure.find_contours(bands, 0)[0]
-    # for contour in contours:
+    contours = measure.find_contours(bands, 0)
+    number_contours = len(contours)
 
-    # Contour in units proportionnal to size of meshgrid
-    x_raw = contour[:, 0]
-    y_raw = contour[:, 1]
+    for i, contour in enumerate(contours):
 
-    # Scale the contour to units of kx and ky
-    x = (x_raw/(mesh_xy_rough-1)-0.5)*2*pi/a
-    y = (y_raw/(mesh_xy_rough-1)-0.5)*2*pi/b
+        # Contour in units proportionnal to size of meshgrid
+        x_raw = contour[:, 0]
+        y_raw = contour[:, 1]
 
-    # Make the contour start at a high point of symmetry, for example for ky = 0
-    index_xmax = np.argmax(x) # find the index of the first maximum of x
-    x = np.roll(x, x.shape - index_xmax) # roll the elements to get maximum of x first
-    y = np.roll(y, x.shape - index_xmax) # roll the elements to get maximum of x first
+        # Is Contour closed?
+        closed = (x_raw[0] == x_raw[-1]) * (y_raw[0] == y_raw[-1])
 
-    # Closed contour?
-    if x[1] == x[-1]: # meaning a closed contour
-        x = np.append(x, x[0]) # add the first element to get a closed contour
-        y = np.append(y, y[0]) # in order to calculate its real total length
-        mesh_xy = mesh_xy - (mesh_xy % 4) # respects the 4-order symmetry
+        # Scale the contour to units of kx and ky
+        x = (x_raw/(mesh_xy_rough-1)-0.5)*2*pi/a
+        y = (y_raw/(mesh_xy_rough-1)-0.5)*2*pi/b
 
-    ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-    s = np.zeros_like(x) # arrays of zeros
-    s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
+        # Make all opened contours go in direction of x[i+1] - x[i] < 0, otherwise interpolation problem
+        if closed == False and np.diff(x)[0] > 0:
+            x = x[::-1]
+            y = y[::-1]
 
-    s_int = np.linspace(0, s.max() / symmetry_FS_xy, mesh_xy + 1) # regular spaced path
-    x_int = np.interp(s_int, s, x)[:-1] # interpolate
-    y_int = np.interp(s_int, s, y)[:-1]
+        # Make the contour start at a high point of symmetry, for example for ky = 0
+        index_xmax = np.argmax(x) # find the index of the first maximum of x
+        x = np.roll(x, x.shape - index_xmax) # roll the elements to get maximum of x first
+        y = np.roll(y, x.shape - index_xmax) # roll the elements to get maximum of x first
 
-    # Put in an array
-    if j == 0:
-        kft0 = np.vstack((x_int, y_int, kzf*np.ones_like(x_int))).transpose()
-        print(kft0.shape)
-    else:
-        k_next = np.vstack((x_int, y_int, kzf*np.ones_like(x_int))).transpose()
-        kft0 = np.vstack((kft0, k_next))
+        # Closed contour
+        if x[1] == x[-1]: # meaning a closed contour
+            x = np.append(x, x[0]) # add the first element to get a closed contour
+            y = np.append(y, y[0]) # in order to calculate its real total length
+            mesh_xy = mesh_xy - (mesh_xy % 4) # respects the 4-order symmetry
+
+            ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
+            s = np.zeros_like(x) # arrays of zeros
+            s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
+
+            s_int = np.linspace(0, s.max() / symmetry_FS_xy, mesh_xy + 1) # regular spaced path
+            x_int = np.interp(s_int, s, x)[:-1] # interpolate
+            y_int = np.interp(s_int, s, y)[:-1]
+
+        # Opened contour
+        else:
+            ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
+            s = np.zeros_like(x) # arrays of zeros
+            s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
+
+            s_int = np.linspace(0, s.max() / symmetry_FS_xy, mesh_xy) # regular spaced path
+            x_int = np.interp(s_int, s, x) # interpolate
+            y_int = np.interp(s_int, s, y)
+
+
+        # Put in an array /////////////////////////////////////////////////////#
+        if i == 0 and j == 0: # for first contour and first kz
+            kft0 = np.vstack((x_int, y_int, kzf*np.ones_like(x_int))).transpose()
+        else:
+            k_next = np.vstack((x_int, y_int, kzf*np.ones_like(x_int))).transpose()
+            kft0 = np.vstack((kft0, k_next))
 
 
 ## Integration Delta
@@ -274,7 +294,7 @@ for tick in axes.yaxis.get_major_ticks():
 # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
 line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1]) # mesh_xy means all points for kz = - pi / c
+line = axes.plot(kft0[: mesh_xy*1*number_contours, 0], kft0[: mesh_xy*1*number_contours, 1]) # mesh_xy means all points for kz = - pi / c
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
 # axes.quiver(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1], vft0[: mesh_xy*1, 0], vft0[: mesh_xy*1, 1], color = 'k') # mesh_xy means all points for kz = - pi / c
 
