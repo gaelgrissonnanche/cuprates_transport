@@ -42,6 +42,8 @@ def diff_func(k, t, B, band_parameters):
                             # integrated from 0 to +infinity
     return dkdt
 
+
+
 ## Functions for Runge-Kutta //////////////////////////////////////////////////#
 @jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True)
 def cross_product_vector(ux, uy, uz, vx, vy ,vz):
