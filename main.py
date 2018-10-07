@@ -51,7 +51,7 @@ t   =  1.
 tp  = -0.14 * t
 tpp =  0.07 * t
 tz  =  0.07 * t
-mu  = 1.1 * t # Van Hove at 1.1
+mu  = 0.9 * t
 
 tau =  25
 
@@ -64,9 +64,9 @@ mesh_B_theta = 31
 B_theta_max = 180
 
 B_amp = 0.015
-B_phi = 0 * pi / 180
+# B_phi = 0 * pi / 180
 
-# B_phi_a = np.array(0, 15, 30, 45)
+B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
 
 
 band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz])
@@ -133,29 +133,30 @@ def sigma_zz(vft0, vzft, kft0, dkft0, t, tau):
 
 # Function of B_theta
 B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
-sigma_zz_a = np.empty(B_theta_a.shape[0])
+sigma_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]))
 
-for j, B_theta in enumerate(B_theta_a):
+for i, B_phi in enumerate(B_phi_a):
+    for j, B_theta in enumerate(B_theta_a):
 
-    start_time = time.time()
+        start_time = time.time()
 
-    kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters, tmax = 10 * tau)
+        tmax = 10 * tau
+        kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters, tmax)
+        s_zz = sigma_zz(vft0, vft[:,:,2], kft0, dkft0, t, tau)
+        sigma_zz_a[i, j] = s_zz
 
-    s_zz = sigma_zz(vft0, vft[:,:,2], kft0, dkft0, t, tau)
-    sigma_zz_a[j] = s_zz
-
-    print("theta = " + str(B_theta * 180 / pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
-    print("Calculation time : %.6s seconds" % (time.time() - start_time))
+        print("theta = " + str(B_theta * 180 / pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
+        print("Calculation time : %.6s seconds" % (time.time() - start_time))
 
 
 rho_zz_a = 1 / sigma_zz_a
-rho_zz_0 = rho_zz_a[0]
+rho_zz_0 = rho_zz_a[:,0]
 
 print("Total time : %.6s seconds" % (time.time() - start_total_time))
 
 ## Save Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-len = rho_zz_a.shape[0]
-Data = np.vstack((B_theta_a, rho_zz_a / rho_zz_0, B_amp*ones(len), tau*ones(len), mu*ones(len), 1*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
+len = rho_zz_a.shape[1]
+Data = np.vstack((B_theta_a, rho_zz_a[0,:] / rho_zz_0[0], B_amp*ones(len), tau*ones(len), mu*ones(len), 1*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
 Data = Data.transpose()
 folder = "../data_sim/"
 file_name =  "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".dat"
@@ -236,12 +237,12 @@ for tick in axes.yaxis.get_major_ticks():
 # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
 line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kft0[0, 0], kft0[0, 1])
-plt.setp(line, ls ="", c = 'b', lw = 3, marker = "s", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # set properties
 line = axes.plot(kft[0,:, 0], kft[0,:, 1])
-plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # set properties
+plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0) # trajectory
+line = axes.plot(kft0[0, 0], kft0[0, 1])
+plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'w', ms = 4.5, mec = "b", mew= 1.5)  # starting point
 line = axes.plot(kft[0,-1, 0], kft[0,-1, 1])
-plt.setp(line, ls ="", c = 'b', lw = 1, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # set properties
+plt.setp(line, ls ="", c = 'b', lw = 1, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # end point
 
 axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
 axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
@@ -312,8 +313,6 @@ plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
 
 #>>>> Rzz vs theta >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-width = 10
-height = 5.8
 fig, axes = plt.subplots(1, 1, figsize = (10, 5.8)) # (1,1) means one plot, and figsize is w x h in inch of figure
 fig.subplots_adjust(left = 0.17, right = 0.78, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
@@ -333,13 +332,20 @@ fig.text(0.81,0.65, r"$t^\prime$ = " + str(tp))
 fig.text(0.81,0.58, r"$t^{\prime\prime}$ = " + str(tpp))
 fig.text(0.81,0.51, r"$t_{\rm z}$ = " + str(tz))
 
-line = axes.plot(B_theta_a * 180 / pi, rho_zz_a / rho_zz_a[0])
-plt.setp(line, ls ="-", c = '#FF7A7A', lw = 2, marker = "o", mfc = 'w', ms = 5, mec = "#FF7A7A", mew= 1.5)  # set properties
+colors = ['k', '#3B528B', 'r', '#C7E500']
+
+for i, B_phi in enumerate(B_phi_a):
+    line = axes.plot(B_theta_a * 180 / pi, rho_zz_a[i,:] / rho_zz_0[i], label = r"$\phi$ = " + r"{0:.0f}".format(B_phi * 180 / pi))
+    plt.setp(line, ls ="-", c = colors[i], lw = 3, marker = "", mfc = 'w', ms = 5, mec = colors[i], mew= 1.5)  # set properties
 
 axes.set_xlim(0, B_theta_max)   # limit for xaxis
 # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
+
+######################################################
+plt.legend(loc = 3, fontsize = 14, frameon = False, numpoints=1, markerscale = 1, handletextpad=0.5)
+######################################################
 
 
 ##///Set ticks space and minor ticks space ///#

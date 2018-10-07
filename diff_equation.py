@@ -13,7 +13,7 @@ from band_structure import *
 # e = 1.6e19
 # m0 = 9.1e31
 # kB = 1.38e23
-# jtoev = 6.242e18
+
 e = 1
 hbar = 1
 m = 1
@@ -57,3 +57,30 @@ def rgk4_algorithm(kft0, t, B, band_parameters):
         k = k_next
 
     return kft
+
+
+
+## Old stuff for ODEINT ///////////////////////////////////////////////////////#
+
+# @jit("f8[:](f8[:], f8[:])", nopython=True, cache = True)
+# def cross_product(u, v):
+#     product = empty(u.shape[0])
+#     product[0] = u[1] * v[2] - u[2] * v[1]
+#     product[1] = u[2] * v[0] - u[0] * v[2]
+#     product[2] = u[0] * v[1] - u[1] * v[0]
+#     return product
+
+# ## Movement equation //#
+# @jit("f8[:](f8[:], f8, f8[:], f8[:])", nopython=True, cache = True)
+# def diff_func(k, t, B, band_parameters):
+#     vx, vy, vz =  v_3D_func(k[0], k[1], k[2], band_parameters)
+#     v = array([vx, vy, vz]).transpose()
+#     dkdt = ( - e / hbar ) * cross_product(v, - B) # (-) represent -t in vz(-t, kt0) in the Chambers formula
+#                             # integrated from 0 to +infinity
+#     return dkdt
+
+# ## Compute kf, vf function of t ///#
+# for i0 in range(kft0.shape[0]):
+#     kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B, band_parameters)) # solve differential equation
+#     vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
+#     vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
