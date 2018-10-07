@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from numba import jit, prange
 import time
-from skimage import measure
+
 
 from band_structure import *
 from diff_equation import *
@@ -18,11 +18,11 @@ from diff_equation import *
 start_total_time = time.time()
 
 ## Constant //////
-# hbar = 1.05e34
-# e = 1.6e19
-# m0 = 9.1e31
-# kB = 1.38e23
-# jtoev = 6.242e18
+# hbar = 1.05e-34
+# e = 1.6e-19
+# m0 = 9.1e-31
+# kB = 1.38e-23
+
 e = 1
 hbar = 1
 m = 1
@@ -41,17 +41,9 @@ m = 1
 
 # tau = 1e-3
 
-c = 1
-d = c / 2
 a = 1
 b = 1
-
-# t   =  1.
-# tp  = -0.21 * t
-# tpp =  0.066 * t
-# tz  =  0.020 * t
-# mu  = 1.53
-# tau =  25
+c = 1
 
 t   =  1.
 tp  = -0.21 * t
@@ -65,19 +57,19 @@ symmetry_FS_xy = 2 # number of time the Fermi surface has been divided by along 
 symmetry_FS_z = 2 # number of time the Fermi surface has been divided by along z
 mesh_xy = 28 # 28 must be a multiple of 4
 mesh_z = 11 # 11 ideal to be fast and accurate
-
-B_amp = 0.05
-B_phi = 15 * pi / 180
-
 mesh_B_theta = 31
-B_theta_a = np.linspace(0, 180 * pi / 180, mesh_B_theta)
+B_theta_max = 180
+
+B_amp = 0.02
+B_phi = 0 * pi / 180
 
 
-tmin = 0
+
+
 tmax = 10 * tau
 dt = tmax / 300
 
-band_parameters = np.array([mu, a, d, t, tp, tpp, tz])
+band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz])
 
 ## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -85,84 +77,10 @@ band_parameters = np.array([mu, a, d, t, tp, tpp, tz])
 ## Make mesh_xy a multiple of 4 to respect the 4-order symmetry
 mesh_xy = mesh_xy - (mesh_xy % 4)
 
-
 start_time_FS = time.time()
 
-mesh_xy_rough = mesh_xy*10 + 1 # higher it is the rough, better is the interpolated one
-
-
-kx = np.linspace(-pi/a, pi/a, mesh_xy_rough)
-ky = np.linspace(-pi/b, pi/b, mesh_xy_rough)
-kzf_a = np.linspace(-2*pi/c/symmetry_FS_z, 2*pi/c/symmetry_FS_z, mesh_z) # 2*pi/c because bodycentered unit cell
-kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
-
-for j, kzf in enumerate(kzf_a):
-    bands = e_3D_func(kxx, kyy, kzf, band_parameters)
-    contours = measure.find_contours(bands, 0)
-    number_contours = len(contours)
-
-    for i, contour in enumerate(contours):
-
-        # Contour in units proportionnal to size of meshgrid
-        x_raw = contour[:, 0]
-        y_raw = contour[:, 1]
-
-        # Is Contour closed?
-        closed = (x_raw[0] == x_raw[-1]) * (y_raw[0] == y_raw[-1])
-
-        # Scale the contour to units of kx and ky
-        x = (x_raw/(mesh_xy_rough-1)-0.5)*2*pi/a
-        y = (y_raw/(mesh_xy_rough-1)-0.5)*2*pi/b
-
-        # Make all opened contours go in direction of x[i+1] - x[i] < 0, otherwise interpolation problem
-        if closed == False and np.diff(x)[0] > 0:
-            x = x[::-1]
-            y = y[::-1]
-
-        # Make the contour start at a high point of symmetry, for example for ky = 0
-        index_xmax = np.argmax(x) # find the index of the first maximum of x
-        x = np.roll(x, x.shape - index_xmax) # roll the elements to get maximum of x first
-        y = np.roll(y, x.shape - index_xmax) # roll the elements to get maximum of x first
-
-        # Closed contour
-        if x[1] == x[-1]: # meaning a closed contour
-            x = np.append(x, x[0]) # add the first element to get a closed contour
-            y = np.append(y, y[0]) # in order to calculate its real total length
-            mesh_xy = mesh_xy - (mesh_xy % 4) # respects the 4-order symmetry
-
-            ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-            s = np.zeros_like(x) # arrays of zeros
-            s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
-
-            s_int = np.linspace(0, s.max() / symmetry_FS_xy, mesh_xy + 1) # regular spaced path
-            x_int = np.interp(s_int, s, x)[:-1] # interpolate
-            y_int = np.interp(s_int, s, y)[:-1]
-
-        # Opened contour
-        else:
-            ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-            s = np.zeros_like(x) # arrays of zeros
-            s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
-
-            s_int = np.linspace(0, s.max() / symmetry_FS_xy, mesh_xy) # regular spaced path
-            x_int = np.interp(s_int, s, x) # interpolate
-            y_int = np.interp(s_int, s, y)
-
-
-        # Put in an array /////////////////////////////////////////////////////#
-        if i == 0 and j == 0: # for first contour and first kz
-            kft0 = np.vstack((x_int, y_int, kzf*np.ones_like(x_int))).transpose()
-        else:
-            k_next = np.vstack((x_int, y_int, kzf*np.ones_like(x_int))).transpose()
-            kft0 = np.vstack((kft0, k_next))
-
-
-## Integration Delta
-dkft0 = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c ) * symmetry_FS_xy * symmetry_FS_z
-
-## Compute Velocity at t = 0
-vx, vy, vz = v_3D_func(kft0[:,0], kft0[:,1], kft0[:,2], band_parameters)
-vft0 = np.array([vx, vy, vz]).transpose()
+## Discretize FS
+kft0, vft0, dkft0, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_z)
 
 print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
 
@@ -171,7 +89,7 @@ print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
 
 @jit(nopython = True, cache = True)
 def solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters):
-    t = np.arange(tmin, tmax, dt)
+    t = np.arange(0, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
     vft = np.empty( (kft0.shape[0], t.shape[0], 3))
     # kft/vft[index of starting k @ t0 on FS, index of for k @ t from k @ t0, index of (kx,ky,kz) components]
@@ -179,21 +97,12 @@ def solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters):
     ## Compute B ////#
     B = B_func(B_amp, B_theta, B_phi)
 
-    # ## Compute kf, vf function of t ///#
-    # for i0 in range(kft0.shape[0]):
-    #     kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B, band_parameters)) # solve differential equation
-    #     vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
-    #     vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
+    ## Run solver ///#
+    kft = rgk4_algorithm(kft0, t, B, band_parameters)
+    vft = np.empty(kft.shape)
+    vft[:,:,0], vft[:,:,1], vft[:,:,2] = v_3D_func(kft[:, :, 0], kft[:, :, 1], kft[:, :, 2], band_parameters)
 
-    kftp = rgk4_algorithm(kft0, t, B, band_parameters)
-    vftp = np.empty(kftp.shape)
-    vftp[:,:,0], vftp[:,:,1], vftp[:,:,2] = v_3D_func(kftp[:, :, 0], kftp[:, :, 1], kftp[:, :, 2], band_parameters)
-
-
-    kft = kftp
-    vft = vftp
-
-    return kft, vft, t, kftp, vftp
+    return kft, vft, t
 
 
 ## Conductivity sigma_zz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -221,13 +130,14 @@ def sigma_zz(vft0, vzft, kft0, dkft0, t, tau):
     return s_zz
 
 # Function of B_theta
+B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 sigma_zz_a = np.empty(B_theta_a.shape[0])
 
 for j, B_theta in enumerate(B_theta_a):
 
     start_time = time.time()
 
-    kft, vft, t, kftp, vftp = solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters)
+    kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters)
 
     s_zz = sigma_zz(vft0, vft[:,:,2], kft0, dkft0, t, tau)
     sigma_zz_a[j] = s_zz
@@ -254,7 +164,7 @@ np.savetxt(folder + file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(the
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## For figures, compute t-dependence
-kft, vft, t, kftp, vftp = solve_movement_func(B_amp, 0, 0, kft0, band_parameters)
+kft, vft, t = solve_movement_func(B_amp, 0, 0, kft0, band_parameters)
 
 mesh_graph = 1001
 kx = np.linspace(-pi/a, pi/a, mesh_graph)
@@ -296,7 +206,7 @@ for tick in axes.yaxis.get_major_ticks():
 line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
 line = axes.plot(kft0[: mesh_xy*1*number_contours, 0], kft0[: mesh_xy*1*number_contours, 1]) # mesh_xy means all points for kz = - pi / c
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-# axes.quiver(kft0[: mesh_xy*1, 0], kft0[: mesh_xy*1, 1], vft0[: mesh_xy*1, 0], vft0[: mesh_xy*1, 1], color = 'k') # mesh_xy means all points for kz = - pi / c
+axes.quiver(kft0[: mesh_xy*1*number_contours, 0], kft0[: mesh_xy*1*number_contours, 1], vft0[: mesh_xy*1*number_contours, 0], vft0[: mesh_xy*1*number_contours, 1], color = 'k') # mesh_xy means all points for kz = - pi / c
 
 # axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
 # axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
@@ -325,11 +235,11 @@ for tick in axes.yaxis.get_major_ticks():
 
 line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
 line = axes.plot(kft0[0, 0], kft0[0, 1])
-plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'b', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-line = axes.plot(kft[0,:, 0], kft[0,:, 1])
-plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)  # set properties
-line = axes.plot(kftp[0,:, 0], kftp[0,:, 1])
 plt.setp(line, ls ="", c = 'b', lw = 3, marker = "s", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(kft[0,:, 0], kft[0,:, 1])
+plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(kft[0,-1, 0], kft[0,-1, 1])
+plt.setp(line, ls ="", c = 'b', lw = 1, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # set properties
 
 axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
 axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
@@ -355,10 +265,6 @@ for tick in axes.yaxis.get_major_ticks():
 #///// Labels //////#
 # fig.text(0.79,0.86, samplename, ha = "right")
 
-# line = axes.plot(t, vft[0,:, 0])
-# plt.setp(line, ls ="-", c = 'r', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)
-# line = axes.plot(t, vft[0,:, 1])
-# plt.setp(line, ls ="-", c = 'b', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)
 line = axes.plot(t, vft[0,:, 2])
 plt.setp(line, ls ="-", c = 'g', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)
 
@@ -396,7 +302,7 @@ plt.setp(line, ls ="-", c = 'b', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "
 # axes.set_xlim(0, 90)   # limit for xaxis
 # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$t$", labelpad = 8)
-axes.set_ylabel(r"cum sum velocity", labelpad = 8)
+axes.set_ylabel(r"$\sum_{\rm t}$ $v_{\rm z}(t)$$e^{\rm \dfrac{-t}{\tau}}$", labelpad = 8)
 
 axes.locator_params(axis = 'y', nbins = 6)
 
@@ -404,6 +310,8 @@ plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
 
 #>>>> Rzz vs theta >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+width = 10
+height = 5.8
 fig, axes = plt.subplots(1, 1, figsize = (10, 5.8)) # (1,1) means one plot, and figsize is w x h in inch of figure
 fig.subplots_adjust(left = 0.17, right = 0.78, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
@@ -424,16 +332,16 @@ fig.text(0.81,0.58, r"$t^{\prime\prime}$ = " + str(tpp))
 fig.text(0.81,0.51, r"$t_{\rm z}$ = " + str(tz))
 
 line = axes.plot(B_theta_a * 180 / pi, rho_zz_a / rho_zz_a[0])
-plt.setp(line, ls ="-", c = '#FF0000', lw = 3, marker = "o", mfc = '#FF0000', ms = 7, mec = "#FF0000", mew= 0)  # set properties
+plt.setp(line, ls ="-", c = '#FF7A7A', lw = 2, marker = "o", mfc = 'w', ms = 5, mec = "#FF7A7A", mew= 1.5)  # set properties
 
-axes.set_xlim(0, 180)   # limit for xaxis
+axes.set_xlim(0, B_theta_max)   # limit for xaxis
 # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
 
 
 ##///Set ticks space and minor ticks space ///#
-xtics = 30 # space between two ticks
+xtics = B_theta_max / 6. # space between two ticks
 mxtics = xtics / 2.  # space between two minor ticks
 
 majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
@@ -444,6 +352,16 @@ axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
 axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
 axes.locator_params(axis = 'y', nbins = 6)
+
+## Inset
+axes_inset = plt.axes([0.79, 0.21, .2, .2])
+axes_inset.set_aspect(aspect=1)
+axes_inset.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 1)
+axes_inset.set_xlim(-pi/a,pi/a)
+axes_inset.set_ylim(-pi/b,pi/b)
+axes_inset.set_xticks([])
+axes_inset.set_yticks([])
+axes_inset.axis(**{'linewidth' : 0.2})
 
 plt.show()
 
