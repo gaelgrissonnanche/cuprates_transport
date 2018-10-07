@@ -3,13 +3,11 @@
 ## Modules <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 import numpy as np
 from numpy import sqrt, exp, log, pi, ones
-from scipy.integrate import odeint
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from numba import jit, prange
 import time
-
 
 from band_structure import *
 from diff_equation import *
@@ -29,7 +27,6 @@ m = 1
 
 ## Parameters //////
 # c = 13.2
-# d = c / 2
 # a = 5.3 / sqrt(2)
 # b = 5.3 / sqrt(2)
 
@@ -45,11 +42,17 @@ a = 1
 b = 1
 c = 1
 
+# t   =  1.
+# tp  = -0.21 * t
+# tpp =  0.066 * t
+# tz  =  0.020 * t
+# mu  = 1.53 * t # Van Hove at 1.1
 t   =  1.
-tp  = -0.21 * t
-tpp =  0.066 * t
-tz  =  0.020 * t
-mu  = 1.53 * t # Van Hove at 1.1
+tp  = -0.14 * t
+tpp =  0.07 * t
+tz  =  0.07 * t
+mu  = 1.1 * t # Van Hove at 1.1
+
 tau =  25
 
 
@@ -60,14 +63,11 @@ mesh_z = 11 # 11 ideal to be fast and accurate
 mesh_B_theta = 31
 B_theta_max = 180
 
-B_amp = 0.02
+B_amp = 0.015
 B_phi = 0 * pi / 180
 
+# B_phi_a = np.array(0, 15, 30, 45)
 
-
-
-tmax = 10 * tau
-dt = tmax / 300
 
 band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz])
 
@@ -88,7 +88,9 @@ print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 @jit(nopython = True, cache = True)
-def solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters):
+def solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters, tmax):
+
+    dt = tmax / 300
     t = np.arange(0, tmax, dt)
     kft = np.empty( (kft0.shape[0], t.shape[0], 3))
     vft = np.empty( (kft0.shape[0], t.shape[0], 3))
@@ -137,7 +139,7 @@ for j, B_theta in enumerate(B_theta_a):
 
     start_time = time.time()
 
-    kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters)
+    kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters, tmax = 10 * tau)
 
     s_zz = sigma_zz(vft0, vft[:,:,2], kft0, dkft0, t, tau)
     sigma_zz_a[j] = s_zz
@@ -156,7 +158,7 @@ len = rho_zz_a.shape[0]
 Data = np.vstack((B_theta_a, rho_zz_a / rho_zz_0, B_amp*ones(len), tau*ones(len), mu*ones(len), 1*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
 Data = Data.transpose()
 folder = "../data_sim/"
-file_name =  "Rzz" + "_" + str(B_amp) + "_" + str(tau) + "_" + str(mu) + "_" + str(tp) + "_" + str(tpp) + "_" + str(tz) + ".dat"
+file_name =  "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".dat"
 np.savetxt(folder + file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz(0)\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -164,7 +166,7 @@ np.savetxt(folder + file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(the
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## For figures, compute t-dependence
-kft, vft, t = solve_movement_func(B_amp, 0, 0, kft0, band_parameters)
+kft, vft, t = solve_movement_func(B_amp, 0, 0, kft0, band_parameters, tmax = 10 * tau)
 
 mesh_graph = 1001
 kx = np.linspace(-pi/a, pi/a, mesh_graph)
@@ -366,7 +368,7 @@ axes_inset.axis(**{'linewidth' : 0.2})
 plt.show()
 
 folder = "../figures_sim/"
-figure_name = "Rzz" + "_" + str(B_amp) + "_" + str(tau) + "_" + str(mu) + "_" + str(tp) + "_" + str(tpp) + "_" + str(tz) + ".pdf"
+figure_name = "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".pdf"
 fig.savefig(folder + figure_name)
 #//////////////////////////////////////////////////////////////////////////////#
 
