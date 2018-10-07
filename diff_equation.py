@@ -27,11 +27,11 @@ def B_func(B_amp, B_theta, B_phi):
 
 ## Functions for Runge-Kutta //////////////////////////////////////////////////#
 @jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True, cache = True)
-def cross_product_vectorized(ux, uy, uz, vx, vy ,vz):
-    product = np.empty((ux.shape[0], 3))
-    product[:, 0] = uy[:] * vz - uz[:] * vy
-    product[:, 1] = uz[:] * vx - ux[:] * vz
-    product[:, 2] = ux[:] * vy - uy[:] * vx
+def cross_product_vectorized(vx, vy, vz, Bx, By , Bz):
+    product = np.empty((vx.shape[0], 3))
+    product[:, 0] = vy[:] * Bz - vz[:] * By
+    product[:, 1] = vz[:] * Bx - vx[:] * Bz
+    product[:, 2] = vx[:] * By - vy[:] * Bx
     return product
 
 @jit("f8[:,:](f8[:,:], f8, f8[:], f8[:])", nopython=True, cache = True)
