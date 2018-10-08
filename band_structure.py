@@ -5,6 +5,7 @@ import numpy as np
 from numpy import cos, sin, pi
 from skimage import measure
 from numba import jit
+import time
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
@@ -58,26 +59,44 @@ def v_3D_func(kx, ky, kz, band_parameters):
     tpp = band_parameters[6]
     tz = band_parameters[7]
 
+    # start_diff = time.time()
+    cos_kx = cos(kx*a)
+    cos_ky = cos(ky*b)
+    sin_kx = sin(kx*a)
+    sin_ky = sin(ky*b)
+
+    sin_2kx = sin(2*kx*a)
+    sin_2ky = sin(2*ky*b)
+
+    cos_kx2 = cos(kx*a/2)
+    cos_ky2 = cos(ky*b/2)
+    sin_kx2 = sin(kx*a/2)
+    sin_ky2 = sin(ky*b/2)
+
+    cos_kz = cos(kz*d)
+    sin_kz = sin(kz*d)
+
+    # print("time diff function: %.6s seconds" % (time.time() - start_diff))
+
     # Velocity from e_2D
-    d_e2D_dkx = -2 * t * a * sin(kx*a) - 4 * tp * a * sin(kx*a)*cos(ky*b) - 4 * tpp * a * sin(2*kx*a)
-    d_e2D_dky = -2 * t * b * sin(ky*b) - 4 * tp * b * cos(kx*a)*sin(ky*b) - 4 * tpp * b * sin(2*ky*b)
+    d_e2D_dkx = -2 * t * a * sin_kx - 4 * tp * a * sin_kx*cos_ky - 4 * tpp * a * sin_2kx
+    d_e2D_dky = -2 * t * b * sin_ky - 4 * tp * b * cos_kx*sin_ky - 4 * tpp * b * sin_2ky
     d_e2D_dkz = 0
 
     # Velocity from e_z
-    sigma = cos(kx*a/2) * cos(ky*b/2)
-    d_sigma_dkx = - a / 2 * sin(kx*a/2) * cos(ky*b/2)
-    d_sigma_dky = - b / 2 * cos(kx*a/2) * sin(ky*b/2)
+    sigma = cos_kx2 * cos_ky2
+    d_sigma_dkx = - a / 2 * sin_kx2 * cos_ky2
+    d_sigma_dky = - b / 2 * cos_kx2 * sin_ky2
 
-    d_ez_dkx = 2 * tz * d_sigma_dkx * (cos(kx*a) - cos(ky*b))**2 * cos(kz*d) + \
-               2 * tz * sigma * 2 * (cos(kx*a) - cos(ky*b)) * (-a * sin(kx*a)) * cos(kz*d)
-    d_ez_dky = 2 * tz * d_sigma_dky * (cos(kx*a) - cos(ky*b))**2 * cos(kz*d) + \
-               2 * tz * sigma * 2 * (cos(kx*a) - cos(ky*b)) * (+b * sin(ky*b)) * cos(kz*d)
-    d_ez_dkz = 2 * tz * sigma * (cos(kx*a) - cos(ky*b))**2 * (-d * sin(kz*d))
+    d_ez_dkx = 2 * tz * d_sigma_dkx * (cos_kx - cos_ky)**2 * cos_kz + \
+               2 * tz * sigma * 2 * (cos_kx - cos_ky) * (-a * sin_kx) * cos_kz
+    d_ez_dky = 2 * tz * d_sigma_dky * (cos_kx - cos_ky)**2 * cos_kz + \
+               2 * tz * sigma * 2 * (cos_kx - cos_ky) * (+b * sin_ky) * cos_kz
+    d_ez_dkz = 2 * tz * sigma * (cos_kx - cos_ky)**2 * (-d * sin_kz)
 
     vx = d_e2D_dkx + d_ez_dkx
     vy = d_e2D_dky + d_ez_dky
     vz = d_e2D_dkz + d_ez_dkz
-
     return vx, vy, vz
 
 ## Discretizing FS function
@@ -152,10 +171,7 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_
                 kxf = x_int
                 kyf = y_int
                 kzf = kz*np.ones_like(x_int)
-                # kf = np.vstack((x_int, y_int, kz*np.ones_like(x_int))).transpose()
             else:
-                # k_next = np.vstack((x_int, y_int, kz*np.ones_like(x_int))).transpose()
-                # kf = np.vstack((kf, k_next))
                 kxf = np.append(kxf, x_int)
                 kyf = np.append(kyf, y_int)
                 kzf = np.append(kzf, kz*np.ones_like(x_int))
