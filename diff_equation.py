@@ -28,7 +28,7 @@ def B_func(B_amp, B_theta, B_phi):
 ## Functions for Runge-Kutta //////////////////////////////////////////////////#
 @jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True, cache = True)
 def cross_product_vectorized(vx, vy, vz, Bx, By , Bz):
-    product = np.empty((3, vx.shape[0]))
+    product = np.empty((3, vx.shape[0]), dtype = np.float64)
     product[0,:] = vy[:] * Bz - vz[:] * By
     product[1,:] = vz[:] * Bx - vx[:] * Bz
     product[2,:] = vx[:] * By - vy[:] * Bx
@@ -41,21 +41,21 @@ def diff_func_vectorized(k, t, B, band_parameters):
                             # integrated from 0 to +infinity
     return dkdt
 
-@jit("f8[:,:,:](f8[:,:], f8[:], f8[:], f8[:])", nopython=True, cache = True, nogil = True)
+@jit("f8[:,:,:](f8[:,:], f8[:], f8[:], f8[:])", nopython=True, cache = True)
 def rgk4_algorithm(kf, t, B, band_parameters):
 
     dt = t[1] - t[0]
-    kft = np.empty( (3, kf.shape[1], t.shape[0]) ) # dim -> (n, i0, i) = (xyz, position on FS @ t= 0, position on FS after ->t)
+    kft = np.empty( (3, kf.shape[1], t.shape[0]), dtype = np.float64) # dim -> (n, i0, i) = (xyz, position on FS @ t= 0, position on FS after ->t)
 
-    k = kf
-
+    k = kf # initial value of k for Runge-Kutta
     for i in range(t.shape[0]):
         k1 = dt * diff_func_vectorized(k, t[i], B, band_parameters)
         k2 = dt * diff_func_vectorized(k + k1/2, t[i] + dt/2, B, band_parameters)
         k3 = dt * diff_func_vectorized(k + k2/2, t[i] + dt/2, B, band_parameters)
         k4 = dt * diff_func_vectorized(k + k3, t[i] + dt, B, band_parameters)
-        k += (1/6)*k1 + (1/3)*k2 + (1/3)*k3 + (1/6)*k4
-        kft[:, :, i] = k
+        k_next = k + (1/6)*k1 + (1/3)*k2 + (1/3)*k3 + (1/6)*k4
+        kft[:, :, i] = k_next
+        k = k_next
 
     return kft
 

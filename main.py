@@ -75,6 +75,15 @@ B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 # By = B[1,:,:].flatten() # array of size size_theta * size_phi, to go back to
 # Bz = B[2,:,:].flatten() # the original, use B[n,:,:] = Bn.reshape(B_theta_aa.shape)
 
+# kf = np.array([1,2,3])
+# print(kf.shape)
+# print(Bx.shape)
+# print(np.ones(Bx.shape))
+# kf_a = np.outer(kf, np.ones(Bx.shape))
+# print(kf_a)
+
+# print(Bx.reshape(B_theta_aa.shape))
+
 
 ## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -105,7 +114,7 @@ def solve_movement_func(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
 
     ## Run solver ///#
     kft = rgk4_algorithm(kf, t, B, band_parameters)
-    vft = np.empty_like(kft)
+    vft = np.empty_like(kft, dtype = np.float64)
     vft[0,:,:], vft[1,:,:], vft[2,:,:] = v_3D_func(kft[0,:,:], kft[1,:,:], kft[2,:,:], band_parameters)
 
     return kft, vft, t
@@ -114,11 +123,12 @@ def solve_movement_func(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
 ## Conductivity sigma_zz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
-@jit(nopython = True, cache = True)
+@jit(nopython = True, parallel = True)
 def sigma_zz(vf, vzft, kf, dkf, t, tau):
 
     prefactor = e**2 / ( 4 * pi**3 )
 
+    ## Velocity components
     vxf = vf[0,:]
     vyf = vf[1,:]
     vzf = vf[2,:]
@@ -128,34 +138,43 @@ def sigma_zz(vf, vzft, kf, dkf, t, tau):
     # Density of State
     dos = hbar * sqrt( vxf**2 + vyf**2 + vzf**2 )
 
+    # First the integral over time
     v_product = np.empty(vzf.shape[0], dtype = np.float64)
-    for i0 in range(vzf.shape[0]):
+    for i0 in prange(vzf.shape[0]):
         vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp(- t / tau) * dt ) # integral over t
         v_product[i0] = vzf[i0] * vz_sum_over_t # integral over z
 
-    s_zz = prefactor * np.sum(dkf * v_product) # integral over k
+    # Second the integral over kf
+    sigma_zz = prefactor * np.sum(dkf * v_product) # integral over k
 
-    return s_zz
+    return sigma_zz
 
 # Function of B_theta
 
-sigma_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
+@jit(nopython = True, parallel = True)
+def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau):
 
-for i, B_phi in enumerate(B_phi_a):
-    for j, B_theta in enumerate(B_theta_a):
+    sigma_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
 
-        start_time = time.time()
+    for i in prange(B_phi_a.shape[0]):
+        for j in prange(B_theta_a.shape[0]):
 
-        tmax = 10 * tau
-        kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kf, band_parameters, tmax)
-        s_zz = sigma_zz(vf, vft[2,:,:], kf, dkf, t, tau)
-        sigma_zz_a[i, j] = s_zz
+            # start_time = time.time()
 
-        print("theta = " + str(B_theta * 180 / pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
-        print("Calculation time : %.6s seconds" % (time.time() - start_time))
+            tmax = 10 * tau
+            kft, vft, t = solve_movement_func(B_amp, B_theta_a[j], B_phi_a[i], kf, band_parameters, tmax)
+            s_zz = sigma_zz(vf, vft[2,:,:], kf, dkf, t, tau)
+            sigma_zz_a[i, j] = s_zz
 
+            # print(r"[{0:.0f},{1:.0f}]".format(B_phi*180/pi, B_theta*180/pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
 
-rho_zz_a = 1 / sigma_zz_a # dim (phi, theta)
+            # print("Calculation time : %.6s seconds" % (time.time() - start_time))
+
+    rho_zz_a = 1 / sigma_zz_a # dim (phi, theta)
+
+    return rho_zz_a
+
+rho_zz_a = rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau)
 rho_zz_0 = rho_zz_a[:,0]
 
 print("Total time : %.6s seconds" % (time.time() - start_total_time))
