@@ -39,26 +39,26 @@ def cross_product_vectorized(vx, vy, vz, Bx, By , Bz):
 @jit(nopython=True)
 def diff_func_vectorized(k, t, B, band_parameters):
     vx, vy, vz =  v_3D_func(k[0,:], k[1,:], k[2,:], band_parameters)
-    dkdt = ( - e / hbar ) * cross_product_vectorized(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, kt0) in the Chambers formula
+    dkdt = ( - e / hbar ) * cross_product_vectorized(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, k) in the Chambers formula
                             # integrated from 0 to +infinity
     return dkdt
 
 # @jit("f8[:,:,:](f8[:,:], f8[:], f8[:], f8[:])", nopython=True, cache = True, nogil = True)
 @jit(nopython=True)
-def rgk4_algorithm(kft0, t, B, band_parameters):
+def rgk4_algorithm(kf, t, B, band_parameters):
     dt = t[1] - t[0]
-    kft = np.empty( (3, kft0.shape[1], t.shape[0]) ) # dim -> (n, i0, i) = (xyz, position on FS @ t= 0, position on FS after ->t)
+    kft = np.empty( (3, kf.shape[1], t.shape[0]) ) # dim -> (n, i0, i) = (xyz, position on FS @ t= 0, position on FS after ->t)
 
     # Bx = B[0,:,:].flatten() # put all rows one after the other in a one-dimension
     # By = B[1,:,:].flatten() # array of size size_theta * size_phi, to go back to
     # Bz = B[2,:,:].flatten() # the original, use B[n,:,:] = Bn.reshape(B_theta_aa.shape)
 
-    # kx = np.outer(kft0[:,0], np.ones_like(Bx))
-    # ky = np.outer(kft0[:,1], np.ones_like(By))
-    # kz = np.outer(kft0[:,2], np.ones_like(Bz))
+    # kx = np.outer(kf[:,0], np.ones_like(Bx))
+    # ky = np.outer(kf[:,1], np.ones_like(By))
+    # kz = np.outer(kf[:,2], np.ones_like(Bz))
 
-    # k = np.outer(kft0, np.ones_like(Bx))
-    k = kft0
+    # k = np.outer(kf, np.ones_like(Bx))
+    k = kf
 
     for i in range(t.shape[0]):
         k1 = dt * diff_func_vectorized(k, t[i], B, band_parameters)
@@ -88,12 +88,12 @@ def rgk4_algorithm(kft0, t, B, band_parameters):
 # def diff_func(k, t, B, band_parameters):
 #     vx, vy, vz =  v_3D_func(k[0], k[1], k[2], band_parameters)
 #     v = array([vx, vy, vz]).transpose()
-#     dkdt = ( - e / hbar ) * cross_product(v, - B) # (-) represent -t in vz(-t, kt0) in the Chambers formula
+#     dkdt = ( - e / hbar ) * cross_product(v, - B) # (-) represent -t in vz(-t, k) in the Chambers formula
 #                             # integrated from 0 to +infinity
 #     return dkdt
 
 # ## Compute kf, vf function of t ///#
-# for i0 in range(kft0.shape[0]):
-#     kft[i0, :, :] = odeint(diff_func, kft0[i0, :], t, args = (B, band_parameters)) # solve differential equation
+# for i0 in range(kf.shape[0]):
+#     kft[i0, :, :] = odeint(diff_func, kf[i0, :], t, args = (B, band_parameters)) # solve differential equation
 #     vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
 #     vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
