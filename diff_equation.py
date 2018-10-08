@@ -26,34 +26,47 @@ def B_func(B_amp, B_theta, B_phi):
     return B
 
 ## Functions for Runge-Kutta //////////////////////////////////////////////////#
-@jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True, cache = True)
+# @jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True, cache = True)
+@jit(nopython=True)
 def cross_product_vectorized(vx, vy, vz, Bx, By , Bz):
-    product = np.empty((vx.shape[0], 3))
-    product[:, 0] = vy[:] * Bz - vz[:] * By
-    product[:, 1] = vz[:] * Bx - vx[:] * Bz
-    product[:, 2] = vx[:] * By - vy[:] * Bx
+    product = np.empty((3, vx.shape[0]))
+    product[0,:] = vy[:] * Bz - vz[:] * By
+    product[1,:] = vz[:] * Bx - vx[:] * Bz
+    product[2,:] = vx[:] * By - vy[:] * Bx
     return product
 
-@jit("f8[:,:](f8[:,:], f8, f8[:], f8[:])", nopython=True, cache = True)
+# @jit("f8[:,:](f8[:,:], f8, f8[:], f8[:])", nopython=True, cache = True)
+@jit(nopython=True)
 def diff_func_vectorized(k, t, B, band_parameters):
-    vx, vy, vz =  v_3D_func(k[:,0], k[:,1], k[:,2], band_parameters)
+    vx, vy, vz =  v_3D_func(k[0,:], k[1,:], k[2,:], band_parameters)
     dkdt = ( - e / hbar ) * cross_product_vectorized(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, kt0) in the Chambers formula
                             # integrated from 0 to +infinity
     return dkdt
 
-@jit("f8[:,:,:](f8[:,:], f8[:], f8[:], f8[:])", nopython=True, cache = True, nogil = True)
+# @jit("f8[:,:,:](f8[:,:], f8[:], f8[:], f8[:])", nopython=True, cache = True, nogil = True)
+@jit(nopython=True)
 def rgk4_algorithm(kft0, t, B, band_parameters):
     dt = t[1] - t[0]
-    kft = np.empty( (kft0.shape[0], t.shape[0], 3))
+    kft = np.empty( (3, kft0.shape[1], t.shape[0]) ) # dim -> (n, i0, i) = (xyz, position on FS @ t= 0, position on FS after ->t)
 
+    # Bx = B[0,:,:].flatten() # put all rows one after the other in a one-dimension
+    # By = B[1,:,:].flatten() # array of size size_theta * size_phi, to go back to
+    # Bz = B[2,:,:].flatten() # the original, use B[n,:,:] = Bn.reshape(B_theta_aa.shape)
+
+    # kx = np.outer(kft0[:,0], np.ones_like(Bx))
+    # ky = np.outer(kft0[:,1], np.ones_like(By))
+    # kz = np.outer(kft0[:,2], np.ones_like(Bz))
+
+    # k = np.outer(kft0, np.ones_like(Bx))
     k = kft0
+
     for i in range(t.shape[0]):
         k1 = dt * diff_func_vectorized(k, t[i], B, band_parameters)
         k2 = dt * diff_func_vectorized(k + k1/2, t[i] + dt/2, B, band_parameters)
         k3 = dt * diff_func_vectorized(k + k2/2, t[i] + dt/2, B, band_parameters)
         k4 = dt * diff_func_vectorized(k + k3, t[i] + dt, B, band_parameters)
         k_next = k + (1/6)*k1 + (1/3)*k2 + (1/3)*k3 + (1/6)*k4
-        kft[:, i, :] = k_next
+        kft[:, :, i] = k_next
         k = k_next
 
     return kft

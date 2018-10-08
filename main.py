@@ -42,11 +42,7 @@ a = 1
 b = 1
 c = 1
 
-# t   =  1.
-# tp  = -0.21 * t
-# tpp =  0.066 * t
-# tz  =  0.020 * t
-# mu  = 1.53 * t # Van Hove at 1.1
+
 t   =  1.
 tp  = -0.14 * t
 tpp =  0.07 * t
@@ -54,31 +50,40 @@ tz  =  0.07 * t
 mu  = 0.9 * t
 
 tau =  25
+B_amp = 0.02
 
 
-symmetry_FS_xy = 2 # number of time the Fermi surface has been divided by along xy
-symmetry_FS_z = 2 # number of time the Fermi surface has been divided by along z
-mesh_xy = 28 # 28 must be a multiple of 4
+symmetry_FS_xy = 1 # number of time the Fermi surface has been divided by along xy
+symmetry_FS_z = 1 # number of time the Fermi surface has been divided by along z
+mesh_xy = 56 # 28 must be a multiple of 4
 mesh_z = 11 # 11 ideal to be fast and accurate
 mesh_B_theta = 31
 B_theta_max = 180
 
-B_amp = 0.02
-B_phi = 0 * pi / 180
 
-## Magnetic field tensor
-
+## Magnetic field tensor //////////////////////////////////////////////////////#
 B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
 B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 
+# ## Calculate a meshgrid of the angles for magnetic field (i,j) = (theta, phi)
 # B_theta_aa, B_phi_aa = np.meshgrid(B_theta_a, B_phi_a, indexing = 'ij')
 
-# print(B_theta_aa)
-# print(B_phi_aa)
-
+# ## Calculate the magnetic field tensor (n, i, j) = (xyz, theta, phi)
 # B = B_func(B_amp, B_theta_aa, B_phi_aa)
 
-# print(B)
+# Bx = B[0,:,:].flatten() # put all rows one after the other in a one-dimension
+# By = B[1,:,:].flatten() # array of size size_theta * size_phi, to go back to
+# Bz = B[2,:,:].flatten() # the original, use B[n,:,:] = Bn.reshape(B_theta_aa.shape)
+
+# kft0 = np.array([1,2,3])
+# print(kft0.shape)
+# print(Bx.shape)
+# print(np.ones(Bx.shape))
+# kft0_a = np.outer(kft0, np.ones(Bx.shape))
+# print(kft0_a)
+
+# print(Bx.reshape(B_theta_aa.shape))
+
 
 ## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -103,17 +108,14 @@ def solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters, tmax):
 
     dt = tmax / 300
     t = np.arange(0, tmax, dt)
-    kft = np.empty( (kft0.shape[0], t.shape[0], 3))
-    vft = np.empty( (kft0.shape[0], t.shape[0], 3))
-    # kft/vft[index of starting k @ t0 on FS, index of for k @ t from k @ t0, index of (kx,ky,kz) components]
 
     ## Compute B ////#
     B = B_func(B_amp, B_theta, B_phi)
 
     ## Run solver ///#
     kft = rgk4_algorithm(kft0, t, B, band_parameters)
-    vft = np.empty(kft.shape)
-    vft[:,:,0], vft[:,:,1], vft[:,:,2] = v_3D_func(kft[:, :, 0], kft[:, :, 1], kft[:, :, 2], band_parameters)
+    vft = np.empty_like(kft)
+    vft[0,:,:], vft[1,:,:], vft[2,:,:] = v_3D_func(kft[0,:,:], kft[1,:,:], kft[2,:,:], band_parameters)
 
     return kft, vft, t
 
@@ -129,13 +131,13 @@ def sigma_zz(vft0, vzft, kft0, dkft0, t, tau):
     # Time increment
     dt = t[1] - t[0]
     # Density of State
-    dos = hbar * sqrt( vft0[:,0]**2 + vft0[:,1]**2 + vft0[:,2]**2 )
+    dos = hbar * sqrt( vft0[0,:]**2 + vft0[1,:]**2 + vft0[2,:]**2 )
 
-    vzft0 = vft0[:,2]
+    vzft0 = vft0[2,:]
 
     v_product = np.empty(vzft0.shape[0])
     for i0 in prange(vzft0.shape[0]):
-        vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0, :] * exp(- t / tau) * dt ) # integral over t
+        vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp(- t / tau) * dt ) # integral over t
         v_product[i0] = vzft0[i0] * vz_sum_over_t # integral over z
 
     s_zz = prefactor * np.sum(dkft0 * v_product) # integral over k
@@ -153,14 +155,14 @@ for i, B_phi in enumerate(B_phi_a):
 
         tmax = 10 * tau
         kft, vft, t = solve_movement_func(B_amp, B_theta, B_phi, kft0, band_parameters, tmax)
-        s_zz = sigma_zz(vft0, vft[:,:,2], kft0, dkft0, t, tau)
+        s_zz = sigma_zz(vft0, vft[2,:,:], kft0, dkft0, t, tau)
         sigma_zz_a[i, j] = s_zz
 
         print("theta = " + str(B_theta * 180 / pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
         print("Calculation time : %.6s seconds" % (time.time() - start_time))
 
 
-rho_zz_a = 1 / sigma_zz_a
+rho_zz_a = 1 / sigma_zz_a # dim (phi, theta)
 rho_zz_0 = rho_zz_a[:,0]
 
 print("Total time : %.6s seconds" % (time.time() - start_total_time))
@@ -217,10 +219,10 @@ for tick in axes.yaxis.get_major_ticks():
 # fig.text(0.79,0.86, samplename, ha = "right")
 # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
-line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kft0[: mesh_xy*1*number_contours, 0], kft0[: mesh_xy*1*number_contours, 1]) # mesh_xy means all points for kz = - pi / c
+line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - 2 * pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+line = axes.plot(kft0[0, : mesh_xy*1*number_contours], kft0[1, : mesh_xy*1*number_contours]) # mesh_xy means all points for kz = - pi / c
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-axes.quiver(kft0[: mesh_xy*1*number_contours, 0], kft0[: mesh_xy*1*number_contours, 1], vft0[: mesh_xy*1*number_contours, 0], vft0[: mesh_xy*1*number_contours, 1], color = 'k') # mesh_xy means all points for kz = - pi / c
+axes.quiver(kft0[0, : mesh_xy*1*number_contours], kft0[1, : mesh_xy*1*number_contours], vft0[0, : mesh_xy*1*number_contours], vft0[1, : mesh_xy*1*number_contours], color = 'k') # mesh_xy means all points for kz = - pi / c
 
 # axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
 # axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
@@ -247,12 +249,12 @@ for tick in axes.yaxis.get_major_ticks():
 # fig.text(0.79,0.86, samplename, ha = "right")
 # fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
 
-line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kft[0,:, 0], kft[0,:, 1])
+line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - 2 * pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+line = axes.plot(kft[0, 0,:], kft[1, 0,:])
 plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0) # trajectory
-line = axes.plot(kft0[0, 0], kft0[0, 1])
+line = axes.plot(kft0[0, 0], kft0[1, 0])
 plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'w', ms = 4.5, mec = "b", mew= 1.5)  # starting point
-line = axes.plot(kft[0,-1, 0], kft[0,-1, 1])
+line = axes.plot(kft[0, 0, -1], kft[1, 0, -1])
 plt.setp(line, ls ="", c = 'b', lw = 1, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # end point
 
 axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
@@ -279,7 +281,7 @@ for tick in axes.yaxis.get_major_ticks():
 #///// Labels //////#
 # fig.text(0.79,0.86, samplename, ha = "right")
 
-line = axes.plot(t, vft[0,:, 2])
+line = axes.plot(t, vft[2, 0,:])
 plt.setp(line, ls ="-", c = 'g', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)
 
 # axes.set_xlim(0, 90)   # limit for xaxis
@@ -305,11 +307,11 @@ for tick in axes.yaxis.get_major_ticks():
 #///// Labels //////#
 # fig.text(0.79,0.86, samplename, ha = "right")
 
-line = axes.plot(t, np.cumsum( vft[0,:, 2] * exp ( -t / tau ) ))
+line = axes.plot(t, np.cumsum( vft[2, 0, :] * exp ( -t / tau ) ))
 plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-line = axes.plot(t, np.cumsum( vft[1,:, 2] * exp ( -t / tau ) ))
+line = axes.plot(t, np.cumsum( vft[2, 1, :] * exp ( -t / tau ) ))
 plt.setp(line, ls ="-", c = 'r', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-line = axes.plot(t, np.cumsum( vft[2,:, 2] * exp ( -t / tau ) ))
+line = axes.plot(t, np.cumsum( vft[2, 2, :] * exp ( -t / tau ) ))
 plt.setp(line, ls ="-", c = 'b', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
 
@@ -347,7 +349,7 @@ colors = ['k', '#3B528B', 'r', '#C7E500']
 
 for i, B_phi in enumerate(B_phi_a):
     line = axes.plot(B_theta_a * 180 / pi, rho_zz_a[i,:] / rho_zz_0[i], label = r"$\phi$ = " + r"{0:.0f}".format(B_phi * 180 / pi))
-    plt.setp(line, ls ="-", c = colors[i], lw = 3, marker = "", mfc = 'w', ms = 5, mec = colors[i], mew= 1.5)  # set properties
+    plt.setp(line, ls ="-", c = colors[i], lw = 3, marker = "o", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)  # set properties
 
 axes.set_xlim(0, B_theta_max)   # limit for xaxis
 # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
@@ -375,7 +377,7 @@ axes.locator_params(axis = 'y', nbins = 6)
 ## Inset
 axes_inset = plt.axes([0.79, 0.21, .2, .2])
 axes_inset.set_aspect(aspect=1)
-axes_inset.contour(kxx, kyy, e_3D_func(kxx, kyy, - pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 1)
+axes_inset.contour(kxx, kyy, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 1)
 axes_inset.set_xlim(-pi/a,pi/a)
 axes_inset.set_ylim(-pi/b,pi/b)
 axes_inset.set_xticks([])

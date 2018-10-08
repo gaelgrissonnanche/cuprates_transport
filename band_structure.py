@@ -149,17 +149,25 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_
 
             # Put in an array /////////////////////////////////////////////////////#
             if i == 0 and j == 0: # for first contour and first kz
-                kft0 = np.vstack((x_int, y_int, kz*np.ones_like(x_int))).transpose()
+                kxft0 = x_int
+                kyft0 = y_int
+                kzft0 = kz*np.ones_like(x_int)
+                # kft0 = np.vstack((x_int, y_int, kz*np.ones_like(x_int))).transpose()
             else:
-                k_next = np.vstack((x_int, y_int, kz*np.ones_like(x_int))).transpose()
-                kft0 = np.vstack((kft0, k_next))
+                # k_next = np.vstack((x_int, y_int, kz*np.ones_like(x_int))).transpose()
+                # kft0 = np.vstack((kft0, k_next))
+                kxft0 = np.append(kxft0, x_int)
+                kyft0 = np.append(kyft0, y_int)
+                kzft0 = np.append(kzft0, kz*np.ones_like(x_int))
+
+    kft0 = np.vstack([kxft0, kyft0, kzft0]) # dim -> (n, i0) = (xyz, position on FS)
 
     ## Integration Delta
     dkft0 = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c ) * symmetry_FS_xy * symmetry_FS_z
 
-    ## Compute Velocity at t = 0
-    vx, vy, vz = v_3D_func(kft0[:,0], kft0[:,1], kft0[:,2], band_parameters)
-    vft0 = np.array([vx, vy, vz]).transpose()
+    ## Compute Velocity at t = 0 on Fermi Surface
+    vx, vy, vz = v_3D_func(kft0[0,:], kft0[1,:], kft0[2,:], band_parameters)
+    vft0 = np.vstack([vx, vy, vz]) # dim -> (i, i0) = (xyz, position on FS)
 
     return kft0, vft0, dkft0, number_contours
 
