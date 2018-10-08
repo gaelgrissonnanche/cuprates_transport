@@ -63,16 +63,27 @@ mesh_z = 11 # 11 ideal to be fast and accurate
 mesh_B_theta = 31
 B_theta_max = 180
 
-B_amp = 0.015
-# B_phi = 0 * pi / 180
+B_amp = 0.02
+B_phi = 0 * pi / 180
+
+## Magnetic field tensor
 
 B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
+B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 
+# B_theta_aa, B_phi_aa = np.meshgrid(B_theta_a, B_phi_a, indexing = 'ij')
 
-band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz])
+# print(B_theta_aa)
+# print(B_phi_aa)
+
+# B = B_func(B_amp, B_theta_aa, B_phi_aa)
+
+# print(B)
 
 ## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+
+band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz])
 
 ## Make mesh_xy a multiple of 4 to respect the 4-order symmetry
 mesh_xy = mesh_xy - (mesh_xy % 4)
@@ -132,7 +143,7 @@ def sigma_zz(vft0, vzft, kft0, dkft0, t, tau):
     return s_zz
 
 # Function of B_theta
-B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
+
 sigma_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]))
 
 for i, B_phi in enumerate(B_phi_a):

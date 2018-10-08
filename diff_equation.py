@@ -22,7 +22,7 @@ m = 1
 ## Magnetic field function ////////////////////////////////////////////////////#
 @jit(nopython=True, cache = True)
 def B_func(B_amp, B_theta, B_phi):
-    B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*cos(B_phi), cos(B_theta)])
+    B = B_amp * np.array([sin(B_theta)*cos(B_phi), sin(B_theta)*sin(B_phi), cos(B_theta)])
     return B
 
 ## Functions for Runge-Kutta //////////////////////////////////////////////////#
