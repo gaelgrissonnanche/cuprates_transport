@@ -53,8 +53,7 @@ tau =  25
 B_amp = 0.02
 
 
-symmetry_FS_xy = 1 # number of time the Fermi surface has been divided by along xy
-symmetry_FS_z = 1 # number of time the Fermi surface has been divided by along z
+half_FS_z = True
 mesh_xy = 56 # 28 must be a multiple of 4
 mesh_z = 11 # 11 ideal to be fast and accurate
 mesh_B_theta = 31
@@ -76,13 +75,7 @@ B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 # Bz = B[2,:,:].flatten() # the original, use B[n,:,:] = Bn.reshape(B_theta_aa.shape)
 
 # kf = np.array([1,2,3])
-# print(kf.shape)
-# print(Bx.shape)
-# print(np.ones(Bx.shape))
 # kf_a = np.outer(kf, np.ones(Bx.shape))
-# print(kf_a)
-
-# print(Bx.reshape(B_theta_aa.shape))
 
 
 ## Fermi Surface t = 0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -96,7 +89,7 @@ mesh_xy = mesh_xy - (mesh_xy % 4)
 start_time_FS = time.time()
 
 ## Discretize FS
-kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_z)
+kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z)
 
 print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
 
@@ -228,20 +221,22 @@ for tick in axes.xaxis.get_major_ticks():
 for tick in axes.yaxis.get_major_ticks():
     tick.set_pad(8)
 
-# fig.text(0.79,0.86, samplename, ha = "right")
-# fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
+fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
-line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - 2 * pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
 line = axes.plot(kf[0, : mesh_xy*1*number_contours], kf[1, : mesh_xy*1*number_contours]) # mesh_xy means all points for kz = - pi / c
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-axes.quiver(kf[0, : mesh_xy*1*number_contours], kf[1, : mesh_xy*1*number_contours], vf[0, : mesh_xy*1*number_contours], vf[1, : mesh_xy*1*number_contours], color = 'k') # mesh_xy means all points for kz = - pi / c
+# axes.quiver(kf[0, : mesh_xy*1*number_contours], kf[1, : mesh_xy*1*number_contours], vf[0, : mesh_xy*1*number_contours], vf[1, : mesh_xy*1*number_contours], color = 'k') # mesh_xy means all points for kz = - pi / c
 
-# axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
-# axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
+axes.set_xlim(-pi/a, pi/a)   # limit for xaxis
+axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
 axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-axes.locator_params(axis = 'y', nbins = 6)
+axes.set_xticks([-pi, 0., pi])
+axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+axes.set_yticks([-pi, 0., pi])
+axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
 plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
@@ -258,10 +253,9 @@ for tick in axes.xaxis.get_major_ticks():
 for tick in axes.yaxis.get_major_ticks():
     tick.set_pad(8)
 
-# fig.text(0.79,0.86, samplename, ha = "right")
-# fig.text(0.83,0.87, r"$T$ /  $H$  /  $\phi$ ", color = 'k', ha = 'left'))
+fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
-line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, - 2 * pi / c, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
 line = axes.plot(kft[0, 0,:], kft[1, 0,:])
 plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0) # trajectory
 line = axes.plot(kf[0, 0], kf[1, 0])
@@ -274,7 +268,10 @@ axes.set_ylim(-pi/b, pi/b) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
 axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-axes.locator_params(axis = 'y', nbins = 6)
+axes.set_xticks([-pi, 0., pi])
+axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+axes.set_yticks([-pi, 0., pi])
+axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
 plt.show()
 
@@ -290,17 +287,14 @@ for tick in axes.xaxis.get_major_ticks():
 for tick in axes.yaxis.get_major_ticks():
     tick.set_pad(8)
 
-#///// Labels //////#
-# fig.text(0.79,0.86, samplename, ha = "right")
 
-line = axes.plot(t, vft[2, 0,:])
-plt.setp(line, ls ="-", c = 'g', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)
+line = axes.plot(t, vft[2, -1,:])
+plt.setp(line, ls ="-", c = '#6AFF98', lw = 3, marker = "", mfc = '#6AFF98', ms = 5, mec = "#7E2320", mew= 0)
 
 # axes.set_xlim(0, 90)   # limit for xaxis
 # axes.set_ylim(ymin, ymax) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$t$", labelpad = 8)
-axes.set_ylabel(r"$v_{\rm z}$", labelpad = 8)
-
+axes.set_ylabel(r"$v_{\rm z}$ ( $k_{\rm z}$ = 0 )", labelpad = 8)
 axes.locator_params(axis = 'y', nbins = 6)
 
 plt.show()
@@ -319,11 +313,11 @@ for tick in axes.yaxis.get_major_ticks():
 #///// Labels //////#
 # fig.text(0.79,0.86, samplename, ha = "right")
 
-line = axes.plot(t, np.cumsum( vft[2, 0, :] * exp ( -t / tau ) ))
+line = axes.plot(t, np.cumsum( vft[2, -1, :] * exp ( -t / tau ) ))
 plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-line = axes.plot(t, np.cumsum( vft[2, 1, :] * exp ( -t / tau ) ))
+line = axes.plot(t, np.cumsum( vft[2, -2, :] * exp ( -t / tau ) ))
 plt.setp(line, ls ="-", c = 'r', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-line = axes.plot(t, np.cumsum( vft[2, 2, :] * exp ( -t / tau ) ))
+line = axes.plot(t, np.cumsum( vft[2, -3, :] * exp ( -t / tau ) ))
 plt.setp(line, ls ="-", c = 'b', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
 

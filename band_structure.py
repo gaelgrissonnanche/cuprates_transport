@@ -81,7 +81,7 @@ def v_3D_func(kx, ky, kz, band_parameters):
     return vx, vy, vz
 
 ## Discretizing FS function
-def discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_z):
+def discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z):
 
     a = band_parameters[0]
     b = band_parameters[1]
@@ -89,9 +89,13 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_
 
     mesh_xy_rough = mesh_xy * 10 + 1 # make denser rough meshgrid to interpolate
 
+    if half_FS_z == True:
+        kz_a = np.linspace(0, 2*pi/c, mesh_z) # 2*pi/c because bodycentered unit cell
+    else:
+        kz_a = np.linspace(-2*pi/c, 2*pi/c, mesh_z) # 2*pi/c because bodycentered unit cell
+
     kx_a = np.linspace(-pi/a, pi/a, mesh_xy_rough)
     ky_a = np.linspace(-pi/b, pi/b, mesh_xy_rough)
-    kz_a = np.linspace(-2*pi/c/symmetry_FS_z, 2*pi/c/symmetry_FS_z, mesh_z) # 2*pi/c because bodycentered unit cell
     kxx, kyy = np.meshgrid(kx_a, ky_a, indexing = 'ij')
 
     for j, kz in enumerate(kz_a):
@@ -132,7 +136,7 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_
                 s = np.zeros_like(x) # arrays of zeros
                 s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
 
-                s_int = np.linspace(0, s.max() / symmetry_FS_xy, mesh_xy + 1) # regular spaced path
+                s_int = np.linspace(0, s.max(), mesh_xy + 1) # regular spaced path
                 x_int = np.interp(s_int, s, x)[:-1] # interpolate
                 y_int = np.interp(s_int, s, y)[:-1]
 
@@ -142,7 +146,7 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_
                 s = np.zeros_like(x) # arrays of zeros
                 s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
 
-                s_int = np.linspace(0, s.max() / symmetry_FS_xy, mesh_xy) # regular spaced path
+                s_int = np.linspace(0, s.max(), mesh_xy) # regular spaced path
                 x_int = np.interp(s_int, s, x) # interpolate
                 y_int = np.interp(s_int, s, y)
 
@@ -152,10 +156,7 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_
                 kxf = x_int
                 kyf = y_int
                 kzf = kz*np.ones_like(x_int)
-                # kf = np.vstack((x_int, y_int, kz*np.ones_like(x_int))).transpose()
             else:
-                # k_next = np.vstack((x_int, y_int, kz*np.ones_like(x_int))).transpose()
-                # kf = np.vstack((kf, k_next))
                 kxf = np.append(kxf, x_int)
                 kyf = np.append(kyf, y_int)
                 kzf = np.append(kzf, kz*np.ones_like(x_int))
@@ -163,7 +164,10 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, symmetry_FS_xy, symmetry_FS_
     kf = np.vstack([kxf, kyf, kzf]) # dim -> (n, i0) = (xyz, position on FS)
 
     ## Integration Delta
-    dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c ) * symmetry_FS_xy * symmetry_FS_z
+    if half_FS_z == True:
+        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c ) * 2
+    else:
+        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c )
 
     ## Compute Velocity at t = 0 on Fermi Surface
     vx, vy, vz = v_3D_func(kf[0,:], kf[1,:], kf[2,:], band_parameters)
