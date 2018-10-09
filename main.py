@@ -3,14 +3,16 @@
 ## Modules <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 import numpy as np
 from numpy import sqrt, exp, log, pi, ones
+np.set_printoptions(6,suppress=True,sign="+",floatmode="fixed")
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-from numba import jit, prange
+from numba import jit, prange, config, threading_layer, guvectorize, float64
 import time
-
 from band_structure import *
 from diff_equation import *
+# config.THREADING_LAYER = 'threadsafe'
+config.OPT = 2 # '3' is default, '1' and '2' seems to be faster, but clean cache when changed
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 start_total_time = time.time()
@@ -48,6 +50,12 @@ tp  = -0.14 * t
 tpp =  0.07 * t
 tz  =  0.07 * t
 mu  = 0.9 * t
+
+# t   =  1.
+# tp  = -0.209 * t
+# tpp =  0.062 * t
+# tz  =  0.0209 * t
+# mu  = 1.123 * t
 
 tau =  25
 B_amp = 0.02
@@ -142,8 +150,7 @@ def sigma_zz(vf, vzft, kf, dkf, t, tau):
 
     return sigma_zz
 
-# Function of B_theta
-
+# rho_zz vs B_theta vs B_phi //////////////////////////////////////////////////#
 @jit(nopython = True, parallel = True)
 def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau):
 
@@ -158,8 +165,6 @@ def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau):
             kft, vft, t = solve_movement_func(B_amp, B_theta_a[j], B_phi_a[i], kf, band_parameters, tmax)
             s_zz = sigma_zz(vf, vft[2,:,:], kf, dkf, t, tau)
             sigma_zz_a[i, j] = s_zz
-
-            # print(r"[{0:.0f},{1:.0f}]".format(B_phi*180/pi, B_theta*180/pi) + ", sigma_zz = " + r"{0:.5e}".format(s_zz))
 
             # print("Calculation time : %.6s seconds" % (time.time() - start_time))
 
@@ -180,6 +185,7 @@ folder = "../data_sim/"
 file_name =  "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".dat"
 np.savetxt(folder + file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz(0)\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
 
+# print("Threading layer chosen: %s" % threading_layer())
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 ## Figures ////////////////////////////////////////////////////////////////////#
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
