@@ -49,7 +49,7 @@ t   =  1.
 tp  = -0.14 * t
 tpp =  0.07 * t
 tz  =  0.07 * t
-mu  = 0.9 * t
+mu  = 0.9 * t # van Hove 0.84
 
 # t   =  1.
 # tp  = -0.209 * t
@@ -57,8 +57,8 @@ mu  = 0.9 * t
 # tz  =  0.0209 * t
 # mu  = 1.123 * t
 
-tau =  25
-B_amp = 0.02
+tau =  25 / t * hbar
+B_amp = 0.02 * t
 
 
 half_FS_z = True
@@ -159,14 +159,10 @@ def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau):
     for i in prange(B_phi_a.shape[0]):
         for j in prange(B_theta_a.shape[0]):
 
-            # start_time = time.time()
-
             tmax = 10 * tau
             kft, vft, t = solve_movement_func(B_amp, B_theta_a[j], B_phi_a[i], kf, band_parameters, tmax)
             s_zz = sigma_zz(vf, vft[2,:,:], kf, dkf, t, tau)
             sigma_zz_a[i, j] = s_zz
-
-            # print("Calculation time : %.6s seconds" % (time.time() - start_time))
 
     rho_zz_a = 1 / sigma_zz_a # dim (phi, theta)
 
@@ -181,7 +177,7 @@ print("Total time : %.6s seconds" % (time.time() - start_total_time))
 len = rho_zz_a.shape[1]
 Data = np.vstack((B_theta_a, rho_zz_a[0,:] / rho_zz_0[0], B_amp*ones(len), tau*ones(len), mu*ones(len), 1*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
 Data = Data.transpose()
-folder = "../data_sim/"
+folder = "data_sim/"
 file_name =  "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".dat"
 np.savetxt(folder + file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz(0)\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
 
@@ -398,7 +394,7 @@ axes_inset.axis(**{'linewidth' : 0.2})
 
 plt.show()
 
-folder = "../figures_sim/"
+folder = "figures_sim/"
 figure_name = "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".pdf"
 fig.savefig(folder + figure_name)
 #//////////////////////////////////////////////////////////////////////////////#
