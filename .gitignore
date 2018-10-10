@@ -1,1 +1,4 @@
 __pycache__
+data_sim/*
+figures_sim/*
+.ipynb_checkpoints
