@@ -1,5 +1,3 @@
-# -*- coding: Latin-1 -*-
-
 ## Modules <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 import numpy as np
 from numpy import sqrt, exp, log, pi, ones

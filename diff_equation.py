@@ -1,5 +1,3 @@
-# -*- coding: Latin-1 -*-
-
 ## Modules <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 import numpy as np
 from numpy import cos, sin
@@ -59,7 +57,6 @@ def rgk4_algorithm(kf, t, B, band_parameters):
         kft[:, :, i] = k
 
     return kft
-
 
 
 
