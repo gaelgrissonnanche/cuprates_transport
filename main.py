@@ -11,7 +11,7 @@ from numba import jit, prange, config, threading_layer, guvectorize, float64
 import time
 from band_structure import *
 from diff_equation import *
-# config.THREADING_LAYER = 'threadsafe'
+
 config.OPT = 2 # '3' is default, '1' and '2' seems to be faster, but clean cache when changed
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
@@ -58,7 +58,7 @@ mu  = 0.9 * t # van Hove 0.84
 # mu  = 1.123 * t
 
 tau =  25 / t * hbar
-B_amp = 0.02 * t
+B_amp = 0.02
 
 
 half_FS_z = True
@@ -181,7 +181,7 @@ folder = "data_sim/"
 file_name =  "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".dat"
 np.savetxt(folder + file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz(0)\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
 
-# print("Threading layer chosen: %s" % threading_layer())
+
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 ## Figures ////////////////////////////////////////////////////////////////////#
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
