@@ -6,7 +6,6 @@ import time
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-
 from band_structure import *
 from diff_equation import *
 
@@ -46,9 +45,9 @@ mu  = 0.9 * t # van Hove 0.84
 band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz])
 tau =  25 / t * hbar
 B_amp = 0.02 * t
-half_FS_z = True
+half_FS_z = False
 mesh_xy = 56 # 28 must be a multiple of 4
-mesh_z = 11 # 11 ideal to be fast and accurate
+mesh_z = 30 # 11 ideal to be fast and accurate
 mesh_B_theta = 31
 B_theta_max = 180
 B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
@@ -83,13 +82,38 @@ def solve_movement_func(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
 
     return kft, vft, t
 
-kft, vft, t = solve_movement_func(B_amp, 0.15, 0, kf, band_parameters, tmax = 10 * tau)
+@jit(nopython = True, parallel = True)
+def calculate_vz_product(vf, vzft, kf, dkf, t, tau):
 
-mesh_graph = 1001
-kx = np.linspace(-pi/a, pi/a, mesh_graph)
-ky = np.linspace(-pi/b, pi/b, mesh_graph)
-kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+    prefactor = e**2 / ( 4 * pi**3 )
 
+    ## Velocity components
+    vxf = vf[0,:]
+    vyf = vf[1,:]
+    vzf = vf[2,:]
+
+    # Time increment
+    dt = t[1] - t[0]
+    # Density of State
+    dos = hbar * sqrt( vxf**2 + vyf**2 + vzf**2 )
+
+    # First the integral over time
+    vz_product = np.empty(vzf.shape[0], dtype = np.float64)
+    for i0 in prange(vzf.shape[0]):
+        vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp(- t / tau) * dt ) # integral over t
+        vz_product[i0] = vzf[i0] * vz_sum_over_t # integral over z
+
+    return vz_product
+
+
+
+kft, vft, t = solve_movement_func(B_amp, 0, 0, kf, band_parameters, tmax = 10 * tau)
+tmax = 10 * tau
+vz_product = calculate_vz_product(vf, vft[2,:,:], kf, dkf, t, tau)
+# mesh_graph = 1001
+# kx = np.linspace(-pi/a, pi/a, mesh_graph)
+# ky = np.linspace(-pi/b, pi/b, mesh_graph)
+# kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
 
 ### go interactive and do
@@ -101,35 +125,24 @@ import plotly.graph_objs as go
 import plotly.figure_factory as ff
 import numpy as np
 from scipy.spatial import Delaunay
+from copy import deepcopy
 
-## to connect the first xy point with the last
-## also rebuild the two halves in z of the FS, although there is a probleme at the middle
-## and it doesn't work at the vHS
-FSnodes = kft[:,:,0]
+kft = np.reshape(kft,(3,mesh_z,mesh_xy,300))
+kft0 = np.reshape(kft[:,:,0,:],(3,mesh_z,1,300))
+kft = np.append(kft,kft0,axis=2)
+kft = np.reshape(kft,(3,mesh_z*(mesh_xy+1),300))
+
+vz_product = np.reshape(vz_product,(mesh_z,mesh_xy))
+vz_product0 = np.reshape(vz_product[:,0],(mesh_z,1))
+vz_product = np.append(vz_product,vz_product0,axis=1)
+vz_product = np.reshape(vz_product,mesh_z*(mesh_xy+1))
 
 x = kft[0,:,0]
-# xStackedInZ = np.reshape(x,(mesh_z,mesh_xy))
-# x0stackedInZ = np.reshape(xStackedInZ[:,0],(mesh_z,1))
-# newXstackedInZ = np.hstack([xStackedInZ,x0stackedInZ])
-# x = np.reshape(newXstackedInZ ,(mesh_xy+1)*mesh_z )
-# x = np.append(np.flip(x,0),x)
-
 y = kft[1,:,0]
-# yStackedInZ = np.reshape(y,(mesh_z,mesh_xy))
-# y0stackedInZ = np.reshape(yStackedInZ[:,0],(mesh_z,1))
-# newystackedInZ = np.hstack([yStackedInZ,y0stackedInZ])
-# y = np.reshape(newystackedInZ ,(mesh_xy+1)*mesh_z )
-# y = np.append(np.flip(y,0),y)
-
 z = kft[2,:,0]
-# zStackedInZ = np.reshape(z,(mesh_z,mesh_xy))
-# z0stackedInZ = np.reshape(zStackedInZ[:,0],(mesh_z,1))
-# newzstackedInZ = np.hstack([zStackedInZ,z0stackedInZ])
-# z = np.reshape(newzstackedInZ ,(mesh_xy+1)*mesh_z )
-# z = np.append(-np.flip(z,0),z)
 
-## simplices
-u = np.arange(0, mesh_xy)# +1)
+## make simplices (triangles of defining the surface)
+u = np.arange(0, mesh_xy +1)
 v = np.arange(0, mesh_z)
 u,v = np.meshgrid(u,v)
 u = u.flatten()
@@ -160,6 +173,20 @@ trajectoryData = go.Scatter3d(
     )
 )
 
+trace = go.Scatter(
+    x = np.arange(vz_product.shape[0]),
+    y = vz_product,
+    mode = 'lines'
+)
+
+trace2 = go.Scatter(
+    x = 200,
+    y = vz_product[200],
+    mode = 'markers'
+)
+
+# fermiSurface['data'][0].update(opacity=0.75)
+
 dataToPlot = [fermiSurface.data[0],fermiSurface.data[1], trajectoryData]
 
 # py.iplot(dataToPlot,filename="myFirstPlot")
@@ -168,72 +195,150 @@ dataToPlot = [fermiSurface.data[0],fermiSurface.data[1], trajectoryData]
 
 import json
 from textwrap import dedent as d
-
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-
-# external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+from dash.dependencies import Input, Output, State
 
 app = dash.Dash(__name__)
-
 app.layout = html.Div([
     html.Div([
-        html.H1('AMRO'),
+        html.Div(children=[
+                dcc.Graph(
+                id='2Dgraph',
+                figure={
+                    'data': [trace,trace2],
+                    },
+                style={'height': '400px','width': '1000px'}
+                )
+        ], className="six columns")
+    ], className = "row"),
+    html.Div([
         html.Div([
-            dcc.Markdown(d("""
-                **Click Data**
-                Click on points.
-                """)),
-            html.Pre(id='click-data'),
-            ])
-    ],className="four columns"),
-    html.Div(children=[
-        dcc.Graph(
-            id='mainGraph',
-            figure={
-                'data': dataToPlot,
-                'layout': {
-                    'title': 'Trajectories on the Fermi surface'
-                    }
-                },
-            style={'height': '700px','width': '600px'}
-            )
-    ],className="four columns")
+            html.H1('AMRO'),
+            html.Div([
+                dcc.Markdown(d("""
+                    **Click Data**
+                    Click on points.
+                    """)),
+                html.Pre(id='click-data'),
+                ]),
+        ], className="three columns"),
+        html.Div(children=[
+            dcc.Graph(
+                id='3Dgraph',
+                figure={
+                    'data': dataToPlot,
+                    'layout': {
+                        'title': 'Trajectories on the Fermi surface',
+                        }
+                    },
+                style={'height': '600px','width': '400px'}
+                )
+        ], className="three columns")
+    ], className="row")
 ])
 
 app.css.append_css({
     'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'
 })
 
+activePoint = 0
+lastClicked2D = None
+def updateActivePoint(click2D,click3D):
+    global activePoint
+    global lastClicked2D
+    point2D = None
+    point3D = None
+    if click2D :
+        point2D = click2D['points'][0]['pointNumber']
+    if click3D and 'i' in click3D['points'][0]:
+        point3D = click3D['points'][0]['pointNumber']
+    
+    if point2D and point3D:
+        if lastClicked2D == point2D:
+            activePoint = point3D
+        else :
+            activePoint = point2D
+            lastClicked2D = point2D
+    elif point2D:
+        activePoint = point2D
+        lastClicked2D = point2D
+    elif point3D:
+        activePoint = point3D
 
-@app.callback(dash.dependencies.Output('mainGraph', 'figure'),
-              [dash.dependencies.Input('mainGraph', 'clickData')])
+    print("lastClicked2D is "+str(lastClicked2D))
+    print("point2D is "+str(point2D))
+    print("point3D is "+str(point3D))
+    print("activePoint is "+str(activePoint))
+      
+    
 
-def update_graph(clickData):
-    if clickData and clickData['points'][0]['i']:
-        
-        ii = clickData['points'][0]['pointNumber']%((mesh_xy)*mesh_z)
-        xTraj = kft[0,ii,:]
-        yTraj = kft[1,ii,:]
-        zTraj = kft[2,ii,:]
-        trajectoryData = go.Scatter3d(
-            x=xTraj, y=yTraj, z=zTraj,
-            mode='lines',
-            line=dict(
-                color='#ff0000',
-                width=10
-            )
+
+@app.callback(Output('3Dgraph', 'figure'),
+              [Input('2Dgraph', 'clickData'),Input('3Dgraph', 'clickData')],
+              [State('3Dgraph', 'relayoutData')])
+def update_3Dgraph(click2D,click3D,relayoutData):
+    print("update Graph 3D")
+    global activePoint
+    # updateActivePoint(click2D,click3D)
+   
+    xTraj = kft[0,activePoint,:]
+    yTraj = kft[1,activePoint,:]
+    zTraj = kft[2,activePoint,:]
+    trajectoryData = go.Scatter3d(
+        x=xTraj, y=yTraj, z=zTraj,
+        mode='lines',
+        line=dict(
+            color='#ff0000',
+            width=10
         )
-        dataToPlot = [fermiSurface.data[0],fermiSurface.data[1], trajectoryData]
+    )
+    dataToPlot = [fermiSurface.data[0],fermiSurface.data[1], trajectoryData]
+    
+    if relayoutData and 'scene.camera' in relayoutData:
+        return {'data': dataToPlot,
+                'layout': {
+                    'title': 'Trajectories on the Fermi surface',
+                    'scene': {
+                        'camera': relayoutData['scene.camera'] 
+                        }
+                    }
+                }
     else:
-        dataToPlot = [fermiSurface.data[0],fermiSurface.data[1], trajectoryData]
+        return {'data': dataToPlot,
+                'layout': {
+                    'title': 'Trajectories on the Fermi surface'
+                    }
+                }
 
-    return {'data': dataToPlot}
+@app.callback(Output('2Dgraph', 'figure'),
+              [Input('2Dgraph', 'clickData'),Input('3Dgraph', 'clickData')],
+              [State('2Dgraph', 'relayoutData')])
+def update_2Dgraph(click2D,click3D,relayoutData):
+    print("update Graph 2D")
+    global activePoint
+    # updateActivePoint(click2D,click3D)
+    
+    newTrace2 = go.Scatter(
+            x = activePoint,
+            y = vz_product[activePoint],
+            mode = 'markers'
+        )
+    return {'data': [trace, newTrace2]}
+    
+@app.callback(Output('click-data', 'children'),
+                [Input('2Dgraph', 'clickData'),Input('3Dgraph', 'clickData')],
+                [State('2Dgraph', 'relayoutData')])
+def display_click_data(click2D,click3D,relayoutData):
+    print("update Display")
+    global activePoint
+    updateActivePoint(click2D,click3D)
+    clicked = {}
+    if click2D : clicked["2D"] = click2D
+    if click3D : clicked["3D"] = click3D
+    return json.dumps(clicked, indent=2)
 
-@app.callback(dash.dependencies.Output('click-data', 'children'),[dash.dependencies.Input('mainGraph', 'clickData')])
-def display_click_data(clickData):
-    return json.dumps(clickData, indent=2)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
