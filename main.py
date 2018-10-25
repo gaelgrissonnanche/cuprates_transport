@@ -12,7 +12,6 @@ import time
 from band_structure import *
 from diff_equation import *
 
-config.OPT = 2 # '3' is default, '1' and '2' seems to be faster, but clean cache when changed
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 start_total_time = time.time()
@@ -101,25 +100,6 @@ kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, h
 
 print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
 
-## Solve differential equation >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-
-@jit(nopython = True, cache = True)
-def solve_movement_func(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
-
-    dt = tmax / 300
-    t = np.arange(0, tmax, dt)
-
-    ## Compute B ////#
-    B = B_func(B_amp, B_theta, B_phi)
-
-    ## Run solver ///#
-    kft = rgk4_algorithm(kf, t, B, band_parameters)
-    vft = np.empty_like(kft, dtype = np.float64)
-    vft[0,:,:], vft[1,:,:], vft[2,:,:] = v_3D_func(kft[0,:,:], kft[1,:,:], kft[2,:,:], band_parameters)
-
-    return kft, vft, t
-
 
 ## Conductivity sigma_zz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -151,7 +131,7 @@ def sigma_zz(vf, vzft, kf, dkf, t, tau):
     return sigma_zz
 
 # rho_zz vs B_theta vs B_phi //////////////////////////////////////////////////#
-@jit(nopython = True, parallel = True)
+# @jit(nopython = True, parallel = True)
 def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau):
 
     sigma_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
@@ -175,11 +155,13 @@ print("Total time : %.6s seconds" % (time.time() - start_total_time))
 
 ## Save Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 len = rho_zz_a.shape[1]
-Data = np.vstack((B_theta_a, rho_zz_a[0,:] / rho_zz_0[0], B_amp*ones(len), tau*ones(len), mu*ones(len), 1*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
+Data = np.vstack((B_theta_a, rho_zz_a[0,:] / rho_zz_0[0], rho_zz_a[1,:] / rho_zz_0[1], rho_zz_a[2,:] / rho_zz_0[2], rho_zz_a[3,:] / rho_zz_0[3],
+                  B_amp*ones(len), tau*ones(len), mu*ones(len), 1*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
 Data = Data.transpose()
 folder = "data_sim/"
 file_name =  "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".dat"
-np.savetxt(folder + file_name, Data, fmt='%.7e', header = "theta[deg]\trhozz(theta)/rhozz(0)\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
+np.savetxt(folder + file_name, Data, fmt='%.7e',
+header = "theta[deg]\trhozz(phi=0)/rhozz(theta=0)\trhozz(phi=15)/rhozz(theta=0)\rhozz(phi=30)/rhozz(theta=0)\trhozz(phi=45)/rhozz(theta=0)\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
 
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#

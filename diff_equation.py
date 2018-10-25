@@ -4,6 +4,8 @@
 import numpy as np
 from numpy import cos, sin
 from numba import jit, prange
+from scipy.integrate import odeint
+from diffeqpy import de
 
 from band_structure import *
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -61,29 +63,82 @@ def rgk4_algorithm(kf, t, B, band_parameters):
     return kft
 
 
+## Solve differential equation >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+
+# @jit(nopython = True, cache = True)
+def solve_movement_func(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
+
+    dt = tmax / 300
+    t = np.arange(0, tmax, dt)
+
+    ## Compute B ////#
+    B = B_func(B_amp, B_theta, B_phi)
+
+    ## Run solver ///#
+    # kft = rgk4_algorithm(kf, t, B, band_parameters)
+    # vft = np.empty_like(kft, dtype = np.float64)
+    # vft[0,:,:], vft[1,:,:], vft[2,:,:] = v_3D_func(kft[0,:,:], kft[1,:,:], kft[2,:,:], band_parameters)
+
+    # kf_len = kf.shape[1]
+    # t_len = t.shape[0]
+    # # Compute kf, vf function of t ///#
+    # kf = kf.flatten()
+    # kft = odeint(diff_func_vectorized_odeint, kf, t, args = (B, band_parameters)).transpose() # solve differential equation
+    # kft = np.reshape(kft, (3, kf_len, t_len))
+    # vft = np.empty_like(kft, dtype = np.float64)
+    # vft[0, :, :], vft[1, :, :], vft[2, :, :] = v_3D_func(kft[0, :, :], kft[1, :, :], kft[2, :, :], band_parameters)
+
+    kf_len = kf.shape[1]
+
+    # Compute kf, vf function of t ///#
+    tspan = (0, tmax)
+    p = np.append(B, band_parameters)
+    kf = kf.flatten()
+
+    prob = de.ODEProblem(diff_func_vectorized_julia, kf, tspan, p)
+    sol = de.solve(prob, saveat = dt, abstol = 1e-3, reltol=1e-3)
+    t = np.array(sol.t)
+    t_len = t.shape[0]
+    kft = np.array(sol.u).transpose()
+    kft = np.reshape(kft, (3, kf_len, t_len))
+    vft = np.empty_like(kft, dtype = np.float64)
+    vft[0, :, :], vft[1, :, :], vft[2, :, :] = v_3D_func(kft[0, :, :], kft[1, :, :], kft[2, :, :], band_parameters)
+
+    return kft, vft, t
 
 
-## Old stuff for ODEINT ///////////////////////////////////////////////////////#
+# Old stuff for ODEINT ///////////////////////////////////////////////////////#
 
-# @jit("f8[:](f8[:], f8[:])", nopython=True, cache = True)
-# def cross_product(u, v):
-#     product = empty(u.shape[0])
-#     product[0] = u[1] * v[2] - u[2] * v[1]
-#     product[1] = u[2] * v[0] - u[0] * v[2]
-#     product[2] = u[0] * v[1] - u[1] * v[0]
-#     return product
+@jit(nopython=True, cache = True)
+def diff_func_vectorized_odeint(k, t, B, band_parameters):
+    len_k = int(k.shape[0]/3)
+    k = np.reshape(k, (3, len_k))
+    vx, vy, vz =  v_3D_func(k[0,:], k[1,:], k[2,:], band_parameters)
+    dkdt = ( - e / hbar ) * cross_product_vectorized(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, k) in the Chambers formula
+                            # integrated from 0 to +infinity
+    dkdt = dkdt.flatten()
+    return dkdt
 
-# ## Movement equation //#
-# @jit("f8[:](f8[:], f8, f8[:], f8[:])", nopython=True, cache = True)
-# def diff_func(k, t, B, band_parameters):
-#     vx, vy, vz =  v_3D_func(k[0], k[1], k[2], band_parameters)
-#     v = array([vx, vy, vz]).transpose()
-#     dkdt = ( - e / hbar ) * cross_product(v, - B) # (-) represent -t in vz(-t, k) in the Chambers formula
-#                             # integrated from 0 to +infinity
-#     return dkdt
+@jit(nopython=True, cache = True)
+def diff_func_vectorized_julia(k, p, t):
+    B = p[:3]
+    band_parameters = p[3:]
+    len_k = int(k.shape[0]/3)
+    k = np.reshape(k, (3, len_k))
+    vx, vy, vz =  v_3D_func(k[0,:], k[1,:], k[2,:], band_parameters)
+    dkdt = ( - e / hbar ) * cross_product_vectorized(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, k) in the Chambers formula
+                            # integrated from 0 to +infinity
+    dkdt = dkdt.flatten()
+    return dkdt
 
-# ## Compute kf, vf function of t ///#
-# for i0 in range(kf.shape[0]):
-#     kft[i0, :, :] = odeint(diff_func, kf[i0, :], t, args = (B, band_parameters)) # solve differential equation
-#     vx, vy, vz = v_3D_func(kft[i0, :, 0], kft[i0, :, 1], kft[i0, :, 2], band_parameters)
-#     vft[i0, :, :] = np.array([vx, vy, vz]).transpose()
+# kft = np.empty( (3, kf.shape[1], t.shape[0]), dtype = np.float64) # dim -> (n, i0, i) = (xyz, position on FS @ t= 0, position on FS after ->t)
+# vft = np.empty_like(kft, dtype = np.float64)
+
+# # Compute kf, vf function of t ///#
+# for i0 in range(kf.shape[1]):
+#     # prob = de.ODEProblem(f, u0, tspan)
+#     # de.solve(prob)
+#     kft[:, i0, :] = odeint(diff_func, kf[:, i0], t, args = (B, band_parameters)).transpose() # solve differential equation
+#     vft[0, i0, :], vft[1, i0, :], vft[2, i0, :] = v_3D_func(kft[0, i0, :], kft[1, i0, :], kft[2, i0, :], band_parameters)
+#     print(i0)

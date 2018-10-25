@@ -19,19 +19,19 @@ m = 1
 
 
 ## Band structure /////////////////////////////////////////////////////////////#
-@jit(nopython=True)
+@jit(nopython=True, cache = True)
 def e_2D_func(kx, ky, a, b, mu, t, tp, tpp):
     e_2D = -mu + 2 * t * ( cos(kx*a) + cos(ky*b) ) + 4 * tp * cos(kx*a) * cos(ky*b) + 2 * tpp * ( cos(2*kx*a) + cos(2*ky*b) )
     return e_2D
 
-@jit(nopython=True)
+@jit(nopython=True, cache = True)
 def e_z_func(kx, ky, kz, a, b, c, tz):
     d = c / 2.
     sigma = cos(kx*a/2) * cos(ky*b/2)
     e_z = 2 * tz * sigma * ( cos(kx*a) - cos(ky*b) )**2 * cos(kz*d)
     return e_z
 
-@jit(nopython=True)
+@jit(nopython=True, cache = True)
 def e_3D_func(kx, ky, kz, band_parameters):
     a = band_parameters[0]
     b = band_parameters[1]
@@ -47,7 +47,7 @@ def e_3D_func(kx, ky, kz, band_parameters):
     return e_3D
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache = True)
 def v_3D_func(kx, ky, kz, band_parameters):
     a = band_parameters[0]
     b = band_parameters[1]
