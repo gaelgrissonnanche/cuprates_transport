@@ -57,14 +57,14 @@ mu  = 0.9 * t # van Hove 0.84
 # mu  = 1.123 * t
 
 tau =  25 / t * hbar
-B_amp = 0.05
+B_amp = 0.02
 
 
 half_FS_z = True
 mesh_xy = 56 # 28 must be a multiple of 4
 mesh_z = 7 # 7 ideal if calculates half of the FS
-mesh_B_theta = 31
-B_theta_max = 180
+mesh_B_theta = 25
+B_theta_max = 120
 
 
 ## Magnetic field tensor //////////////////////////////////////////////////////#
@@ -125,17 +125,13 @@ def sigma_zz(vf, vzft, kf, dkf, t, tau):
         vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp(- t / tau) * dt ) # integral over t
         v_product[i0] = vzf[i0] * vz_sum_over_t # integral over z
 
-    # tt = np.outer(t, np.ones_like(vzft[:,0])).transpose()
-    # vz_sum_over_t = ( 1 / dos ) * np.sum(vzft * exp(- tt / tau) * dt, axis = 1) # integral over t
-    # v_product = vzf * vz_sum_over_t # integral over z
-
     # Second the integral over kf
     sigma_zz = prefactor * np.sum(dkf * v_product) # integral over k
 
     return sigma_zz
 
 # rho_zz vs B_theta vs B_phi //////////////////////////////////////////////////#
-def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau, solver = "odeint"):
+def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau):
 
     sigma_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
 
@@ -143,7 +139,7 @@ def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau, s
         for j in prange(B_theta_a.shape[0]):
 
             tmax = 10 * tau
-            kft, vft, t = solve_movement_func(B_amp, B_theta_a[j], B_phi_a[i], kf, band_parameters, tmax, solver)
+            kft, vft, t = solve_movement_func(B_amp, B_theta_a[j], B_phi_a[i], kf, band_parameters, tmax)
             s_zz = sigma_zz(vf, vft[2,:,:], kf, dkf, t, tau)
             sigma_zz_a[i, j] = s_zz
 
@@ -350,12 +346,12 @@ axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
 
 ######################################################
-plt.legend(loc = 3, fontsize = 14, frameon = False, numpoints=1, markerscale = 1, handletextpad=0.5)
+plt.legend(loc = 0, fontsize = 14, frameon = False, numpoints=1, markerscale = 1, handletextpad=0.5)
 ######################################################
 
 
 ##///Set ticks space and minor ticks space ///#
-xtics = B_theta_max / 6. # space between two ticks
+xtics = 30. # space between two ticks
 mxtics = xtics / 2.  # space between two minor ticks
 
 majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
