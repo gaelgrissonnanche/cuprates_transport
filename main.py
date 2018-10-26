@@ -7,7 +7,7 @@ np.set_printoptions(6,suppress=True,sign="+",floatmode="fixed")
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-from numba import jit, prange, config, threading_layer, guvectorize, float64
+from numba import jit, prange
 import time
 from band_structure import *
 from diff_equation import *
@@ -57,12 +57,12 @@ mu  = 0.9 * t # van Hove 0.84
 # mu  = 1.123 * t
 
 tau =  25 / t * hbar
-B_amp = 0.02
+B_amp = 0.05
 
 
 half_FS_z = True
 mesh_xy = 56 # 28 must be a multiple of 4
-mesh_z = 11 # 11 ideal to be fast and accurate
+mesh_z = 7 # 7 ideal if calculates half of the FS
 mesh_B_theta = 31
 B_theta_max = 180
 
@@ -125,14 +125,17 @@ def sigma_zz(vf, vzft, kf, dkf, t, tau):
         vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp(- t / tau) * dt ) # integral over t
         v_product[i0] = vzf[i0] * vz_sum_over_t # integral over z
 
+    # tt = np.outer(t, np.ones_like(vzft[:,0])).transpose()
+    # vz_sum_over_t = ( 1 / dos ) * np.sum(vzft * exp(- tt / tau) * dt, axis = 1) # integral over t
+    # v_product = vzf * vz_sum_over_t # integral over z
+
     # Second the integral over kf
     sigma_zz = prefactor * np.sum(dkf * v_product) # integral over k
 
     return sigma_zz
 
 # rho_zz vs B_theta vs B_phi //////////////////////////////////////////////////#
-# @jit(nopython = True, parallel = True)
-def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau):
+def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau, solver = "odeint"):
 
     sigma_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
 
@@ -140,7 +143,7 @@ def rho_zz_angle(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau):
         for j in prange(B_theta_a.shape[0]):
 
             tmax = 10 * tau
-            kft, vft, t = solve_movement_func(B_amp, B_theta_a[j], B_phi_a[i], kf, band_parameters, tmax)
+            kft, vft, t = solve_movement_func(B_amp, B_theta_a[j], B_phi_a[i], kf, band_parameters, tmax, solver)
             s_zz = sigma_zz(vf, vft[2,:,:], kf, dkf, t, tau)
             sigma_zz_a[i, j] = s_zz
 
@@ -161,7 +164,7 @@ Data = Data.transpose()
 folder = "data_sim/"
 file_name =  "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau_" + str(tau) + ".dat"
 np.savetxt(folder + file_name, Data, fmt='%.7e',
-header = "theta[deg]\trhozz(phi=0)/rhozz(theta=0)\trhozz(phi=15)/rhozz(theta=0)\rhozz(phi=30)/rhozz(theta=0)\trhozz(phi=45)/rhozz(theta=0)\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
+header = "theta[deg]\trzz(phi=0)/rzz_0\trzz(phi=15)/rzz_0\trzz(phi=30)/rzz_0\trzz(phi=45)/rzz_0\tB\ttau\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
 
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
