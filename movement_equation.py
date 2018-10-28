@@ -11,14 +11,13 @@ from band_structure import *
 
 
 ## Constant //////
-# hbar = 1.05e34
-# e = 1.6e19
-# m0 = 9.1e31
-# kB = 1.38e23
+# hbar = 1.05e-34 # m2 kg / s
+# e = 1.6e-19 # C
+# m0 = 9.1e-31 # kg
 
 e = 1
 hbar = 1
-m = 1
+m0 = 1
 
 
 ## Magnetic field function ////////////////////////////////////////////////////#
@@ -47,10 +46,8 @@ def diff_func_vectorized(k, t, B, band_parameters):
     dkdt = dkdt.flatten()
     return dkdt
 
-## Solve differential equation >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-
-# @jit(nopython = True, cache = True)
-def solve_movement_func(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
+## Solve differential equation ////////////////////////////////////////////////#
+def solveMovementFunc(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
 
     dt = tmax / 300
     t = np.arange(0, tmax, dt)

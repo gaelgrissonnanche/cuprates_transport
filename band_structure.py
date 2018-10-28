@@ -1,5 +1,3 @@
-# -*- coding: Latin-1 -*-
-
 ## Modules <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 import numpy as np
 from numpy import cos, sin, pi
@@ -8,14 +6,13 @@ from numba import jit
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
-# hbar = 1.05e34
-# e = 1.6e19
-# m0 = 9.1e31
-# kB = 1.38e23
+# hbar = 1.05e-34 # m2 kg / s
+# e = 1.6e-19 # C
+# m0 = 9.1e-31 # kg
 
 e = 1
 hbar = 1
-m = 1
+m0 = 1
 
 
 ## Band structure /////////////////////////////////////////////////////////////#
@@ -25,10 +22,10 @@ def e_2D_func(kx, ky, a, b, mu, t, tp, tpp):
     return e_2D
 
 @jit(nopython = True, cache = True)
-def e_z_func(kx, ky, kz, a, b, c, tz):
+def e_z_func(kx, ky, kz, a, b, c, tz, tz2):
     d = c / 2.
     sigma = cos(kx*a/2) * cos(ky*b/2)
-    e_z = 2 * tz * sigma * ( cos(kx*a) - cos(ky*b) )**2 * cos(kz*d)
+    e_z = 2 * tz * sigma * ( cos(kx*a) - cos(ky*b) )**2 * cos(kz*d) + 2 * tz2 * cos(kz*d)
     return e_z
 
 @jit(nopython = True, cache = True)
@@ -41,9 +38,10 @@ def e_3D_func(kx, ky, kz, band_parameters):
     tp = band_parameters[5]
     tpp = band_parameters[6]
     tz = band_parameters[7]
+    tz2 = band_parameters[8]
 
     e_3D = e_2D_func(kx, ky, a, b, mu, t, tp, tpp) + \
-           e_z_func(kx, ky, kz, a, b, c, tz)
+           e_z_func(kx, ky, kz, a, b, c, tz, tz2)
     return e_3D
 
 
@@ -57,6 +55,7 @@ def v_3D_func(kx, ky, kz, band_parameters):
     tp = band_parameters[5]
     tpp = band_parameters[6]
     tz = band_parameters[7]
+    tz2 = band_parameters[8]
 
     # Velocity from e_2D
     d_e2D_dkx = -2 * t * a * sin(kx*a) - 4 * tp * a * sin(kx*a)*cos(ky*b) - 4 * tpp * a * sin(2*kx*a)
@@ -72,7 +71,7 @@ def v_3D_func(kx, ky, kz, band_parameters):
                2 * tz * sigma * 2 * (cos(kx*a) - cos(ky*b)) * (-a * sin(kx*a)) * cos(kz*d)
     d_ez_dky = 2 * tz * d_sigma_dky * (cos(kx*a) - cos(ky*b))**2 * cos(kz*d) + \
                2 * tz * sigma * 2 * (cos(kx*a) - cos(ky*b)) * (+b * sin(ky*b)) * cos(kz*d)
-    d_ez_dkz = 2 * tz * sigma * (cos(kx*a) - cos(ky*b))**2 * (-d * sin(kz*d))
+    d_ez_dkz = 2 * tz * sigma * (cos(kx*a) - cos(ky*b))**2 * (-d * sin(kz*d)) + 2 * tz2 * (-d) * sin(kz*d)
 
     vx = d_e2D_dkx + d_ez_dkx
     vy = d_e2D_dky + d_ez_dky
