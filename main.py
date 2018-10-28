@@ -56,7 +56,7 @@ mu  = 0.9 * t # van Hove 0.84
 
 ## Life time
 tau_0 =  25 / t * hbar
-gamma = 0.1
+gamma = 0.01
 power = 8
 
 ## Magnetic field
@@ -87,7 +87,6 @@ mesh_xy = mesh_xy - (mesh_xy % 4)
 kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z)
 
 
-
 ## ADMR >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 rho_zz_a = admrFunc(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau_parameters)
@@ -101,13 +100,15 @@ print("Total time : %.6s seconds" % (time.time() - start_total_time))
 ## Save Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 len = rho_zz_a.shape[1]
+t = band_parameters[4]
 Data = np.vstack((B_theta_a, rho_zz_a[0,:] / rho_zz_0[0], rho_zz_a[1,:] / rho_zz_0[1], rho_zz_a[2,:] / rho_zz_0[2], rho_zz_a[3,:] / rho_zz_0[3],
-                  B_amp*ones(len), tau_0*ones(len), mu*ones(len), 1*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
+                  B_amp*ones(len), tau_0*ones(len), gamma*ones(len), power*ones(len), mu*ones(len), t*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), tz2*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
 Data = Data.transpose()
-folder = "data_sim/"
-file_name =  "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau0_" + str(tau_0) + ".dat"
+folder = "results_sim/"
+file_name =  "Rzz" + "_mu_" + str(mu) + "_t_" + str(t) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_tz2_" + str(tz2) + \
+             "_B_" + str(B_amp) + "_tau0_" + str(tau_0) + "_g_" + str(gamma) + "_p_" + str(power) + ".dat"
 np.savetxt(folder + file_name, Data, fmt='%.7e',
-header = "theta[deg]\trzz(phi=0)/rzz_0\trzz(phi=15)/rzz_0\trzz(phi=30)/rzz_0\trzz(phi=45)/rzz_0\tB\ttau0\tmu\tt\ttp\ttpp\ttz\tmesh_xy\tmesh_z", comments = "#")
+header = "theta[deg]\trzz(phi=0)/rzz_0\trzz(phi=15)/rzz_0\trzz(phi=30)/rzz_0\trzz(phi=45)/rzz_0\tB\ttau0\tgamma\tpower\tmu\tt\ttp\ttpp\ttz\ttz2\tmesh_xy\tmesh_z", comments = "#")
 
 
 
@@ -412,8 +413,10 @@ axes_inset_tau.axis(**{'linewidth' : 0.2})
 
 plt.show()
 
-folder = "figures_sim/"
-figure_name = "Rzz" + "_mu_" + str(mu) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_B_" + str(B_amp) + "_tau0_" + str(tau_0) + ".pdf"
+t = band_parameters[4]
+folder = "results_sim/"
+figure_name =  "Rzz" + "_mu_" + str(mu) + "_t_" + str(t) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_tz2_" + str(tz2) + \
+               "_B_" + str(B_amp) + "_tau0_" + str(tau_0) + "_g_" + str(gamma) + "_p_" + str(power) + ".pdf"
 fig.savefig(folder + figure_name)
 #//////////////////////////////////////////////////////////////////////////////#
 
