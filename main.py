@@ -14,53 +14,33 @@ from chambers_formula import *
 start_total_time = time.time()
 
 ## Constant //////
-# hbar = 1.05e-34
-# e = 1.6e-19
-# m0 = 9.1e-31
-# kB = 1.38e-23
+hbar = 1.05e-34 # m2 kg / s
+e = 1.6e-19 # C
+# m0 = 9.1e-31 # kg
 
-e = 1
-hbar = 1
-m = 1
 
 ## Parameters //////
-# c = 13.2
-# a = 5.3 / sqrt(2)
-# b = 5.3 / sqrt(2)
-
-# mu = 805 # VHs = 600
-# t = 525
-# tp = -115
-# tpp = 35
-# tz = 11
-
-# tau = 1e-3
-
-a = 1
-b = 1
-c = 1
+c = 13.3e-10 # in meter
+a = 3.74e-10 # in meter
+b = 3.74e-10 # in meter
 
 
-t   =  1.
+
+t   =  190e-3 # eV
+t = t * 1.602e-19 # in J
 tp  = -0.14 * t
 tpp =  0.07 * t
 tz  =  0.07 * t
 tz2 = - 0 * t
 mu  = 0.9 * t # van Hove 0.84
 
-# t   =  1.
-# tp  = -0.209 * t
-# tpp =  0.062 * t
-# tz  =  0.0209 * t
-# mu  = 1.123 * t
-
 ## Life time
-tau_0 =  25 / t * hbar
-gamma = 0.01
+tau_0 =  1e-14# in seconds
+gamma = 0
 power = 8
 
 ## Magnetic field
-B_amp = 0.05
+B_amp = 45 # in Tesla
 mesh_B_theta = 23
 B_theta_max = 110
 
@@ -75,9 +55,9 @@ B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
 B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 
 
+band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz, tz2], dtype = np.float64)
+tau_parameters = np.array([tau_0, gamma, power], dtype = np.float64)
 
-band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz, tz2])
-tau_parameters = np.array([tau_0, gamma, power])
 ## Discretize Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
@@ -90,11 +70,10 @@ kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, h
 ## ADMR >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 rho_zz_a = admrFunc(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau_parameters)
+print(rho_zz_a[:,0])
 rho_zz_0 = rho_zz_a[:,0]
 
 print("Total time : %.6s seconds" % (time.time() - start_total_time))
-
-
 
 
 ## Save Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -119,7 +98,6 @@ header = "theta[deg]\trzz(phi=0)/rzz_0\trzz(phi=15)/rzz_0\trzz(phi=30)/rzz_0\trz
 
 ## For figures, compute t-dependence
 kft, vft, t = solveMovementFunc(B_amp, 0, 0, kf, band_parameters, tmax = 10 * tau_0)
-
 mesh_graph = 1001
 kx = np.linspace(-pi/a, pi/a, mesh_graph)
 ky = np.linspace(-pi/b, pi/b, mesh_graph)
@@ -143,36 +121,36 @@ mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType),
                                     # editing the text in illustrator
 
 
-# ##>>>> 2D Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-# fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
+##>>>> 2D Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
-# # axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
+# axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
-# for tick in axes.xaxis.get_major_ticks():
-#     tick.set_pad(7)
-# for tick in axes.yaxis.get_major_ticks():
-#     tick.set_pad(8)
+for tick in axes.xaxis.get_major_ticks():
+    tick.set_pad(7)
+for tick in axes.yaxis.get_major_ticks():
+    tick.set_pad(8)
 
-# fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
+fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
-# line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-# line = axes.plot(kf[0, : mesh_xy*1*number_contours], kf[1, : mesh_xy*1*number_contours]) # mesh_xy means all points for kz = - pi / c
-# plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-# axes.quiver(kf[0, : mesh_xy*1*number_contours], kf[1, : mesh_xy*1*number_contours], vf[0, : mesh_xy*1*number_contours], vf[1, : mesh_xy*1*number_contours], color = 'k') # mesh_xy means all points for kz = - pi / c
+line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+line = axes.plot(kf[0, : mesh_xy*1*number_contours]*a, kf[1, : mesh_xy*1*number_contours]*b) # mesh_xy means all points for kz = - pi / c
+plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
+axes.quiver(kf[0, : mesh_xy*1*number_contours]*a, kf[1, : mesh_xy*1*number_contours]*b, vf[0, : mesh_xy*1*number_contours], vf[1, : mesh_xy*1*number_contours], color = 'k') # mesh_xy means all points for kz = - pi / c
 
-# axes.set_xlim(-pi/a, pi/a)
-# axes.set_ylim(-pi/b, pi/b)
-# axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-# axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+axes.set_xlim(-pi, pi)
+axes.set_ylim(-pi, pi)
+axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-# axes.set_xticks([-pi, 0., pi])
-# axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
-# axes.set_yticks([-pi, 0., pi])
-# axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+axes.set_xticks([-pi, 0., pi])
+axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+axes.set_yticks([-pi, 0., pi])
+axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
-# plt.show()
-# #//////////////////////////////////////////////////////////////////////////////#
+plt.show()
+#//////////////////////////////////////////////////////////////////////////////#
 
 # ##>>>> Life Time >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
@@ -211,94 +189,94 @@ mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType),
 # plt.show()
 # #//////////////////////////////////////////////////////////////////////////////#
 
-# #>>>> k vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-# fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
+#>>>> k vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
-# # axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
+# axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
-# for tick in axes.xaxis.get_major_ticks():
-#     tick.set_pad(7)
-# for tick in axes.yaxis.get_major_ticks():
-#     tick.set_pad(8)
+for tick in axes.xaxis.get_major_ticks():
+    tick.set_pad(7)
+for tick in axes.yaxis.get_major_ticks():
+    tick.set_pad(8)
 
-# fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
+fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
-# line = axes.contour(kxx, kyy, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-# line = axes.plot(kft[0, 0,:], kft[1, 0,:])
-# plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0) # trajectory
-# line = axes.plot(kf[0, 0], kf[1, 0])
-# plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'w', ms = 4.5, mec = "b", mew= 1.5)  # starting point
-# line = axes.plot(kft[0, 0, -1], kft[1, 0, -1])
-# plt.setp(line, ls ="", c = 'b', lw = 1, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # end point
+line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+line = axes.plot(kft[0, 5,:]*a, kft[1, 5,:]*b)
+plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0) # trajectory
+line = axes.plot(kf[0, 5]*a, kf[1, 5]*b)
+plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'w', ms = 4.5, mec = "b", mew= 1.5)  # starting point
+line = axes.plot(kft[0, 5, -1]*a, kft[1, 5, -1]*b)
+plt.setp(line, ls ="", c = 'b', lw = 1, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # end point
 
-# axes.set_xlim(-pi/a, pi/a)
-# axes.set_ylim(-pi/b, pi/b)
-# axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-# axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+axes.set_xlim(-pi, pi)
+axes.set_ylim(-pi, pi)
+axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-# axes.set_xticks([-pi, 0., pi])
-# axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
-# axes.set_yticks([-pi, 0., pi])
-# axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+axes.set_xticks([-pi, 0., pi])
+axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+axes.set_yticks([-pi, 0., pi])
+axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
-# plt.show()
+plt.show()
 
-# #>>>> vf vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-# fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
+#>>>> vf vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
-# axes.axhline(y = 0, ls ="--", c ="k", linewidth = 0.6)
+axes.axhline(y = 0, ls ="--", c ="k", linewidth = 0.6)
 
-# #///// Allow to shift the label ticks up or down with set_pad /////#
-# for tick in axes.xaxis.get_major_ticks():
-#     tick.set_pad(7)
-# for tick in axes.yaxis.get_major_ticks():
-#     tick.set_pad(8)
-
-
-# line = axes.plot(t, vft[2, -1,:])
-# plt.setp(line, ls ="-", c = '#6AFF98', lw = 3, marker = "", mfc = '#6AFF98', ms = 5, mec = "#7E2320", mew= 0)
-
-# # axes.set_xlim(0, 90)
-# # axes.set_ylim(ymin, ymax)
-# axes.set_xlabel(r"$t$", labelpad = 8)
-# axes.set_ylabel(r"$v_{\rm z}$ ( $k_{\rm z}$ = 0 )", labelpad = 8)
-# axes.locator_params(axis = 'y', nbins = 6)
-
-# plt.show()
-# #//////////////////////////////////////////////////////////////////////////////#
-
-# #>>>> Cumulated velocity vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-# fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
-
-# #///// Allow to shift the label ticks up or down with set_pad /////#
-# for tick in axes.xaxis.get_major_ticks():
-#     tick.set_pad(7)
-# for tick in axes.yaxis.get_major_ticks():
-#     tick.set_pad(8)
-
-# #///// Labels //////#
-# # fig.text(0.79,0.86, samplename, ha = "right")
-
-# line = axes.plot(t, np.cumsum( vft[2, -1, :] * exp ( -t / tau_0 ) ))
-# plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-# line = axes.plot(t, np.cumsum( vft[2, -2, :] * exp ( -t / tau_0 ) ))
-# plt.setp(line, ls ="-", c = 'r', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
-# line = axes.plot(t, np.cumsum( vft[2, -3, :] * exp ( -t / tau_0 ) ))
-# plt.setp(line, ls ="-", c = 'b', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+#///// Allow to shift the label ticks up or down with set_pad /////#
+for tick in axes.xaxis.get_major_ticks():
+    tick.set_pad(7)
+for tick in axes.yaxis.get_major_ticks():
+    tick.set_pad(8)
 
 
-# # axes.set_xlim(0, 90)
-# # axes.set_ylim(ymin, ymax)
-# axes.set_xlabel(r"$t$", labelpad = 8)
-# axes.set_ylabel(r"$\sum_{\rm t}$ $v_{\rm z}(t)$$e^{\rm \dfrac{-t}{\tau}}$", labelpad = 8)
+line = axes.plot(t, vft[2, -200,:])
+plt.setp(line, ls ="-", c = '#6AFF98', lw = 3, marker = "", mfc = '#6AFF98', ms = 5, mec = "#7E2320", mew= 0)
 
-# axes.locator_params(axis = 'y', nbins = 6)
+# axes.set_xlim(0, 90)
+# axes.set_ylim(ymin, ymax)
+axes.set_xlabel(r"$t$", labelpad = 8)
+axes.set_ylabel(r"$v_{\rm z}$ ( $k_{\rm z}$ = $\pi$/$c$ )", labelpad = 8)
+axes.locator_params(axis = 'y', nbins = 6)
 
-# plt.show()
-# #//////////////////////////////////////////////////////////////////////////////#
+plt.show()
+#//////////////////////////////////////////////////////////////////////////////#
+
+#>>>> Cumulated velocity vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
+
+#///// Allow to shift the label ticks up or down with set_pad /////#
+for tick in axes.xaxis.get_major_ticks():
+    tick.set_pad(7)
+for tick in axes.yaxis.get_major_ticks():
+    tick.set_pad(8)
+
+#///// Labels //////#
+# fig.text(0.79,0.86, samplename, ha = "right")
+
+line = axes.plot(t, np.cumsum( vft[2, -1, :] * exp ( -t / tau_0 ) ))
+plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(t, np.cumsum( vft[2, -2, :] * exp ( -t / tau_0 ) ))
+plt.setp(line, ls ="-", c = 'r', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+line = axes.plot(t, np.cumsum( vft[2, -3, :] * exp ( -t / tau_0 ) ))
+plt.setp(line, ls ="-", c = 'b', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+
+
+# axes.set_xlim(0, 90)
+# axes.set_ylim(ymin, ymax)
+axes.set_xlabel(r"$t$", labelpad = 8)
+axes.set_ylabel(r"$\sum_{\rm t}$ $v_{\rm z}(t)$$e^{\rm \dfrac{-t}{\tau}}$", labelpad = 8)
+
+axes.locator_params(axis = 'y', nbins = 6)
+
+plt.show()
+#//////////////////////////////////////////////////////////////////////////////#
 
 #>>>> Rzz vs theta >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 fig, axes = plt.subplots(1, 1, figsize = (10.5, 5.8)) # (1,1) means one plot, and figsize is w x h in inch of figure
@@ -313,18 +291,19 @@ for tick in axes.yaxis.get_major_ticks():
     tick.set_pad(8)
 
 #///// Labels //////#
+t = band_parameters[4]
 label_parameters = [r"$B$ = " + str(B_amp),
                     "",
                     r"$\tau_{\rm 0}$ = " + str(tau_0),
                     r"$\gamma$ = " + str(gamma),
                     r"power = " + str(power),
                     "",
-                    r"$\mu$ = " + str(mu),
-                    r"$t$ = " + str(1),
-                    r"$t^\prime$ = " + str(tp),
-                    r"$t^{\prime\prime}$ = " + str(tpp),
-                    r"$t_{\rm z}$ = " + str(tz),
-                    r"$t_{\rm z}^{\prime}$ = " + str(tz2)]
+                    r"$t$ = " + "{0:.3e}".format(t),
+                    r"$\mu$ = " + "{0:.3f}".format(mu/t) + r" $t$",
+                    r"$t^\prime$ = " + "{0:.3f}".format(tp/t) + r" $t$",
+                    r"$t^{\prime\prime}$ = " + "{0:.3f}".format(tpp/t) + r" $t$",
+                    r"$t_{\rm z}$ = " + "{0:.3f}".format(tz/t) + r" $t$",
+                    r"$t_{\rm z}^{\prime}$ = " + "{0:.3f}".format(tz2/t) + r" $t$"]
 
 h_label = 0.92
 for label in label_parameters:

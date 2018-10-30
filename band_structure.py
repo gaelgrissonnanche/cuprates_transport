@@ -6,13 +6,9 @@ from numba import jit
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
-# hbar = 1.05e-34 # m2 kg / s
-# e = 1.6e-19 # C
+hbar = 1.05e-34 # m2 kg / s
+e = 1.6e-19 # C
 # m0 = 9.1e-31 # kg
-
-e = 1
-hbar = 1
-m0 = 1
 
 
 ## Band structure /////////////////////////////////////////////////////////////#
@@ -73,9 +69,9 @@ def v_3D_func(kx, ky, kz, band_parameters):
                2 * tz * sigma * 2 * (cos(kx*a) - cos(ky*b)) * (+b * sin(ky*b)) * cos(kz*d)
     d_ez_dkz = 2 * tz * sigma * (cos(kx*a) - cos(ky*b))**2 * (-d * sin(kz*d)) + 2 * tz2 * (-d) * sin(kz*d)
 
-    vx = d_e2D_dkx + d_ez_dkx
-    vy = d_e2D_dky + d_ez_dky
-    vz = d_e2D_dkz + d_ez_dkz
+    vx = ( 1 / hbar ) * (d_e2D_dkx + d_ez_dkx)
+    vy = ( 1 / hbar ) * (d_e2D_dky + d_ez_dky)
+    vz = ( 1 / hbar ) * (d_e2D_dkz + d_ez_dkz)
 
     return vx, vy, vz
 

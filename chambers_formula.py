@@ -6,15 +6,11 @@ from numba import jit, prange
 from movement_equation import *
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-
 ## Constant //////
-# hbar = 1.05e-34 # m2 kg / s
-# e = 1.6e-19 # C
+hbar = 1.05e-34 # m2 kg / s
+e = 1.6e-19 # C
 # m0 = 9.1e-31 # kg
 
-e = 1
-hbar = 1
-m0 = 1
 
 ## Life time //////////////////////////////////////////////////////////////////#
 @jit(nopython = True, cache = True)

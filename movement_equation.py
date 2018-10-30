@@ -1,5 +1,3 @@
-# -*- coding: Latin-1 -*-
-
 ## Modules <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 import numpy as np
 from numpy import cos, sin
@@ -9,15 +7,10 @@ from scipy.integrate import odeint
 from band_structure import *
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-
 ## Constant //////
-# hbar = 1.05e-34 # m2 kg / s
-# e = 1.6e-19 # C
+hbar = 1.05e-34 # m2 kg / s
+e = 1.6e-19 # C
 # m0 = 9.1e-31 # kg
-
-e = 1
-hbar = 1
-m0 = 1
 
 
 ## Magnetic field function ////////////////////////////////////////////////////#
@@ -36,7 +29,7 @@ def cross_product_vectorized(vx, vy, vz, Bx, By , Bz):
     return product
 
 ## Differential equation function /////////////////////////////////////////////#
-@jit(nopython=True, cache = True)
+@jit(nopython = True, cache = True)
 def diff_func_vectorized(k, t, B, band_parameters):
     len_k = int(k.shape[0]/3)
     k = np.reshape(k, (3, len_k))
