@@ -13,30 +13,28 @@ from chambers_formula import *
 
 start_total_time = time.time()
 
-## Constant //////
-hbar = 1.05e-34 # m2 kg / s
-e = 1.6e-19 # C
-# m0 = 9.1e-31 # kg
-
+## Units ////////
+eVolt = 1.602e-19 # in Joule
+Angstrom = 1e-10 # in meters
+picoseconde = 10e-12 # in seconds
 
 ## Parameters //////
-c = 13.3e-10 # in meter
-a = 3.74e-10 # in meter
-b = 3.74e-10 # in meter
+c = 13.3 # in Angstrom
+a = 3.74 # in Angstrom
+b = 3.74 # in Angstrom
 
 
 
 t   =  190e-3 # eV
-t = t * 1.602e-19 # in J
 tp  = -0.14 * t
 tpp =  0.07 * t
 tz  =  0.07 * t
 tz2 = - 0 * t
-mu  = 0.9 * t # van Hove 0.84
+mu  = 0.8 * t # van Hove 0.84
 
 ## Life time
-tau_0 =  1e-14# in seconds
-gamma = 0
+tau_0 =  1e-2 # in picoseconds (1e-12 seconds)
+gamma = 0 # THz
 power = 8
 
 ## Magnetic field
@@ -70,7 +68,6 @@ kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, h
 ## ADMR >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 rho_zz_a = admrFunc(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau_parameters)
-print(rho_zz_a[:,0])
 rho_zz_0 = rho_zz_a[:,0]
 
 print("Total time : %.6s seconds" % (time.time() - start_total_time))

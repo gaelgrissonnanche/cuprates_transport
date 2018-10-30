@@ -10,8 +10,13 @@ from band_structure import *
 ## Constant //////
 hbar = 1.05e-34 # m2 kg / s
 e = 1.6e-19 # C
-# m0 = 9.1e-31 # kg
 
+## Units ////////
+eVolt = 1.602e-19 # in Joule
+Angstrom = 1e-10 # in meter
+picoseconde = 10e-12 # in seconde
+
+Constant_A =  e * Angstrom**2 * picoseconde * eVolt / hbar**2 # = 0.2325
 
 ## Magnetic field function ////////////////////////////////////////////////////#
 @jit(nopython=True, cache = True)
@@ -34,7 +39,7 @@ def diff_func_vectorized(k, t, B, band_parameters):
     len_k = int(k.shape[0]/3)
     k = np.reshape(k, (3, len_k))
     vx, vy, vz =  v_3D_func(k[0,:], k[1,:], k[2,:], band_parameters)
-    dkdt = ( - e / hbar ) * cross_product_vectorized(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, k) in the Chambers formula
+    dkdt = ( - Constant_A ) * cross_product_vectorized(vx, vy, vz, -B[0], -B[1], -B[2]) # (-) represent -t in vz(-t, k) in the Chambers formula
                             # integrated from 0 to +infinity
     dkdt = dkdt.flatten()
     return dkdt

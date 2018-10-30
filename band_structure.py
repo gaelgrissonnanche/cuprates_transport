@@ -6,10 +6,7 @@ from numba import jit
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
-hbar = 1.05e-34 # m2 kg / s
-e = 1.6e-19 # C
-# m0 = 9.1e-31 # kg
-
+hbar = 1 # velocity will be in units of 1 / hbar
 
 ## Band structure /////////////////////////////////////////////////////////////#
 @jit(nopython = True, cache = True)

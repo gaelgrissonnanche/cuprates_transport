@@ -33,7 +33,7 @@ def tauFunc(k, tau_parameters):
 @jit(nopython = True, parallel = True)
 def chambersFunc(kf, vf, dkf, kft, vft, t, tau_parameters):
 
-    prefactor = e**2 / ( 4 * pi**3 )
+    prefactor = 1 # e**2 / ( 4 * pi**3 )
 
     ## Velocity components
     vxf = vf[0,:]
