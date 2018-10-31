@@ -73,7 +73,7 @@ def v_3D_func(kx, ky, kz, band_parameters):
 
     return vx, vy, vz
 
-## Discretizing FS function
+## Discretizing FS function ///////////////////////////////////////////////////#
 def discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z):
 
     a = band_parameters[0]
@@ -167,4 +167,29 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z):
     vf = np.vstack([vx, vy, vz]) # dim -> (i, i0) = (xyz, position on FS)
 
     return kf, vf, dkf, number_contours
+
+## Hole doping function ///////////////////////////////////////////////////////#
+def dopingFunc(band_parameters):
+    a = band_parameters[0]
+    b = band_parameters[1]
+    c = band_parameters[2]
+
+    kx_a = np.linspace(-pi/a, pi/a, 500)
+    ky_a = np.linspace(-pi/b, pi/b, 500)
+    kz_a = np.linspace(-2*pi/c, 2*pi/b, 10)
+    kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing = 'ij')
+    E = - e_3D_func(kxx, kyy, kzz, band_parameters) # (-) because band is inverted in my conventions
+
+    # Number of k in the total Brillouin Zone
+    N = E.shape[0] * E.shape[1] * E.shape[2]
+    # Number of k in the Brillouin zone per plane
+    N_per_plane = E.shape[0] * E.shape[1]
+    # Number of electron in the total Brillouin Zone
+    n = 2 / N * np.sum( np.greater_equal(0, E) ) # number of quasiparticles below mu, 2 is for the spin
+    p = 1 - n # number of holes
+    # Number of electron in the Brillouin zone per plane
+    n_per_plane = 2 / N_per_plane * np.sum( np.greater_equal(0, E), axis = (0,1) )
+    p_per_plane = 1 - n_per_plane
+
+    return p, p_per_plane
 
