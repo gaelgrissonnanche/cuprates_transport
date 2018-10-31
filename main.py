@@ -1,6 +1,6 @@
 ## Modules <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 import numpy as np
-from numpy import sqrt, exp, pi, ones
+from numpy import exp, pi, ones
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
@@ -11,50 +11,43 @@ from movement_equation import *
 from chambers_formula import *
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-start_total_time = time.time()
-
-## Units ////////
-eVolt = 1.602e-19 # in Joule
-Angstrom = 1e-10 # in meters
-picoseconde = 10e-12 # in seconds
-
 ## Parameters //////
 c = 13.3 # in Angstrom
 a = 3.74 # in Angstrom
 b = 3.74 # in Angstrom
 
-
-
-t   =  190e-3 # eV
+t   =  190 # meV
 tp  = -0.14 * t
 tpp =  0.07 * t
 tz  =  0.07 * t
 tz2 = - 0 * t
-mu  = 0.8 * t # van Hove 0.84
+mu  = 0.81 * t # van Hove 0.84
 
 ## Life time
-tau_0 =  1e-2 # in picoseconds (1e-12 seconds)
-gamma = 0 # THz
+gamma_0 =  100 # in THz
+gamma_k = 0 # in THz
 power = 8
 
 ## Magnetic field
 B_amp = 45 # in Tesla
-mesh_B_theta = 23
-B_theta_max = 110
 
 ## Discretization
 half_FS_z = True # if False, put a minimum of 11 points
-mesh_xy = 56
-mesh_z = 7
+mesh_xy = 40 # number of (kx,ky) points per contour per kz
+mesh_z = 7 # number of kz
+mesh_B_theta = 23 # number of theta angles for B
+B_theta_max = 110 # theta max for B, in degrees
 
 
 ## Magnetic field /////////////////////////////////////////////////////////////#
 B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
 B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 
-
 band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz, tz2], dtype = np.float64)
-tau_parameters = np.array([tau_0, gamma, power], dtype = np.float64)
+tau_parameters = np.array([gamma_0, gamma_k, power], dtype = np.float64)
+tau_0 = 1 / gamma_0
+
+start_total_time = time.time()
 
 ## Discretize Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -64,6 +57,11 @@ mesh_xy = mesh_xy - (mesh_xy % 4)
 ## Discretize FS
 kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z)
 
+# def FermiDirac(E):
+#     return 1 / ( exp (E) - 1)
+# def dopingFunc(kf):
+#     n =
+#     print(n)
 
 ## ADMR >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -78,13 +76,26 @@ print("Total time : %.6s seconds" % (time.time() - start_total_time))
 len = rho_zz_a.shape[1]
 t = band_parameters[4]
 Data = np.vstack((B_theta_a, rho_zz_a[0,:] / rho_zz_0[0], rho_zz_a[1,:] / rho_zz_0[1], rho_zz_a[2,:] / rho_zz_0[2], rho_zz_a[3,:] / rho_zz_0[3],
-                  B_amp*ones(len), tau_0*ones(len), gamma*ones(len), power*ones(len), mu*ones(len), t*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), tz2*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
+                  B_amp*ones(len), gamma_0*ones(len), gamma_k*ones(len), power*ones(len), t*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), tz2*ones(len), mu*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
 Data = Data.transpose()
 folder = "results_sim/"
-file_name =  "Rzz" + "_mu_" + str(mu) + "_t_" + str(t) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_tz2_" + str(tz2) + \
-             "_B_" + str(B_amp) + "_tau0_" + str(tau_0) + "_g_" + str(gamma) + "_p_" + str(power) + ".dat"
-np.savetxt(folder + file_name, Data, fmt='%.7e',
-header = "theta[deg]\trzz(phi=0)/rzz_0\trzz(phi=15)/rzz_0\trzz(phi=30)/rzz_0\trzz(phi=45)/rzz_0\tB\ttau0\tgamma\tpower\tmu\tt\ttp\ttpp\ttz\ttz2\tmesh_xy\tmesh_z", comments = "#")
+file_name_parameters  = [r"B_"   + "{0:.0f}".format(B_amp),
+                         r"g0_"  + "{0:.1f}".format(gamma_0),
+                         r"gk_"  + "{0:.1f}".format(gamma_k),
+                         r"p_"   + "{0:.0f}".format(power),
+                         r"t_"   + "{0:.1f}".format(t),
+                         r"mu_"  + "{0:.3f}".format(mu/t),
+                         r"tp_"  + "{0:.3f}".format(tp/t),
+                         r"tpp_" + "{0:.3f}".format(tpp/t),
+                         r"tz_"  + "{0:.3f}".format(tz/t),
+                         r"tz2_" + "{0:.3f}".format(tz2/t)]
+
+file_name =  "Rzz"
+for string in file_name_parameters:
+    file_name += "_" + string
+
+np.savetxt(folder + file_name + ".dat", Data, fmt='%.7e',
+header = "theta[deg]\trzz(phi=0)/rzz_0\trzz(phi=15)/rzz_0\trzz(phi=30)/rzz_0\trzz(phi=45)/rzz_0\tB[T]\tgamma_0[THz]\tgamma_k[THz]\tpower\tt[meV]\ttp\ttpp\ttz\ttz2\tmu\tmesh_xy\tmesh_z", comments = "#")
 
 
 
@@ -149,42 +160,42 @@ axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
 
-# ##>>>> Life Time >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-# fig.subplots_adjust(left = 0.15, right = 0.85, bottom = 0.15, top = 0.85) # adjust the box of axes regarding the figure size
+##>>>> Life Time >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+fig.subplots_adjust(left = 0.15, right = 0.85, bottom = 0.15, top = 0.85) # adjust the box of axes regarding the figure size
 
-# phi = np.linspace(0, 2*pi, 1000)
+phi = np.linspace(0, 2*pi, 1000)
 
-# ## tau_0
-# tau_0_x = tau_0 * cos(phi)
-# tau_0_y = tau_0 * sin(phi)
-# line = axes.plot(tau_0_x / tau_0, tau_0_y / tau_0, clip_on = False)
-# plt.setp(line, ls ="--", c = 'k', lw = 2, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-# axes.annotate(r"$\tau_{\rm 0}$", xy = (0.75, 0.75), color = 'k')
+## tau_0
+tau_0_x = tau_0 * cos(phi)
+tau_0_y = tau_0 * sin(phi)
+line = axes.plot(tau_0_x / tau_0, tau_0_y / tau_0, clip_on = False)
+plt.setp(line, ls ="--", c = 'k', lw = 2, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
+axes.annotate(r"$\tau_{\rm 0}$", xy = (0.75, 0.75), color = 'k')
 
-# ## tau_k
-# tau_k_x = 1 / (1 / tau_0 + gamma * (sin(phi)**2 - cos(phi)**2)**power) * cos(phi)
-# tau_k_y = 1 / (1 / tau_0 + gamma * (sin(phi)**2 - cos(phi)**2)**power) * sin(phi)
-# line = axes.plot(tau_k_x / tau_0, tau_k_y / tau_0, clip_on = False)
-# plt.setp(line, ls ="-", c = '#FF9C54', lw = 3, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-# axes.annotate(r"$\tau_{\rm k}$", xy = (0.5, 0.5), color = '#FF9C54')
+## tau_k
+tau_k_x = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * cos(phi)
+tau_k_y = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * sin(phi)
+line = axes.plot(tau_k_x / tau_0, tau_k_y / tau_0, clip_on = False)
+plt.setp(line, ls ="-", c = '#FF9C54', lw = 3, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
+axes.annotate(r"$\tau_{\rm k}$", xy = (0.5, 0.5), color = '#FF9C54')
 
-# ## tau_k_min
-# phi_min = 3 * pi / 2
-# tau_k_x_min = 1 / (1 / tau_0 + gamma * (sin(phi_min)**2 - cos(phi_min)**2)**power) * cos(phi_min)
-# tau_k_y_min = 1 / (1 / tau_0 + gamma * (sin(phi_min)**2 - cos(phi_min)**2)**power) * sin(phi_min)
-# line = axes.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0, clip_on = False)
-# plt.setp(line, ls ="", c = '#FF9C54', lw = 3, marker = "o", mfc = '#FF9C54', ms = 9, mec = "#7E2320", mew= 0)
-# fraction = np.abs(np.round(tau_k_y_min / tau_0, 2))
-# axes.annotate(r"{0:.2f}".format(fraction) + r"$\tau_{\rm 0}$", xy = (-0.3, tau_k_y_min / tau_0 * 0.85), color = '#FF9C54')
+## tau_k_min
+phi_min = 3 * pi / 2
+tau_k_x_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * cos(phi_min)
+tau_k_y_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * sin(phi_min)
+line = axes.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0, clip_on = False)
+plt.setp(line, ls ="", c = '#FF9C54', lw = 3, marker = "o", mfc = '#FF9C54', ms = 9, mec = "#7E2320", mew= 0)
+fraction = np.abs(np.round(tau_k_y_min / tau_0, 2))
+axes.annotate(r"{0:.2f}".format(fraction) + r"$\tau_{\rm 0}$", xy = (-0.3, tau_k_y_min / tau_0 * 0.85), color = '#FF9C54')
 
-# axes.set_xlim(-1, 1)
-# axes.set_ylim(-1, 1)
-# axes.set_xticklabels([])
-# axes.set_yticklabels([])
+axes.set_xlim(-1, 1)
+axes.set_ylim(-1, 1)
+axes.set_xticklabels([])
+axes.set_yticklabels([])
 
-# plt.show()
-# #//////////////////////////////////////////////////////////////////////////////#
+plt.show()
+#//////////////////////////////////////////////////////////////////////////////#
 
 #>>>> k vs t >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
@@ -200,11 +211,11 @@ for tick in axes.yaxis.get_major_ticks():
 fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
 line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.plot(kft[0, 5,:]*a, kft[1, 5,:]*b)
+line = axes.plot(kft[0, 0,:]*a, kft[1, 0,:]*b)
 plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0) # trajectory
-line = axes.plot(kf[0, 5]*a, kf[1, 5]*b)
+line = axes.plot(kf[0, 0]*a, kf[1, 0]*b)
 plt.setp(line, ls ="", c = 'b', lw = 3, marker = "o", mfc = 'w', ms = 4.5, mec = "b", mew= 1.5)  # starting point
-line = axes.plot(kft[0, 5, -1]*a, kft[1, 5, -1]*b)
+line = axes.plot(kft[0, 0, -1]*a, kft[1, 0, -1]*b)
 plt.setp(line, ls ="", c = 'b', lw = 1, marker = "o", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0)  # end point
 
 axes.set_xlim(-pi, pi)
@@ -235,8 +246,6 @@ for tick in axes.yaxis.get_major_ticks():
 line = axes.plot(t, vft[2, -200,:])
 plt.setp(line, ls ="-", c = '#6AFF98', lw = 3, marker = "", mfc = '#6AFF98', ms = 5, mec = "#7E2320", mew= 0)
 
-# axes.set_xlim(0, 90)
-# axes.set_ylim(ymin, ymax)
 axes.set_xlabel(r"$t$", labelpad = 8)
 axes.set_ylabel(r"$v_{\rm z}$ ( $k_{\rm z}$ = $\pi$/$c$ )", labelpad = 8)
 axes.locator_params(axis = 'y', nbins = 6)
@@ -265,8 +274,6 @@ line = axes.plot(t, np.cumsum( vft[2, -3, :] * exp ( -t / tau_0 ) ))
 plt.setp(line, ls ="-", c = 'b', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
 
-# axes.set_xlim(0, 90)
-# axes.set_ylim(ymin, ymax)
 axes.set_xlabel(r"$t$", labelpad = 8)
 axes.set_ylabel(r"$\sum_{\rm t}$ $v_{\rm z}(t)$$e^{\rm \dfrac{-t}{\tau}}$", labelpad = 8)
 
@@ -289,13 +296,13 @@ for tick in axes.yaxis.get_major_ticks():
 
 #///// Labels //////#
 t = band_parameters[4]
-label_parameters = [r"$B$ = " + str(B_amp),
+label_parameters = [r"$B$ = " + "{0:.0f}".format(B_amp) + " T",
                     "",
-                    r"$\tau_{\rm 0}$ = " + str(tau_0),
-                    r"$\gamma$ = " + str(gamma),
-                    r"power = " + str(power),
+                    r"$\Gamma_{\rm 0}$ = " + "{0:.1f}".format(gamma_0) + " THz",
+                    r"$\Gamma_{\rm k}$ = " + "{0:.1f}".format(gamma_k) + " THz",
+                    r"power = " + "{0:.0f}".format(power),
                     "",
-                    r"$t$ = " + "{0:.3e}".format(t),
+                    r"$t$ = " + "{0:.1f}".format(t) + " meV",
                     r"$\mu$ = " + "{0:.3f}".format(mu/t) + r" $t$",
                     r"$t^\prime$ = " + "{0:.3f}".format(tp/t) + r" $t$",
                     r"$t^{\prime\prime}$ = " + "{0:.3f}".format(tpp/t) + r" $t$",
@@ -314,7 +321,6 @@ for i, B_phi in enumerate(B_phi_a):
     plt.setp(line, ls ="-", c = colors[i], lw = 3, marker = "o", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)  # set properties
 
 axes.set_xlim(0, B_theta_max)
-# axes.set_ylim(ymin, ymax)
 axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
 
@@ -367,15 +373,15 @@ line = axes_inset_tau.plot(tau_0_x / tau_0, tau_0_y / tau_0, clip_on = False)
 plt.setp(line, ls ="-", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
 axes_inset_tau.annotate(r"$\tau_{\rm 0}$", xy = (0.65, 0.75), color = 'k', fontsize = 10)
 ## tau_k
-tau_k_x = 1 / (1 / tau_0 + gamma * (sin(phi)**2 - cos(phi)**2)**power) * cos(phi)
-tau_k_y = 1 / (1 / tau_0 + gamma * (sin(phi)**2 - cos(phi)**2)**power) * sin(phi)
+tau_k_x = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * cos(phi)
+tau_k_y = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * sin(phi)
 line = axes_inset_tau.plot(tau_k_x / tau_0, tau_k_y / tau_0, clip_on = False)
 plt.setp(line, ls ="-", c = '#FF9C54', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
 axes_inset_tau.annotate(r"$\tau_{\rm k}$", xy = (0.4, 0.45), color = '#FF9C54', fontsize = 10)
 ## tau_k_min
 phi_min = 3 * pi / 2
-tau_k_x_min = 1 / (1 / tau_0 + gamma * (sin(phi_min)**2 - cos(phi_min)**2)**power) * cos(phi_min)
-tau_k_y_min = 1 / (1 / tau_0 + gamma * (sin(phi_min)**2 - cos(phi_min)**2)**power) * sin(phi_min)
+tau_k_x_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * cos(phi_min)
+tau_k_y_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * sin(phi_min)
 line = axes_inset_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0, clip_on = False)
 plt.setp(line, ls ="", c = '#FF9C54', lw = 3, marker = "o", mfc = '#FF9C54', ms = 4, mec = "#7E2320", mew= 0)
 fraction = np.abs(np.round(tau_k_y_min / tau_0, 2))
@@ -389,10 +395,7 @@ axes_inset_tau.axis(**{'linewidth' : 0.2})
 
 plt.show()
 
-t = band_parameters[4]
 folder = "results_sim/"
-figure_name =  "Rzz" + "_mu_" + str(mu) + "_t_" + str(t) + "_tp_" + str(tp) + "_tpp_" + str(tpp) + "_tz_" + str(tz) + "_tz2_" + str(tz2) + \
-               "_B_" + str(B_amp) + "_tau0_" + str(tau_0) + "_g_" + str(gamma) + "_p_" + str(power) + ".pdf"
-fig.savefig(folder + figure_name)
+fig.savefig(folder + file_name + ".pdf")
 #//////////////////////////////////////////////////////////////////////////////#
 

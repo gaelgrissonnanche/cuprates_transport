@@ -6,7 +6,8 @@ from numba import jit
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
-hbar = 1 # velocity will be in units of 1 / hbar
+hbar = 1 # velocity will be in units of 1 / hbar,
+         # this hbar is taken into accound in the constant units_move_eq
 
 ## Band structure /////////////////////////////////////////////////////////////#
 @jit(nopython = True, cache = True)
@@ -157,9 +158,9 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z):
 
     ## Integration Delta
     if half_FS_z == True:
-        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c ) * 2
+        dkf = 2 / (mesh_xy * mesh_z) * ( 2 * pi )**2 / ( a * b ) * ( 4 * pi ) / c
     else:
-        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c )
+        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**2 / ( a * b ) * ( 4 * pi ) / c
 
     ## Compute Velocity at t = 0 on Fermi Surface
     vx, vy, vz = v_3D_func(kf[0,:], kf[1,:], kf[2,:], band_parameters)
