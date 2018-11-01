@@ -19,8 +19,9 @@ units_chambers = e**2 / ( 4 * pi**3 ) * meVolt * picosecond / Angstrom / hbar**2
 # this coefficient takes into accound all units and constant to prefactor Chambers formula
 
 ## Life time //////////////////////////////////////////////////////////////////#
+
 @jit(nopython = True, cache = True)
-def tauFunc(k, tau_parameters):
+def tOverTauFunc(k, tau_parameters, dt):
     gamma_0 = tau_parameters[0]
     gamma_k = tau_parameters[1]
     power   = tau_parameters[2]
@@ -29,10 +30,9 @@ def tauFunc(k, tau_parameters):
     ky = k[1,:]
     phi = arctan2(ky, kx)
 
-    tau = 1 / ( gamma_0 + gamma_k * cos(2*phi)**power)
+    t_over_tau = np.cumsum(dt * ( gamma_0 + gamma_k * cos(2*phi)**power))
 
-    return tau
-
+    return t_over_tau
 
 ## Chambers formula ///////////////////////////////////////////////////////////#
 @jit(nopython = True, parallel = True)
@@ -46,14 +46,15 @@ def chambersFunc(kf, vf, dkf, kft, vft, t, tau_parameters):
 
     # Time increment
     dt = t[1] - t[0]
+
     # Density of State
     dos = sqrt( vxf**2 + vyf**2 + vzf**2 )
-      # = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
+            # = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
 
     # First the integral over time
     v_product = np.empty(vzf.shape[0], dtype = np.float64)
     for i0 in prange(vzf.shape[0]):
-        vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp( - t / tauFunc(kft[:,i0,:], tau_parameters) ) * dt ) # integral over t
+        vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp( - tOverTauFunc(kft[:,i0,:], tau_parameters, dt) ) * dt ) # integral over t
         v_product[i0] = vzf[i0] * vz_sum_over_t # integral over z
 
     # Second the integral over kf

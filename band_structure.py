@@ -180,7 +180,7 @@ def dopingFunc(band_parameters):
 
     kx_a = np.linspace(-pi/a, pi/a, 500)
     ky_a = np.linspace(-pi/b, pi/b, 500)
-    kz_a = np.linspace(-2*pi/c, 2*pi/b, 10)
+    kz_a = np.linspace(-2*pi/c, 2*pi/c, 10)
     kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing = 'ij')
     E = - e_3D_func(kxx, kyy, kzz, band_parameters) # (-) because band is inverted in my conventions
 
