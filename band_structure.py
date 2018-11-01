@@ -6,30 +6,23 @@ from numba import jit
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
-# hbar = 1.05e34
-# e = 1.6e19
-# m0 = 9.1e31
-# kB = 1.38e23
-# jtoev = 6.242e18
-e = 1
-hbar = 1
-m = 1
-
+hbar = 1 # velocity will be in units of 1 / hbar,
+         # this hbar is taken into accound in the constant units_move_eq
 
 ## Band structure /////////////////////////////////////////////////////////////#
-@jit(nopython=True)
+@jit(nopython = True, cache = True)
 def e_2D_func(kx, ky, a, b, mu, t, tp, tpp):
     e_2D = -mu + 2 * t * ( cos(kx*a) + cos(ky*b) ) + 4 * tp * cos(kx*a) * cos(ky*b) + 2 * tpp * ( cos(2*kx*a) + cos(2*ky*b) )
     return e_2D
 
-@jit(nopython=True)
-def e_z_func(kx, ky, kz, a, b, c, tz):
+@jit(nopython = True, cache = True)
+def e_z_func(kx, ky, kz, a, b, c, tz, tz2):
     d = c / 2.
     sigma = cos(kx*a/2) * cos(ky*b/2)
-    e_z = 2 * tz * sigma * ( cos(kx*a) - cos(ky*b) )**2 * cos(kz*d)
+    e_z = 2 * tz * sigma * ( cos(kx*a) - cos(ky*b) )**2 * cos(kz*d) + 2 * tz2 * cos(kz*d)
     return e_z
 
-@jit(nopython=True)
+@jit(nopython = True, cache = True)
 def e_3D_func(kx, ky, kz, band_parameters):
     a = band_parameters[0]
     b = band_parameters[1]
@@ -39,13 +32,14 @@ def e_3D_func(kx, ky, kz, band_parameters):
     tp = band_parameters[5]
     tpp = band_parameters[6]
     tz = band_parameters[7]
+    tz2 = band_parameters[8]
 
     e_3D = e_2D_func(kx, ky, a, b, mu, t, tp, tpp) + \
-           e_z_func(kx, ky, kz, a, b, c, tz)
+           e_z_func(kx, ky, kz, a, b, c, tz, tz2)
     return e_3D
 
 
-@jit(nopython=True)
+@jit(nopython = True, cache = True)
 def v_3D_func(kx, ky, kz, band_parameters):
     a = band_parameters[0]
     b = band_parameters[1]
@@ -55,6 +49,7 @@ def v_3D_func(kx, ky, kz, band_parameters):
     tp = band_parameters[5]
     tpp = band_parameters[6]
     tz = band_parameters[7]
+    tz2 = band_parameters[8]
 
     # Velocity from e_2D
     d_e2D_dkx = -2 * t * a * sin(kx*a) - 4 * tp * a * sin(kx*a)*cos(ky*b) - 4 * tpp * a * sin(2*kx*a)
@@ -70,15 +65,15 @@ def v_3D_func(kx, ky, kz, band_parameters):
                2 * tz * sigma * 2 * (cos(kx*a) - cos(ky*b)) * (-a * sin(kx*a)) * cos(kz*d)
     d_ez_dky = 2 * tz * d_sigma_dky * (cos(kx*a) - cos(ky*b))**2 * cos(kz*d) + \
                2 * tz * sigma * 2 * (cos(kx*a) - cos(ky*b)) * (+b * sin(ky*b)) * cos(kz*d)
-    d_ez_dkz = 2 * tz * sigma * (cos(kx*a) - cos(ky*b))**2 * (-d * sin(kz*d))
+    d_ez_dkz = 2 * tz * sigma * (cos(kx*a) - cos(ky*b))**2 * (-d * sin(kz*d)) + 2 * tz2 * (-d) * sin(kz*d)
 
-    vx = d_e2D_dkx + d_ez_dkx
-    vy = d_e2D_dky + d_ez_dky
-    vz = d_e2D_dkz + d_ez_dkz
+    vx = ( 1 / hbar ) * (d_e2D_dkx + d_ez_dkx)
+    vy = ( 1 / hbar ) * (d_e2D_dky + d_ez_dky)
+    vz = ( 1 / hbar ) * (d_e2D_dkz + d_ez_dkz)
 
     return vx, vy, vz
 
-## Discretizing FS function
+## Discretizing FS function ///////////////////////////////////////////////////#
 def discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z):
 
     a = band_parameters[0]
@@ -163,13 +158,38 @@ def discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z):
 
     ## Integration Delta
     if half_FS_z == True:
-        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c ) * 2
+        dkf = 2 / (mesh_xy * mesh_z) * ( 2 * pi )**2 / ( a * b ) * ( 4 * pi ) / c
     else:
-        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**3 / ( a * b * c )
+        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**2 / ( a * b ) * ( 4 * pi ) / c
 
     ## Compute Velocity at t = 0 on Fermi Surface
     vx, vy, vz = v_3D_func(kf[0,:], kf[1,:], kf[2,:], band_parameters)
     vf = np.vstack([vx, vy, vz]) # dim -> (i, i0) = (xyz, position on FS)
 
     return kf, vf, dkf, number_contours
+
+## Hole doping function ///////////////////////////////////////////////////////#
+def dopingFunc(band_parameters):
+    a = band_parameters[0]
+    b = band_parameters[1]
+    c = band_parameters[2]
+
+    kx_a = np.linspace(-pi/a, pi/a, 500)
+    ky_a = np.linspace(-pi/b, pi/b, 500)
+    kz_a = np.linspace(-2*pi/c, 2*pi/b, 10)
+    kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing = 'ij')
+    E = - e_3D_func(kxx, kyy, kzz, band_parameters) # (-) because band is inverted in my conventions
+
+    # Number of k in the total Brillouin Zone
+    N = E.shape[0] * E.shape[1] * E.shape[2]
+    # Number of k in the Brillouin zone per plane
+    N_per_plane = E.shape[0] * E.shape[1]
+    # Number of electron in the total Brillouin Zone
+    n = 2 / N * np.sum( np.greater_equal(0, E) ) # number of quasiparticles below mu, 2 is for the spin
+    p = 1 - n # number of holes
+    # Number of electron in the Brillouin zone per plane
+    n_per_plane = 2 / N_per_plane * np.sum( np.greater_equal(0, E), axis = (0,1) )
+    p_per_plane = 1 - n_per_plane
+
+    return p, p_per_plane
 
