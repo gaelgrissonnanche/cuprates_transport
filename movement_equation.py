@@ -58,7 +58,7 @@ def solveMovementFunc(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
     kf_len = kf.shape[1]
     t_len = t.shape[0]
     kf = kf.flatten() # flatten to get all the initial kf solved at the same time
-    kft = odeint(diff_func_vectorized, kf, t, args = (B, band_parameters), rtol = 1e-4, atol = 1e-4).transpose() # solve differential equation
+    kft = odeint(diff_func_vectorized, kf, t, args = (B, band_parameters), rtol = 1e-10, atol = 1e-10).transpose() # solve differential equation
     kft = np.reshape(kft, (3, kf_len, t_len))
     vft = np.empty_like(kft, dtype = np.float64)
     vft[0, :, :], vft[1, :, :], vft[2, :, :] = v_3D_func(kft[0, :, :], kft[1, :, :], kft[2, :, :], band_parameters)

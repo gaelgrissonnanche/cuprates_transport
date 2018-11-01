@@ -74,11 +74,15 @@ def v_3D_func(kx, ky, kz, band_parameters):
     return vx, vy, vz
 
 ## Discretizing FS function ///////////////////////////////////////////////////#
-def discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z):
+def discretize_FS(band_parameters, mesh_parameters):
 
     a = band_parameters[0]
     b = band_parameters[1]
     c = band_parameters[2]
+
+    mesh_xy   = mesh_parameters[0]
+    mesh_z    = mesh_parameters[1]
+    half_FS_z = mesh_parameters[2]
 
     mesh_xy_rough = mesh_xy * 10 + 1 # make denser rough meshgrid to interpolate
 

@@ -63,7 +63,7 @@ def chambersFunc(kf, vf, dkf, kft, vft, t, tau_parameters):
 
 
 ## rzz vs (B_theta, B_phi) ////////////////////////////////////////////////////#
-def admrFunc(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau_parameters):
+def RzzAngleFunc(B_amp, B_theta_a, B_phi_a, kf, vf, dkf, band_parameters, tau_parameters):
 
     rho_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
     gamma_0  = tau_parameters[0] # in THz
