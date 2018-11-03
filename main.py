@@ -92,8 +92,7 @@ mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType),
 
 
 ## Discretize FS
-kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_parameters)
-
+kf, vf, dkf, numberPointsPerKz_list = discretize_FS(band_parameters, mesh_parameters)
 
 # tau_0 = 1 / gamma_0
 # ## For figures, compute t-dependence
@@ -118,7 +117,7 @@ fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
 line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
 # line = axes.contour(kxx*a+2*pi, kyy*b, e_3D_func(kxx, kyy, 2 * pi / c, band_parameters), 0, colors = '#8E62FF', linewidths = 3)
-line = axes.plot(kf[0, : mesh_xy*4*number_contours]*a, kf[1, : mesh_xy*4*number_contours]*b) # mesh_xy means all points for kz = - pi / c
+line = axes.plot(kf[0, : numberPointsPerKz_list[0]]*a, kf[1, : numberPointsPerKz_list[0]]*b) # mesh_xy means all points for kz = - pi / c
 plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
 # axes.quiver(kf[0, : mesh_xy*1*number_contours]*a, kf[1, : mesh_xy*1*number_contours]*b, vf[0, : mesh_xy*1*number_contours], vf[1, : mesh_xy*1*number_contours], color = 'k') # mesh_xy means all points for kz = - pi / c
 

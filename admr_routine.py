@@ -40,7 +40,7 @@ def admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B
     ## Make mesh_xy a multiple of 4 to respect the 4-order symmetry
     mesh_xy = mesh_xy - (mesh_xy % 4)
     ## Discretize FS
-    kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_parameters)
+    kf, vf, dkf, numberPointsPerKz_list = discretize_FS(band_parameters, mesh_parameters)
 
     ## Compute the Hole doping >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#

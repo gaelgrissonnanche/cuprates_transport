@@ -96,10 +96,12 @@ def discretize_FS(band_parameters, mesh_parameters):
     ky_a = np.linspace(0, pi/b, mesh_xy_rough)
     kxx, kyy = np.meshgrid(kx_a, ky_a, indexing = 'ij')
 
+    numberPointsPerKz_list = []
+
     for j, kz in enumerate(kz_a):
         bands = e_3D_func(kxx, kyy, kz, band_parameters)
         contours = measure.find_contours(bands, 0)
-        number_contours = len(contours)
+        numberPointsPerKz = 0
 
         for i, contour in enumerate(contours):
 
@@ -112,8 +114,9 @@ def discretize_FS(band_parameters, mesh_parameters):
             s = np.zeros_like(x) # arrays of zeros
             s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
 
-            mesh_xy = max(np.ceil(s.max() / mesh_ds), 4)
+            mesh_xy = int( max(np.ceil(s.max() / mesh_ds), 4) )
             # choose at least a minimum of 4 points per contour
+            numberPointsPerKz += mesh_xy
 
             dkf_weight = s.max() / (mesh_xy + 1) # weight to ponderate dkf
 
@@ -143,13 +146,15 @@ def discretize_FS(band_parameters, mesh_parameters):
                 kzf = np.append(kzf, kz*np.ones_like(x_int))
                 dkf = np.append(dkf, dkf_weight * np.ones_like(x_int))
 
+        numberPointsPerKz_list.append(4 * numberPointsPerKz)
+
     kf = np.vstack([kxf, kyf, kzf]) # dim -> (n, i0) = (xyz, position on FS)
 
     ## Compute Velocity at t = 0 on Fermi Surface
     vx, vy, vz = v_3D_func(kf[0,:], kf[1,:], kf[2,:], band_parameters)
     vf = np.vstack([vx, vy, vz]) # dim -> (i, i0) = (xyz, position on FS)
 
-    return kf, vf, dkf, number_contours
+    return kf, vf, dkf, numberPointsPerKz_list
 
 ## Hole doping function ///////////////////////////////////////////////////////#
 def dopingFunc(band_parameters):
