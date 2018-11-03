@@ -74,6 +74,11 @@ def v_3D_func(kx, ky, kz, band_parameters):
     return vx, vy, vz
 
 ## Discretizing FS function ///////////////////////////////////////////////////#
+def rotation(x, y, angle):
+    xp =  cos(angle)*x + sin(angle)*y
+    yp = -sin(angle)*x + cos(angle)*y
+    return xp, yp
+
 def discretize_FS(band_parameters, mesh_parameters):
 
     a = band_parameters[0]
@@ -82,17 +87,12 @@ def discretize_FS(band_parameters, mesh_parameters):
 
     mesh_xy   = mesh_parameters[0]
     mesh_z    = mesh_parameters[1]
-    half_FS_z = mesh_parameters[2]
 
     mesh_xy_rough = mesh_xy * 10 + 1 # make denser rough meshgrid to interpolate
 
-    if half_FS_z == True:
-        kz_a = np.linspace(0, 2*pi/c, mesh_z) # 2*pi/c because bodycentered unit cell
-    else:
-        kz_a = np.linspace(-2*pi/c, 2*pi/c, mesh_z) # 2*pi/c because bodycentered unit cell
-
-    kx_a = np.linspace(-pi/a, pi/a, mesh_xy_rough)
-    ky_a = np.linspace(-pi/b, pi/b, mesh_xy_rough)
+    kz_a = np.linspace(0, 2*pi/c, mesh_z) # half of FBZ, 2*pi/c because bodycentered unit cell
+    kx_a = np.linspace(0, pi/a, mesh_xy_rough)
+    ky_a = np.linspace(0, pi/b, mesh_xy_rough)
     kxx, kyy = np.meshgrid(kx_a, ky_a, indexing = 'ij')
 
     for j, kz in enumerate(kz_a):
@@ -102,69 +102,46 @@ def discretize_FS(band_parameters, mesh_parameters):
 
         for i, contour in enumerate(contours):
 
-            # Contour in units proportionnal to size of meshgrid
-            x_raw = contour[:, 0]
-            y_raw = contour[:, 1]
+            # Contour come in units proportionnal to size of meshgrid
+            # one want to scale to units of kx and ky
+            x = contour[:, 0]/(mesh_xy_rough-1)*pi/a
+            y = contour[:, 1]/(mesh_xy_rough-1)*pi/b
 
-            # Is Contour closed?
-            closed = (x_raw[0] == x_raw[-1]) * (y_raw[0] == y_raw[-1])
+            ds = np.sqrt(np.diff(x)**2 + np.diff(y)**2) # segment lengths
+            s = np.zeros_like(x) # arrays of zeros
+            s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
+            dkf_weight = s.max() / (mesh_xy + 1) # weight to ponderate dkf
 
-            # Scale the contour to units of kx and ky
-            x = (x_raw/(mesh_xy_rough-1)-0.5)*2*pi/a
-            y = (y_raw/(mesh_xy_rough-1)-0.5)*2*pi/b
+            s_int = np.linspace(0, s.max(), mesh_xy + 1) # regular spaced path, add one
+            x_int = np.interp(s_int, s, x)[:-1] # interpolate and remove the last point (not to repeat)
+            y_int = np.interp(s_int, s, y)[:-1]
 
-            # Make all opened contours go in direction of x[i+1] - x[i] < 0, otherwise interpolation problem
-            if closed == False and np.diff(x)[0] > 0:
-                x = x[::-1]
-                y = y[::-1]
-
-            # Make the contour start at a high point of symmetry, for example for ky = 0
-            index_xmax = np.argmax(x) # find the index of the first maximum of x
-            x = np.roll(x, x.shape - index_xmax) # roll the elements to get maximum of x first
-            y = np.roll(y, x.shape - index_xmax) # roll the elements to get maximum of x first
-
-            # Closed contour
-            if closed == True: # meaning a closed contour
-                x = np.append(x, x[0]) # add the first element to get a closed contour
-                y = np.append(y, y[0]) # in order to calculate its real total length
-                mesh_xy = mesh_xy - (mesh_xy % 4) # respects the 4-order symmetry
-
-                ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-                s = np.zeros_like(x) # arrays of zeros
-                s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
-
-                s_int = np.linspace(0, s.max(), mesh_xy + 1) # regular spaced path
-                x_int = np.interp(s_int, s, x)[:-1] # interpolate
-                y_int = np.interp(s_int, s, y)[:-1]
-
-            # Opened contour
-            else:
-                ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-                s = np.zeros_like(x) # arrays of zeros
-                s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
-
-                s_int = np.linspace(0, s.max(), mesh_xy) # regular spaced path
-                x_int = np.interp(s_int, s, x) # interpolate
-                y_int = np.interp(s_int, s, y)
-
+            ## Rotate the contour to get the entire Fermi surface
+            x_dump = x_int
+            y_dump = y_int
+            for angle in [pi/2, pi, 3*pi/2]:
+                x_int_p, y_int_p = rotation(x_int, y_int, angle)
+                x_dump = np.append(x_dump, x_int_p)
+                y_dump = np.append(y_dump, y_int_p)
+            x_int = x_dump
+            y_int = y_dump
 
             # Put in an array /////////////////////////////////////////////////////#
             if i == 0 and j == 0: # for first contour and first kz
                 kxf = x_int
                 kyf = y_int
-                kzf = kz*np.ones_like(x_int)
+                kzf = kz * np.ones_like(x_int)
+                dkf = dkf_weight * np.ones_like(x_int)
             else:
                 kxf = np.append(kxf, x_int)
                 kyf = np.append(kyf, y_int)
                 kzf = np.append(kzf, kz*np.ones_like(x_int))
+                dkf = np.append(dkf, dkf_weight * np.ones_like(x_int))
 
     kf = np.vstack([kxf, kyf, kzf]) # dim -> (n, i0) = (xyz, position on FS)
 
     ## Integration Delta
-    if half_FS_z == True:
-        dkf = 2 / (mesh_xy * mesh_z) * ( 2 * pi )**2 / ( a * b ) * ( 4 * pi ) / c
-    else:
-        dkf = 1 / (mesh_xy * mesh_z) * ( 2 * pi )**2 / ( a * b ) * ( 4 * pi ) / c
+    # dkf = 2 / (mesh_xy * mesh_z) * ( 2 * pi )**2 / ( a * b ) * ( 4 * pi ) / c
 
     ## Compute Velocity at t = 0 on Fermi Surface
     vx, vy, vz = v_3D_func(kf[0,:], kf[1,:], kf[2,:], band_parameters)
