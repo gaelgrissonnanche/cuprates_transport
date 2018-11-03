@@ -3,7 +3,7 @@ from numpy import cos, sin, pi, exp, sqrt, arctan2
 from numba import jit, prange
 from scipy.integrate import odeint
 
-from band import *
+from band import BandStructure
 
 hbar = 1.05e-34 # m2 kg / s
 e = 1.6e-19 # C

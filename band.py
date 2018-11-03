@@ -75,7 +75,7 @@ class BandStructure:
 
         self.half_FS_z = True # if False, put a minimum of 11 points
         self.numberOfKz   = 7 
-        self.numberOfKxKy = 40
+        self.numberOfKxKy = 56
         
         self.kf = None
         self.vf = None

@@ -1,12 +1,12 @@
 import numpy as np
-from numpy import exp, pi, ones
+from numpy import cos, sin, pi, exp, ones
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import time
 
-from band import *
-from chambers import *
+from band import BandStructure
+from chambers import amroPoint
 
 bs = BandStructure()
 band_parameters = np.array(bs.bandParameters(), dtype = np.float64)  # returns [a, b, c, mu, t, tp, tpp, tz, tz2]
@@ -15,7 +15,7 @@ band_parameters = np.array(bs.bandParameters(), dtype = np.float64)  # returns [
 
 # bs.setMuToDoping(0.22); 
 # print (bs.mu)
-# bs.mu = -152.344
+bs.mu = -0.95*bs.t
 p = bs.doping()
 print("p = " + "{0:.3f}".format(p))
 
