@@ -85,11 +85,12 @@ def discretize_FS(band_parameters, mesh_parameters):
     b = band_parameters[1]
     c = band_parameters[2]
 
-    mesh_xy   = mesh_parameters[0]
-    mesh_z    = mesh_parameters[1]
+    mesh_ds = mesh_parameters[0]
+    mesh_z  = mesh_parameters[1]
+    if mesh_z % 2 == 0: # make it an odd number
+        mesh_z += 1
 
-    mesh_xy_rough = mesh_xy * 10 + 1 # make denser rough meshgrid to interpolate
-
+    mesh_xy_rough = 501 # make denser rough meshgrid to interpolate
     kz_a = np.linspace(0, 2*pi/c, mesh_z) # half of FBZ, 2*pi/c because bodycentered unit cell
     kx_a = np.linspace(0, pi/a, mesh_xy_rough)
     ky_a = np.linspace(0, pi/b, mesh_xy_rough)
@@ -104,12 +105,16 @@ def discretize_FS(band_parameters, mesh_parameters):
 
             # Contour come in units proportionnal to size of meshgrid
             # one want to scale to units of kx and ky
-            x = contour[:, 0]/(mesh_xy_rough-1)*pi/a
-            y = contour[:, 1]/(mesh_xy_rough-1)*pi/b
+            x = contour[:, 0]/(mesh_xy_rough-1)*pi
+            y = contour[:, 1]/(mesh_xy_rough-1)*pi / (b/a) # anisotropy
 
             ds = np.sqrt(np.diff(x)**2 + np.diff(y)**2) # segment lengths
             s = np.zeros_like(x) # arrays of zeros
             s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
+
+            mesh_xy = max(np.ceil(s.max() / mesh_ds), 4)
+            # choose at least a minimum of 4 points per contour
+
             dkf_weight = s.max() / (mesh_xy + 1) # weight to ponderate dkf
 
             s_int = np.linspace(0, s.max(), mesh_xy + 1) # regular spaced path, add one
@@ -128,20 +133,17 @@ def discretize_FS(band_parameters, mesh_parameters):
 
             # Put in an array /////////////////////////////////////////////////////#
             if i == 0 and j == 0: # for first contour and first kz
-                kxf = x_int
-                kyf = y_int
+                kxf = x_int/a
+                kyf = y_int/a
                 kzf = kz * np.ones_like(x_int)
                 dkf = dkf_weight * np.ones_like(x_int)
             else:
-                kxf = np.append(kxf, x_int)
-                kyf = np.append(kyf, y_int)
+                kxf = np.append(kxf, x_int/a)
+                kyf = np.append(kyf, y_int/a)
                 kzf = np.append(kzf, kz*np.ones_like(x_int))
                 dkf = np.append(dkf, dkf_weight * np.ones_like(x_int))
 
     kf = np.vstack([kxf, kyf, kzf]) # dim -> (n, i0) = (xyz, position on FS)
-
-    ## Integration Delta
-    # dkf = 2 / (mesh_xy * mesh_z) * ( 2 * pi )**2 / ( a * b ) * ( 4 * pi ) / c
 
     ## Compute Velocity at t = 0 on Fermi Surface
     vx, vy, vz = v_3D_func(kf[0,:], kf[1,:], kf[2,:], band_parameters)

@@ -29,9 +29,9 @@ power   = 8
 B_amp = 45 # in Tesla
 
 ## Discretization
-mesh_xy   = 14 # number of (kx,ky) points per contour per kz
-mesh_z    = 15 # number of kz
-
+mesh_ds = pi / 20 # resolution on arc length of the FS
+mesh_xy   = 18 # number of (kx,ky) points per contour per kz
+mesh_z    = 7 # number of kz
 
 
 ## Magnetic field /////////////////////////////////////////////////////////////#
@@ -41,7 +41,7 @@ B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
 B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 
 ## Array of parameters ////////////////////////////////////////////////////////#
-mesh_parameters = np.array([mesh_xy, mesh_z], dtype = np.float64)
+mesh_parameters = np.array([mesh_ds, mesh_z], dtype = np.float64)
 band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz, tz2], dtype = np.float64)
 tau_parameters = np.array([gamma_0, gamma_k, power], dtype = np.float64)
 
@@ -134,6 +134,13 @@ axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
 plt.show()
 #//////////////////////////////////////////////////////////////////////////////#
+
+# ### uncomment to plot FS
+# from mpl_toolkits.mplot3d import Axes3D
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+# ax.scatter(kf[0], kf[1], kf[2], color='k', marker='.')
+# plt.show()
 
 # ##>>>> 2D Fermi Surface for different kz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
