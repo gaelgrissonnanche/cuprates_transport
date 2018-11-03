@@ -18,21 +18,19 @@ tp  = -0.14 * t
 tpp =  0.07 * t
 tz  =  0.07 * t
 tz2 = - 0 * t
-mu  = 0.82 * t # van Hove 0.84
+mu  = 0.825 * t # van Hove 0.84
 
 ## Life time
-gamma_0 = 200 # in THz
-gamma_k = 0 # in THz
-power   = 8
+gamma_0 = 155 # in THz
+gamma_k = 700 # in THz
+power   = 10
 
 ## Magnetic field
 B_amp = 45 # in Tesla
 
 ## Discretization
 mesh_ds = pi / 20 # resolution on arc length of the FS
-mesh_xy   = 18 # number of (kx,ky) points per contour per kz
-mesh_z    = 7 # number of kz
-
+mesh_z  = 7 # number of kz
 
 ## Magnetic field /////////////////////////////////////////////////////////////#
 mesh_B_theta = 23 # number of theta angles for B
@@ -73,69 +71,67 @@ admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B_the
 ## Figures ////////////////////////////////////////////////////////////////#
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
-#///// RC Parameters //////#
-mpl.rcdefaults()
-mpl.rcParams['font.size'] = 24. # change the size of the font in every figure
-mpl.rcParams['font.family'] = 'Arial' # font Arial in every figure
-mpl.rcParams['axes.labelsize'] = 24.
-mpl.rcParams['xtick.labelsize'] = 24
-mpl.rcParams['ytick.labelsize'] = 24
-mpl.rcParams['xtick.direction'] = "in"
-mpl.rcParams['ytick.direction'] = "in"
-mpl.rcParams['xtick.top'] = True
-mpl.rcParams['ytick.right'] = True
-mpl.rcParams['xtick.major.width'] = 0.6
-mpl.rcParams['ytick.major.width'] = 0.6
-mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
-mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
-                                    # editing the text in illustrator
+# #///// RC Parameters //////#
+# mpl.rcdefaults()
+# mpl.rcParams['font.size'] = 24. # change the size of the font in every figure
+# mpl.rcParams['font.family'] = 'Arial' # font Arial in every figure
+# mpl.rcParams['axes.labelsize'] = 24.
+# mpl.rcParams['xtick.labelsize'] = 24
+# mpl.rcParams['ytick.labelsize'] = 24
+# mpl.rcParams['xtick.direction'] = "in"
+# mpl.rcParams['ytick.direction'] = "in"
+# mpl.rcParams['xtick.top'] = True
+# mpl.rcParams['ytick.right'] = True
+# mpl.rcParams['xtick.major.width'] = 0.6
+# mpl.rcParams['ytick.major.width'] = 0.6
+# mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
+# mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
+#                                     # editing the text in illustrator
 
 
 ## Discretize FS
-kf, vf, dkf, numberPointsPerKz_list = discretize_FS(band_parameters, mesh_parameters)
+# kf, vf, dkf, numberPointsPerKz_list = discretize_FS(band_parameters, mesh_parameters)
 
 # tau_0 = 1 / gamma_0
 # ## For figures, compute t-dependence
 # kft, vft, t = solveMovementFunc(B_amp, 0, 0, kf, band_parameters, tmax = 10 * tau_0)
 
 
-mesh_graph = 1001
-kx = np.linspace(-pi/a, pi/a, mesh_graph)
-ky = np.linspace(-pi/b, pi/b, mesh_graph)
-kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+# mesh_graph = 1001
+# kx = np.linspace(-pi/a, pi/a, mesh_graph)
+# ky = np.linspace(-pi/b, pi/b, mesh_graph)
+# kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-##>>>> Discretize 2D Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
+# ##>>>> Discretize 2D Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+# fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
-for tick in axes.xaxis.get_major_ticks():
-    tick.set_pad(7)
-for tick in axes.yaxis.get_major_ticks():
-    tick.set_pad(8)
+# for tick in axes.xaxis.get_major_ticks():
+#     tick.set_pad(7)
+# for tick in axes.yaxis.get_major_ticks():
+#     tick.set_pad(8)
 
-fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
+# fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
-line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-# line = axes.contour(kxx*a+2*pi, kyy*b, e_3D_func(kxx, kyy, 2 * pi / c, band_parameters), 0, colors = '#8E62FF', linewidths = 3)
-line = axes.plot(kf[0, : numberPointsPerKz_list[0]]*a, kf[1, : numberPointsPerKz_list[0]]*b) # mesh_xy means all points for kz = - pi / c
-plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-# axes.quiver(kf[0, : mesh_xy*1*number_contours]*a, kf[1, : mesh_xy*1*number_contours]*b, vf[0, : mesh_xy*1*number_contours], vf[1, : mesh_xy*1*number_contours], color = 'k') # mesh_xy means all points for kz = - pi / c
+# line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+# line = axes.plot(kf[0, : numberPointsPerKz_list[0]]*a, kf[1, : numberPointsPerKz_list[0]]*b) # mesh_xy means all points for kz = - pi / c
+# plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
+# axes.quiver(kf[0, : numberPointsPerKz_list[0]]*a, kf[1, : numberPointsPerKz_list[0]]*b, vf[0, : numberPointsPerKz_list[0]], vf[1, : numberPointsPerKz_list[0]], color = 'k') # mesh_xy means all points for kz = - pi / c
 
-axes.set_xlim(-pi, pi)
-axes.set_ylim(-pi, pi)
-axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+# axes.set_xlim(-pi, pi)
+# axes.set_ylim(-pi, pi)
+# axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+# axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-axes.set_xticks([-pi, 0., pi])
-axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
-axes.set_yticks([-pi, 0., pi])
-axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+# axes.set_xticks([-pi, 0., pi])
+# axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+# axes.set_yticks([-pi, 0., pi])
+# axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
-plt.show()
-#//////////////////////////////////////////////////////////////////////////////#
+# plt.show()
+# #//////////////////////////////////////////////////////////////////////////////#
 
 # ### uncomment to plot FS
-# from mpl_toolkits.mplot3d import Axes3D
 # fig = plt.figure()
 # ax = fig.add_subplot(111, projection='3d')
 # ax.scatter(kf[0], kf[1], kf[2], color='k', marker='.')

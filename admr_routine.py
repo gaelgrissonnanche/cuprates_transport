@@ -23,7 +23,7 @@ def admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B
     tz = band_parameters[7]
     tz2 = band_parameters[8]
 
-    mesh_xy   = mesh_parameters[0]
+    mesh_ds   = mesh_parameters[0]
     mesh_z    = mesh_parameters[1]
 
     gamma_0 = tau_parameters[0]
@@ -31,14 +31,16 @@ def admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B
     power   = tau_parameters[2]
     tau_0 = 1 / gamma_0
 
+    if power % 2 == 1:
+        power += 1
+        tau_parameters[2] = power
+
     ## Start computing time
     start_total_time = time.time()
 
     ## Discretize Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
-    ## Make mesh_xy a multiple of 4 to respect the 4-order symmetry
-    mesh_xy = mesh_xy - (mesh_xy % 4)
     ## Discretize FS
     kf, vf, dkf, numberPointsPerKz_list = discretize_FS(band_parameters, mesh_parameters)
 
@@ -60,8 +62,8 @@ def admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B
     ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     len = rho_zz_a.shape[1]
     t = band_parameters[4]
-    Data = np.vstack((B_theta_a, rho_zz_a[0,:] / rho_zz_0[0], rho_zz_a[1,:] / rho_zz_0[1], rho_zz_a[2,:] / rho_zz_0[2], rho_zz_a[3,:] / rho_zz_0[3],
-                      B_amp*ones(len), gamma_0*ones(len), gamma_k*ones(len), power*ones(len), t*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), tz2*ones(len), mu*ones(len), mesh_xy*ones(len), mesh_z*ones(len)))
+    Data = np.vstack((B_theta_a*180/pi, rho_zz_a[0,:] / rho_zz_0[0], rho_zz_a[1,:] / rho_zz_0[1], rho_zz_a[2,:] / rho_zz_0[2], rho_zz_a[3,:] / rho_zz_0[3],
+                      B_amp*ones(len), gamma_0*ones(len), gamma_k*ones(len), power*ones(len), t*ones(len), tp*ones(len), tpp*ones(len), tz*ones(len), tz2*ones(len), mu*ones(len), mesh_ds*ones(len), mesh_z*ones(len)))
     Data = Data.transpose()
     folder = "results_sim/"
     file_name_parameters  = [r"p_"   + "{0:.3f}".format(p),
@@ -81,7 +83,7 @@ def admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B
         file_name += "_" + string
 
     np.savetxt(folder + file_name + ".dat", Data, fmt='%.7e',
-    header = "theta[deg]\trzz(phi=0)/rzz_0\trzz(phi=15)/rzz_0\trzz(phi=30)/rzz_0\trzz(phi=45)/rzz_0\tB[T]\tgamma_0[THz]\tgamma_k[THz]\tpower\tt[meV]\ttp\ttpp\ttz\ttz2\tmu\tmesh_xy\tmesh_z", comments = "#")
+    header = "theta[deg]\trzz(phi=0)/rzz_0\trzz(phi=15)/rzz_0\trzz(phi=30)/rzz_0\trzz(phi=45)/rzz_0\tB[T]\tgamma_0[THz]\tgamma_k[THz]\tpower\tt[meV]\ttp\ttpp\ttz\ttz2\tmu\tmesh_ds\tmesh_z", comments = "#")
 
 
     #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#

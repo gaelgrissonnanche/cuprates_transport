@@ -97,6 +97,10 @@ def discretize_FS(band_parameters, mesh_parameters):
     kxx, kyy = np.meshgrid(kx_a, ky_a, indexing = 'ij')
 
     numberPointsPerKz_list = []
+    kxf_list = []
+    kyf_list = []
+    kzf_list = []
+    dkf_list = []
 
     for j, kz in enumerate(kz_a):
         bands = e_3D_func(kxx, kyy, kz, band_parameters)
