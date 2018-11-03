@@ -21,8 +21,8 @@ tz2 = - 0 * t
 mu  = 0.83 * t # van Hove 0.84
 
 ## Life time
-gamma_0 = 100 # in THz
-gamma_k = 20 # in THz
+gamma_0 = 110 # in THz
+gamma_k = 0 # in THz
 power   = 8
 
 ## Magnetic field
@@ -56,12 +56,12 @@ admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B_the
 #     band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz, tz2], dtype = np.float64)
 #     admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B_theta_a, fig_show = False)
 
-# gamma_k_a = np.arange(0, 1000, 20)
-# power_a = np.arange(2, 20, 2)
-# for power in power_a:
+# gamma_k_a = np.arange(0, 120, 20)
+# gamma_0_a = np.arange(50, 170, 20)
+# for gamma_0 in gamma_0_a:
 #     for gamma_k in gamma_k_a:
-#         print("power = " + r"{0:.0f}".format(power))
-#         print("gamma_k = " + r"{0:.1f}".format(gamma_k) + " THz" )
+#         print("gamma_0 = " + r"{0:.1f}".format(gamma_0) + " THz")
+#         print("gamma_k = " + r"{0:.1f}".format(gamma_k) + " THz")
 #         tau_parameters = np.array([gamma_0, gamma_k, power], dtype = np.float64)
 #         admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B_theta_a, fig_show = False)
 
@@ -74,22 +74,22 @@ admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B_the
 ## Figures ////////////////////////////////////////////////////////////////#
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
-#///// RC Parameters //////#
-mpl.rcdefaults()
-mpl.rcParams['font.size'] = 24. # change the size of the font in every figure
-mpl.rcParams['font.family'] = 'Arial' # font Arial in every figure
-mpl.rcParams['axes.labelsize'] = 24.
-mpl.rcParams['xtick.labelsize'] = 24
-mpl.rcParams['ytick.labelsize'] = 24
-mpl.rcParams['xtick.direction'] = "in"
-mpl.rcParams['ytick.direction'] = "in"
-mpl.rcParams['xtick.top'] = True
-mpl.rcParams['ytick.right'] = True
-mpl.rcParams['xtick.major.width'] = 0.6
-mpl.rcParams['ytick.major.width'] = 0.6
-mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
-mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
-                                    # editing the text in illustrator
+# #///// RC Parameters //////#
+# mpl.rcdefaults()
+# mpl.rcParams['font.size'] = 24. # change the size of the font in every figure
+# mpl.rcParams['font.family'] = 'Arial' # font Arial in every figure
+# mpl.rcParams['axes.labelsize'] = 24.
+# mpl.rcParams['xtick.labelsize'] = 24
+# mpl.rcParams['ytick.labelsize'] = 24
+# mpl.rcParams['xtick.direction'] = "in"
+# mpl.rcParams['ytick.direction'] = "in"
+# mpl.rcParams['xtick.top'] = True
+# mpl.rcParams['ytick.right'] = True
+# mpl.rcParams['xtick.major.width'] = 0.6
+# mpl.rcParams['ytick.major.width'] = 0.6
+# mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
+# mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
+#                                     # editing the text in illustrator
 
 # ## Make mesh_xy a multiple of 4 to respect the 4-order symmetry
 # mesh_xy = mesh_xy - (mesh_xy % 4)
@@ -98,10 +98,11 @@ mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType),
 # tau_0 = 1 / gamma_0
 # ## For figures, compute t-dependence
 # kft, vft, t = solveMovementFunc(B_amp, 0, 0, kf, band_parameters, tmax = 10 * tau_0)
-mesh_graph = 1001
-kx = np.linspace(-pi/a, pi/a, mesh_graph)
-ky = np.linspace(-pi/b, pi/b, mesh_graph)
-kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+
+# mesh_graph = 1001
+# kx = np.linspace(-pi/a, pi/a, mesh_graph)
+# ky = np.linspace(-pi/b, pi/b, mesh_graph)
+# kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
 # ##>>>> Discretize 2D Fermi Surface >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
@@ -133,36 +134,36 @@ kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 # plt.show()
 # #//////////////////////////////////////////////////////////////////////////////#
 
-##>>>> 2D Fermi Surface for different kz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
+# ##>>>> 2D Fermi Surface for different kz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+# fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
-for tick in axes.xaxis.get_major_ticks():
-    tick.set_pad(7)
-for tick in axes.yaxis.get_major_ticks():
-    tick.set_pad(8)
+# for tick in axes.xaxis.get_major_ticks():
+#     tick.set_pad(7)
+# for tick in axes.yaxis.get_major_ticks():
+#     tick.set_pad(8)
 
-fig.text(0.27,0.86, r"$k_{\rm z}$ =", fontsize = 14)
-fig.text(0.34,0.86, r"0", fontsize = 14, color = "#FF0000")
-fig.text(0.34,0.83, r"$\pi/c$", fontsize = 14, color = "#00DC39")
-fig.text(0.34,0.80, r"2$\pi/c$", fontsize = 14, color = "#6577FF")
+# fig.text(0.27,0.86, r"$k_{\rm z}$ =", fontsize = 14)
+# fig.text(0.34,0.86, r"0", fontsize = 14, color = "#FF0000")
+# fig.text(0.34,0.83, r"$\pi/c$", fontsize = 14, color = "#00DC39")
+# fig.text(0.34,0.80, r"2$\pi/c$", fontsize = 14, color = "#6577FF")
 
-line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, pi / c, band_parameters), 0, colors = '#00DC39', linewidths = 3)
-line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 2 * pi / c, band_parameters), 0, colors = '#6577FF', linewidths = 3)
+# line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+# line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, pi / c, band_parameters), 0, colors = '#00DC39', linewidths = 3)
+# line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 2 * pi / c, band_parameters), 0, colors = '#6577FF', linewidths = 3)
 
-axes.set_xlim(-pi, pi)
-axes.set_ylim(-pi, pi)
-axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+# axes.set_xlim(-pi, pi)
+# axes.set_ylim(-pi, pi)
+# axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+# axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-axes.set_xticks([-pi, 0., pi])
-axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
-axes.set_yticks([-pi, 0., pi])
-axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+# axes.set_xticks([-pi, 0., pi])
+# axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+# axes.set_yticks([-pi, 0., pi])
+# axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
-plt.show()
-#//////////////////////////////////////////////////////////////////////////////#
+# plt.show()
+# #//////////////////////////////////////////////////////////////////////////////#
 
 # ##>>>> Life Time >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
