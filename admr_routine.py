@@ -31,6 +31,7 @@ def admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B
     power   = tau_parameters[2]
     tau_0 = 1 / gamma_0
 
+    power = int(power)
     if power % 2 == 1:
         power += 1
         tau_parameters[2] = power
@@ -227,3 +228,5 @@ def admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B
     folder = "results_sim/"
     fig.savefig(folder + file_name + ".pdf")
     #//////////////////////////////////////////////////////////////////////////#
+
+    return [rho_zz_a[0,:] / rho_zz_0[0], rho_zz_a[1,:] / rho_zz_0[1], rho_zz_a[2,:] / rho_zz_0[2], rho_zz_a[3,:] / rho_zz_0[3]]
