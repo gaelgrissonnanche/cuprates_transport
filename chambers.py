@@ -32,12 +32,15 @@ class amroPoint:
     def __init__(self, band, Bamp, Btheta, Bphi):
 
         self.bandObject = band ## WARNING do not modify within this object
-        
         self.B = B_func(Bamp, Btheta, Bphi) # np array fo Bx,By,Bz
-        
-        self.gamma_0 = 100 # in THz
-        self.gamma_k = 0 # in THz
-        self.power   = 8
+        self.gamma_0 = 152 # in THz
+        self.gamma_k = 649 # in THz
+        self.power   = 12
+
+        self.power = int(self.power)
+        if self.power % 2 == 1:
+            self.power += 1
+            tau_parameters[2] = self.power
 
         self.tau_0 = 1 / self.gamma_0
         self.tmax = 10*self.tau_0
@@ -47,7 +50,6 @@ class amroPoint:
 
         self.kft = None
         self.vft = None
-
         self.sigma_zz = None
 
         
@@ -56,13 +58,17 @@ class amroPoint:
         t_len = self.t.shape[0]
         kf_len = self.bandObject.kf.shape[1]
         kf = self.bandObject.kf.flatten() # flatten to get all the initial kf solved at the same time
-
         kft = odeint(self.diff_func_vectorized, kf, self.t, rtol = 1e-4, atol = 1e-4).transpose() # solve differential equation
         
         self.kft = np.reshape(kft, (3, kf_len, t_len))
         self.vft = np.empty_like(self.kft, dtype = np.float64)
         self.vft[0, :, :], self.vft[1, :, :], self.vft[2, :, :] = self.bandObject.v_3D_func(self.kft[0, :, :], self.kft[1, :, :], self.kft[2, :, :])
 
+    def solveMovementForPoint(self, kpoint):
+        t_len = self.t.shape[0]
+        kt = odeint(self.diff_func_vectorized, kpoint, self.t, rtol = 1e-4, atol = 1e-4).transpose() # solve differential equation
+        kt = np.reshape(kft, (3, 1, t_len))
+        return kt
 
     #@jit(nopython = True, cache = True)
     def diff_func_vectorized(self, k, t):
@@ -75,16 +81,16 @@ class amroPoint:
         return dkdt
 
     #@jit(nopython = True, cache = True)
-    def tauFunc(self, k):
+    def tOverTauFunc(self, k):
         kx = k[0,:]
         ky = k[1,:]
         phi = arctan2(ky, kx)
-        tau = 1 / ( self.gamma_0 + self.gamma_k * cos(2*phi)**self.power)
-        return tau
+        t_over_tau = np.cumsum(self.dt * ( self.gamma_0 + self.gamma_k * cos(2*phi)**self.power))
+        return t_over_tau
 
     # def computeAMRO(self):
     #@jit(nopython = True, parallel = True)
-    def chambersFunc(self):
+    def vz_product(self):
 
         ## Velocity components
         vxf = self.bandObject.vf[0,:]
@@ -101,13 +107,14 @@ class amroPoint:
         # First the integral over time
         v_product = np.empty(vzf.shape[0], dtype = np.float64)
         for i0 in prange(vzf.shape[0]):
-            vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp( - self.t / self.tauFunc(self.kft[:,i0,:]) ) * dt ) # integral over t
+            vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp( - self.tOverTauFunc(self.kft[:,i0,:]) ) * self.dt ) # integral over t
             v_product[i0] = vzf[i0] * vz_sum_over_t # integral over z
 
+        return v_product
         # Second the integral over kf
-        self.sigma_zz = units_chambers * np.sum(self.bandObject.dkf * v_product) # integral over k
 
-
+    def chambersFunc(self):
+        self.sigma_zz = units_chambers * np.sum(self.bandObject.dkf * self.vz_product()) # integral over k
 
 
 

@@ -29,37 +29,52 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     return e_2D + e_z
 
 @jit(nopython = True, cache = True)
-def optimized_v_2D_func(kx, ky, a, b, t, tp, tpp):
-    d_e2D_dkx =  2 * t * a * sin(kx*a) 
-    d_e2D_dkx += 4 * tp * a * sin(kx*a)*cos(ky*b)
-    d_e2D_dkx += 4 * tpp * a * sin(2*kx*a)
+def optimized_v_3D_func(kx, ky, kz, a, b, c,t, tp, tpp, tz, tz2):
+    d = c / 2
     
-    d_e2D_dky =  2 * t * b * sin(ky*b) 
-    d_e2D_dky += 4 * tp * b * cos(kx*a)*sin(ky*b)
-    d_e2D_dky += 4 * tpp * b * sin(2*ky*b)
+    kxa = kx*a
+    kxb = ky*b
+    kzd = kz*d
+    coskx = cos(kxa)
+    cosky = cos(kxb)
+    coskz = cos(kzd)
+    sinkx = sin(kxa)
+    sinky = sin(kxb)
+    sinkz = sin(kzd)
+    sin2kx = sin(2*kx*a)
+    sin2ky = sin(2*ky*b)
+    coskx_2 = cos(kxa/2)
+    cosky_2 = cos(kxb/2)
+    sinkx_2 = sin(kxa/2)
+    sinky_2 = sin(kxb/2)
 
-    return d_e2D_dkx, d_e2D_dky
+    d_e2D_dkx = 2*t*a*sinkx + 4*tp*a*sinkx*cosky + 4*tpp*a*sin2kx
+    d_e2D_dky = 2*t*b*sinky + 4*tp*b*coskx*sinky + 4*tpp*b*sin2ky
+    d_e2D_dkz = 0
 
-@jit(nopython = True, cache = True)
-def optimized_v_ez_func(kx, ky, kz, a, b, c, tz, tz2):
-    sigma = cos(kx*a/2) * cos(ky*b/2)
-    d_sigma_dkx = - a / 2 * sin(kx*a/2) * cos(ky*b/2)
-    d_sigma_dky = - b / 2 * cos(kx*a/2) * sin(ky*b/2)
+    sigma = coskx_2*cosky_2
+    d_sigma_dkx = - a/2*sinkx_2*cosky_2
+    d_sigma_dky = - b/2*coskx_2*sinky_2
+    diff = (coskx - cosky)
+    square = (diff)**2
+    d_square_dkx = 2*(diff)*(-a*sinkx)
+    d_square_dky = 2*(diff)*(+b*sinky)
 
-    square = (cos(kx*a) - cos(ky*b))**2
-    d_square_dkx = 2 * square * (-a * sin(kx*a))
-    d_square_dky = 2 * square * (+b * sin(ky*b))
-    
-    d_ez_dkx =  -2 * tz * d_sigma_dkx * square * cos(kz*c/2) 
-    d_ez_dkx += -2 * tz * sigma * d_square_dkx * cos(kz*c/2)
-    
-    d_ez_dky =  -2 * tz * d_sigma_dky * square * cos(kz*c/2) 
-    d_ez_dky += -2 * tz * sigma * d_square_dky * cos(kz*c/2)
+    d_ez_dkx = - 2*tz*d_sigma_dkx*square*coskz - 2*tz*sigma*d_square_dkx*coskz
+    d_ez_dky = - 2*tz*d_sigma_dky*square*coskz - 2*tz*sigma*d_square_dky*coskz
+    d_ez_dkz = - 2*tz*sigma*square*(-d*sinkz) + 2*tz2*(-d)*sinkz
 
-    d_ez_dkz =  -2 * tz * sigma * square * (-c/2 * sin(kz*c/2)) 
-    d_ez_dkz += -2 * tz2 * (-c/2) * sin(kz*c/2)
-    
-    return d_ez_dkx, d_ez_dky, d_ez_dkz
+    vx = (d_e2D_dkx + d_ez_dkx)/hbar
+    vy = (d_e2D_dky + d_ez_dky)/hbar
+    vz = (d_e2D_dkz + d_ez_dkz)/hbar
+
+    return vx, vy, vz
+
+
+def rotation(x, y, angle):
+    xp =  cos(angle)*x + sin(angle)*y
+    yp = -sin(angle)*x + cos(angle)*y
+    return xp, yp
 
 class BandStructure:
     def __init__(self):
@@ -67,20 +82,20 @@ class BandStructure:
         self.b   =  3.74
         self.c   =  13.3
         self.t   =  190
-        self.tp  = -0.14 *self.t
-        self.tpp =  0.07 *self.t
-        self.tz  =  0.07 *self.t
-        self.tz2 =  0.00 *self.t
-        self.mu  = -0.81 *self.t
+        self.tp  = -0.14  *self.t
+        self.tpp =  0.07  *self.t
+        self.tz  =  0.07  *self.t
+        self.tz2 =  0.00  *self.t
+        self.mu  = -0.825 *self.t
 
         self.half_FS_z = True # if False, put a minimum of 11 points
         self.numberOfKz   = 7 
-        self.numberOfKxKy = 56
+        self.mesh_ds = pi/20
         
         self.kf = None
         self.vf = None
-        self.dky = None
-        self.number_contours = None
+        self.dkf = None
+        self.numberPointsPerKz_list = None
 
 
     def bandParameters(self):
@@ -89,22 +104,8 @@ class BandStructure:
     def e_3D_func(self,kx, ky, kz):
         return optimized_e_3D_func(kx, ky, kz, self.a, self.b, self.c, self.mu, self.t, self.tp, self.tpp, self.tz, self.tz2)
     
-
-    def v_2D_func(self, kx, ky):
-        return optimized_v_2D_func(kx, ky, self.a, self.b, self.t, self.tp, self.tpp)
-
-    def v_ez_func(self, kx, ky, kz):
-        return optimized_v_ez_func(kx, ky, kz, self.a, self.b, self.c, self.tz, self.tz2)
-
     def v_3D_func(self, kx, ky, kz):
-        d_e2D_dkx, d_e2D_dky = self.v_2D_func(kx, ky)
-        d_ez_dkx, d_ez_dky, d_ez_dkz = self.v_ez_func(kx, ky, kz)
-
-        vx = ( 1/hbar ) * (d_e2D_dkx + d_ez_dkx)
-        vy = ( 1/hbar ) * (d_e2D_dky + d_ez_dky)
-        vz = ( 1/hbar ) * (d_ez_dkz)
-
-        return vx, vy, vz
+        return optimized_v_3D_func(kx, ky, kz, self.a, self.b, self.c,self.t, self.tp, self.tpp, self.tz, self.tz2)
         
     def dispersionMesh(self, resX=500,resY=500, resZ=10):
         kx_a = np.linspace(-pi/self.a, pi/self.a, resX)
@@ -142,113 +143,77 @@ class BandStructure:
         solObject = optimize.root( self.dopingCondition, np.array([muStart]), args=(pTarget,),options={'xtol':xtol})
         self.mu = solObject.x[0]
 
-
     def discretize_FS(self):
-        self.numberOfKxKy -= (self.numberOfKxKy % 4) #ensures fourfold symmetry of sampling
-        
-        mesh_xy_rough = self.numberOfKxKy * 10 + 1 # make denser rough meshgrid to interpolate
-        kx_a = np.linspace(-pi/self.a, pi/self.a, mesh_xy_rough)
-        ky_a = np.linspace(-pi/self.b, pi/self.b, mesh_xy_rough)
+        if self.numberOfKz % 2 == 0: # make it an odd number
+            self.numberOfKz += 1  ## WARNING SIDE EFFECT ON MESH_Z
+
+        mesh_xy_rough = 501 # make denser rough meshgrid to interpolate
+        if self.half_FS_z: kz_a = np.linspace(0, 2*pi/self.c, self.numberOfKz) # half of FBZ, 2*pi/c because bodycentered unit cell
+        else: kz_a = np.linspace(-2*pi/self.c, 2*pi/self.c, self.numberOfKz)
+        kx_a = np.linspace(0, pi/self.a, mesh_xy_rough)
+        ky_a = np.linspace(0, pi/self.b, mesh_xy_rough)
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing = 'ij')
 
-        kz_a = np.linspace(-2*pi/self.c, 2*pi/self.c, self.numberOfKz) # 2*pi/c because bodycentered unit cell
-        if self.half_FS_z == True: kz_a = np.linspace(0, 2*pi/self.c, self.numberOfKz)
-        
+        self.numberPointsPerKz_list = []
+        kxf_list = []
+        kyf_list = []
+        kzf_list = []
+        dkf_list = []
+
         for j, kz in enumerate(kz_a):
             bands = self.e_3D_func(kxx, kyy, kz)
             contours = measure.find_contours(bands, 0)
-            self.number_contours = len(contours)
+            numberPointsPerKz = 0
 
             for i, contour in enumerate(contours):
 
-                # Contour in units proportionnal to size of meshgrid
-                x_raw = contour[:, 0]
-                y_raw = contour[:, 1]
+                # Contour come in units proportionnal to size of meshgrid
+                # one want to scale to units of kx and ky
+                x = contour[:, 0]/(mesh_xy_rough-1)*pi
+                y = contour[:, 1]/(mesh_xy_rough-1)*pi / (self.b/self.a) # anisotropy
 
-                # Scale the contour to units of kx and ky
-                x = (x_raw/(mesh_xy_rough-1)-0.5)*2*pi/self.a
-                y = (y_raw/(mesh_xy_rough-1)-0.5)*2*pi/self.b
+                ds = np.sqrt(np.diff(x)**2 + np.diff(y)**2) # segment lengths
+                s = np.zeros_like(x) # arrays of zeros
+                s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
 
+                mesh_xy = int( max(np.ceil(s.max() / self.mesh_ds), 4) )
+                # choose at least a minimum of 4 points per contour
+                numberPointsPerKz += mesh_xy
 
-                # Is Contour closed?
-                closed = (x_raw[0] == x_raw[-1]) * (y_raw[0] == y_raw[-1])
+                dkf_weight = s.max() / (mesh_xy + 1) # weight to ponderate self.dkf
 
-                # Make all opened contours go in direction of x[i+1] - x[i] < 0, otherwise interpolation problem
-                if np.diff(x)[0] > 0 and not closed:
-                    x = x[::-1]
-                    y = y[::-1]
+                s_int = np.linspace(0, s.max(), mesh_xy + 1) # regular spaced path, add one
+                x_int = np.interp(s_int, s, x)[:-1] # interpolate and remove the last point (not to repeat)
+                y_int = np.interp(s_int, s, y)[:-1]
 
-                # Make the contour start at a high point of symmetry, for example for ky = 0
-                index_xmax = np.argmax(x) # find the index of the first maximum of x
-                x = np.roll(x, x.shape - index_xmax) # roll the elements to get maximum of x first
-                y = np.roll(y, x.shape - index_xmax) # roll the elements to get maximum of x first
-
-                # Closed contour
-                if closed == True: # meaning a closed contour
-                    x = np.append(x, x[0]) # add the first element to get a closed contour
-                    y = np.append(y, y[0]) # in order to calculate its real total length
-                    self.numberOfKxKy = self.numberOfKxKy - (self.numberOfKxKy % 4) # respects the 4-order symmetry
-
-                    ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-                    s = np.zeros_like(x) # arrays of zeros
-                    s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
-
-                    s_int = np.linspace(0, s.max(), self.numberOfKxKy + 1) # regular spaced path
-                    x_int = np.interp(s_int, s, x)[:-1] # interpolate
-                    y_int = np.interp(s_int, s, y)[:-1]
-
-                # Opened contour
-                else:
-                    ds = (np.diff(x)**2 + np.diff(y)**2)**.5 # segment lengths
-                    s = np.zeros_like(x) # arrays of zeros
-                    s[1:] = np.cumsum(ds) # integrate path, s[0] = 0
-
-                    s_int = np.linspace(0, s.max(), self.numberOfKxKy) # regular spaced path
-                    x_int = np.interp(s_int, s, x) # interpolate
-                    y_int = np.interp(s_int, s, y)
-
+                ## Rotate the contour to get the entire Fermi surface 
+                # ### WARNING NOT ROBUST IN THE CASE OF C4 SYMMETRY BREAKING
+                x_dump = x_int
+                y_dump = y_int
+                for angle in [pi/2, pi, 3*pi/2]:
+                    x_int_p, y_int_p = rotation(x_int, y_int, angle)
+                    x_dump = np.append(x_dump, x_int_p)
+                    y_dump = np.append(y_dump, y_int_p)
+                x_int = x_dump
+                y_int = y_dump
 
                 # Put in an array /////////////////////////////////////////////////////#
                 if i == 0 and j == 0: # for first contour and first kz
-                    kxf = x_int
-                    kyf = y_int
-                    kzf = kz*np.ones_like(x_int)
+                    kxf = x_int/self.a
+                    kyf = y_int/self.a ## a becaus anisotropy was taken into account earlier
+                    kzf = kz * np.ones_like(x_int)
+                    self.dkf = dkf_weight * np.ones_like(x_int)
                 else:
-                    kxf = np.append(kxf, x_int)
-                    kyf = np.append(kyf, y_int)
+                    kxf = np.append(kxf, x_int/self.a)
+                    kyf = np.append(kyf, y_int/self.a)  ## a becaus anisotropy was taken into account earlier
                     kzf = np.append(kzf, kz*np.ones_like(x_int))
+                    self.dkf = np.append(self.dkf, dkf_weight * np.ones_like(x_int))
+
+            self.numberPointsPerKz_list.append(4 * numberPointsPerKz)
 
         self.kf = np.vstack([kxf, kyf, kzf]) # dim -> (n, i0) = (xyz, position on FS)
-
-        ## Integration Delta (WROOOOONNNGGGG!!!!)
-        if self.half_FS_z == True:
-            self.dkf = 2 / (self.numberOfKxKy * self.numberOfKz) * ( 2 * pi )**2 / ( self.a * self.b ) * ( 4 * pi ) / self.c
-        else:
-            self.dkf = 1 / (self.numberOfKxKy * self.numberOfKz) * ( 2 * pi )**2 / ( self.a * self.b ) * ( 4 * pi ) / self.c
 
         ## Compute Velocity at t = 0 on Fermi Surface
         vx, vy, vz = self.v_3D_func(self.kf[0,:], self.kf[1,:], self.kf[2,:])
         self.vf = np.vstack([vx, vy, vz]) # dim -> (i, i0) = (xyz, position on FS)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

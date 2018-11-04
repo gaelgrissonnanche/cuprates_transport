@@ -1,174 +1,58 @@
 import numpy as np
 from numpy import sqrt, exp, log, pi, ones
 np.set_printoptions(6,suppress=True,sign="+",floatmode="fixed")
+
 from numba import jit, prange, config, threading_layer, guvectorize, float64
 import time
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
-from band_structure import *
-from diff_equation import *
 import plotly
 import plotly.plotly as py
 import plotly.graph_objs as go
 import plotly.figure_factory as ff
-import numpy as np
 from scipy.spatial import Delaunay
+from skimage import measure
 from copy import deepcopy
 
+from band import BandStructure
+from chambers import amroPoint
 
-start_total_time = time.time()
+band = BandStructure()
+band.mesh_ds = 1
+band.numberOfKz = 15
+band.half_FS_z = False
+band.discretize_FS()
 
-## Constant //////
-# hbar = 1.05e-34
-# e = 1.6e-19
-# m0 = 9.1e-31
-# kB = 1.38e-23
-# c = 13.2
-# a = 5.3 / sqrt(2)
-# b = 5.3 / sqrt(2)
-# mu = 805 # VHs = 600
-# t = 525
-# tp = -115
-# tpp = 35
-# tz = 11
-# tau = 1e-3
-# t   =  1.
-# tp  = -0.209 * t
-# tpp =  0.062 * t
-# tz  =  0.0209 * t
-# mu  = 1.123 * t
+currentPoint = amroPoint(band, 45, pi/8, pi/16)
+currentPoint.solveMovementFunc()
 
-e = 1
-hbar = 1
-m = 1
-a = 1
-b = 1
-c = 1
-t   =  1.
-tp  = -0.14 * t
-tpp =  0.07 * t
-tz  =  0.07 * t
-mu  = 0.9 * t # van Hove 0.84
-band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz])
-tau =  25 / t * hbar
-B_amp = 0.02 * t
-half_FS_z = False
-mesh_xy = 56 # 28 must be a multiple of 4
-mesh_z = 30 # 11 ideal to be fast and accurate
-mesh_B_theta = 31
-B_theta_max = 180
-B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
-B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
-## Make mesh_xy a multiple of 4 to respect the 4-order symmetry
-mesh_xy = mesh_xy - (mesh_xy % 4)
+mesh_xy_graph = 40
+mesh_z_graph = 40
+kx_a = np.linspace(-5*pi/4/band.a, 5*pi/4/band.a, mesh_xy_graph)
+ky_a = np.linspace(-5*pi/4/band.b, 5*pi/4/band.b, mesh_xy_graph)
+kz_a = np.linspace(-2*pi/band.c, 2*pi/band.c, mesh_z_graph) # 2*pi/c because bodycentered unit cell
+kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a)
 
-
-
-## Discretize FS
-start_time_FS = time.time()
-kf, vf, dkf, number_contours = discretize_FS(band_parameters, mesh_xy, mesh_z, half_FS_z)
-print("Discretize FS time : %.6s seconds" % (time.time() - start_time_FS))
-
-
-## Solve differential equation >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-
-@jit(nopython = True, cache = True)
-def solve_movement_func(B_amp, B_theta, B_phi, kf, band_parameters, tmax):
-
-    dt = tmax / 300
-    t = np.arange(0, tmax, dt)
-
-    ## Compute B ////#
-    B = B_func(B_amp, B_theta, B_phi)
-
-    ## Run solver ///#
-    kft = rgk4_algorithm(kf, t, B, band_parameters)
-    vft = np.empty_like(kft, dtype = np.float64)
-    vft[0,:,:], vft[1,:,:], vft[2,:,:] = v_3D_func(kft[0,:,:], kft[1,:,:], kft[2,:,:], band_parameters)
-
-    return kft, vft, t
-
-@jit(nopython = True, parallel = True)
-def calculate_vz_product(vf, vzft, kf, dkf, t, tau):
-
-    prefactor = e**2 / ( 4 * pi**3 )
-
-    ## Velocity components
-    vxf = vf[0,:]
-    vyf = vf[1,:]
-    vzf = vf[2,:]
-
-    # Time increment
-    dt = t[1] - t[0]
-    # Density of State
-    dos = hbar * sqrt( vxf**2 + vyf**2 + vzf**2 )
-
-    # First the integral over time
-    vz_product = np.empty(vzf.shape[0], dtype = np.float64)
-    for i0 in prange(vzf.shape[0]):
-        vz_sum_over_t = np.sum( ( 1 / dos[i0] ) * vzft[i0,:] * exp(- t / tau) * dt ) # integral over t
-        vz_product[i0] = vzf[i0] * vz_sum_over_t # integral over z
-
-    return vz_product
-
-
-
-
-# mesh_graph = 1001
-# kx = np.linspace(-pi/a, pi/a, mesh_graph)
-# ky = np.linspace(-pi/b, pi/b, mesh_graph)
-# kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
-
-
-### go interactive and do
-### exec(open("interactiveTrajectories.py").read())
-
-
-kft, vft, t = solve_movement_func(0.08, pi/2, 0, kf, band_parameters, tmax = 10 * tau)
-tmax = 10 * tau
-vz_product = calculate_vz_product(vf, vft[2,:,:], kf, dkf, t, tau)
-
-kft = np.reshape(kft,(3,mesh_z,mesh_xy,300))
-kft0 = np.reshape(kft[:,:,0,:],(3,mesh_z,1,300))
-kft = np.append(kft,kft0,axis=2)
-kft = np.transpose(kft,(0,2,1,3))
-kft = np.reshape(kft,(3,mesh_z*(mesh_xy+1),300))
-
-vz_product = np.reshape(vz_product,(mesh_z,mesh_xy))
-vz_product0 = np.reshape(vz_product[:,0],(mesh_z,1))
-vz_product = np.append(vz_product,vz_product0,axis=1)
-vz_product = np.transpose(vz_product,(1,0))
-vz_product = np.reshape(vz_product,mesh_z*(mesh_xy+1))
-
-x = kft[0,:,0]
-y = kft[1,:,0]
-z = kft[2,:,0]
-
-## make simplices (triangles of defining the surface)
-v = np.arange(0, mesh_xy +1)
-u = np.arange(0, mesh_z)
-u,v = np.meshgrid(u,v)
-u = u.flatten()
-v = v.flatten()
-points2D = np.vstack([u,v]).T
-tri = Delaunay(points2D)
-simplices = tri.simplices
+bands = band.e_3D_func(kxx, kyy, kzz)
+vertices, simplices = measure.marching_cubes_classic(bands, 0)
+x = (vertices[:,0]/(mesh_xy_graph-1)-0.5)*(5/2.)*pi/band.a
+y = (vertices[:,1]/(mesh_xy_graph-1)-0.5)*(5/2.)*pi/band.b
+z = (vertices[:,2]/(mesh_z_graph-1)-0.5)*4*pi/band.c
 
 def vzFunction(kx,ky,kz):
-    return abs(v_3D_func(kx,ky,kz,band_parameters)[2])
+    return abs(band.v_3D_func(kx, ky, kz)[2])
 
 colormap=['rgb(255,105,180)','rgb(255,255,51)','rgb(0,191,255)']
 fermiSurface = ff.create_trisurf(x=x, y=y, z=z, 
                         simplices=simplices,
                         plot_edges=False,
-                        color_func = vzFunction,
-                        title="Isosurface")
+                        color_func = vzFunction
+                        )
 
-xTraj = kft[0,0,:]
-yTraj = kft[1,0,:]
-zTraj = kft[2,0,:]
+xTraj = currentPoint.kft[0,0,:]
+yTraj = currentPoint.kft[1,0,:]
+zTraj = currentPoint.kft[2,0,:]
 trajectoryData = go.Scatter3d(
     x=xTraj, y=yTraj, z=zTraj,
     mode='lines',
@@ -178,21 +62,34 @@ trajectoryData = go.Scatter3d(
     )
 )
 
+xFS = band.kf[0,:]
+yFS = band.kf[1,:]
+zFS = band.kf[2,:]
+fsData = go.Scatter3d(
+    x=xFS, y=yFS, z=zFS,
+    mode='markers',
+    marker=dict(
+        color='#0000ff',
+        size=3
+    ),
+    hoverinfo='closest'
+)
+
 trace = go.Scatter(
-    x = np.arange(vz_product.shape[0]),
-    y = vz_product,
+    x = np.arange(currentPoint.vz_product().shape[0]),
+    y = currentPoint.vz_product(),
     mode = 'lines'
 )
 
 trace2 = go.Scatter(
     x = np.arange(2),
-    y = vz_product[:2],
+    y = currentPoint.vz_product()[:2],
     mode = 'markers'
 )
 
-# fermiSurface['data'][0].update(opacity=0.75)
+# fermiSurface['data'][0].update(opacity=0.90)
 
-dataToPlot = [fermiSurface.data[0], trajectoryData]
+dataToPlot = [fsData, trajectoryData] #fermiSurface.data[0], 
 
 # py.iplot(dataToPlot,filename="myFirstPlot")
 
@@ -234,7 +131,8 @@ app.layout = html.Div([
                     'layout': {
                         'height': 700,
                         'margin':{'l':0,'r':0,'t':0,'b':0},
-                        'scene': {'aspectmode':'cube'}
+                        'scene': {'aspectmode':'cube'},
+                        'clickmode':'none'
                         }
                     }
                 )
@@ -249,29 +147,35 @@ app.css.append_css({
     'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'
 })
 
-activePoint = 743
+activePoint = 22
+activeKvec = np.array([0,0,0])
 lastClicked2D = None
 def updateActivePoint(click2D,click3D):
     global activePoint
     global lastClicked2D
+    global activeKvec
     point2D = None
     point3D = None
     if click2D :
         point2D = click2D['points'][0]['pointNumber']
-    if click3D and 'i' in click3D['points'][0]:
+    if click3D and click3D['points'][0]['curveNumber']==0:
         point3D = click3D['points'][0]['pointNumber']
     
     if point2D and point3D:
         if lastClicked2D == point2D:
             activePoint = point3D
+            activeKvec = np.array([click3D['points'][0]['x'],click3D['points'][0]['y'],click3D['points'][0]['z']])
         else :
             activePoint = point2D
+            activeKvec = np.array([click2D['points'][0]['x'],click3D['points'][0]['y'],click3D['points'][0]['z']])
             lastClicked2D = point2D
     elif point2D:
         activePoint = point2D
+        activeKvec = np.array([click2D['points'][0]['x'],click3D['points'][0]['y'],click3D['points'][0]['z']])
         lastClicked2D = point2D
-    elif point3D:
+    elif point3D and click3D['points'][0]['curveNumber']==0:
         activePoint = point3D
+        activeKvec = np.array([click3D['points'][0]['x'],click3D['points'][0]['y'],click3D['points'][0]['z']])
     
 @app.callback(Output('3Dgraph', 'figure'),
               [Input('2Dgraph', 'clickData'),Input('3Dgraph', 'clickData')],
@@ -279,18 +183,17 @@ def updateActivePoint(click2D,click3D):
 def update_3Dgraph(click2D,click3D,relayoutData):
     global activePoint
     
-    xTraj = kft[0,activePoint,:]
-    yTraj = kft[1,activePoint,:]
-    zTraj = kft[2,activePoint,:]
+    xTraj = currentPoint.kft[0,activePoint,:]
+    yTraj = currentPoint.kft[1,activePoint,:]
+    zTraj = currentPoint.kft[2,activePoint,:]
 
-    for i in range(xTraj.size):
-        print(zTraj[i])
-        while xTraj[i] >   pi  : xTraj[i] = xTraj[i]-2*pi
-        while xTraj[i] <= -pi  : xTraj[i] = xTraj[i]+2*pi
-        while yTraj[i] >   pi  : yTraj[i] = yTraj[i]-2*pi
-        while yTraj[i] <= -pi  : yTraj[i] = yTraj[i]+2*pi
-        while zTraj[i] >  2*pi : zTraj[i] = zTraj[i]-4*pi
-        while zTraj[i] <=-2*pi : zTraj[i] = zTraj[i]+4*pi
+    # for i in range(xTraj.size):
+    #     while xTraj[i] >   pi  : xTraj[i] = xTraj[i]-2*pi
+    #     while xTraj[i] <= -pi  : xTraj[i] = xTraj[i]+2*pi
+    #     while yTraj[i] >   pi  : yTraj[i] = yTraj[i]-2*pi
+    #     while yTraj[i] <= -pi  : yTraj[i] = yTraj[i]+2*pi
+    #     while zTraj[i] >  2*pi : zTraj[i] = zTraj[i]-4*pi
+    #     while zTraj[i] <=-2*pi : zTraj[i] = zTraj[i]+4*pi
 
     trajectoryData = go.Scatter3d(
         x=xTraj, y=yTraj, z=zTraj,
@@ -300,7 +203,7 @@ def update_3Dgraph(click2D,click3D,relayoutData):
             width=10
         )
     )
-    dataToPlot = [fermiSurface.data[0], trajectoryData]
+    dataToPlot = [fsData, trajectoryData, fermiSurface.data[0]] 
     
     if relayoutData and 'scene.camera' in relayoutData:
         return {'data': dataToPlot,
@@ -309,7 +212,8 @@ def update_3Dgraph(click2D,click3D,relayoutData):
                     'scene': {
                         'camera': relayoutData['scene.camera'] ,
                         'aspectmode': 'cube'
-                        }
+                        },
+                    'hoverinfo':'closest'
                     }
                 }
     else:
@@ -318,7 +222,8 @@ def update_3Dgraph(click2D,click3D,relayoutData):
                     'margin':{'l':0,'r':0,'t':0,'b':0},
                     'scene': {
                         'aspectmode': 'cube'
-                        }
+                        },
+                    'hoverinfo':'closest'
                     }
                 }
 
@@ -330,7 +235,7 @@ def update_2Dgraph(click2D,click3D,relayoutData):
     
     newTrace2 = go.Scatter(
             x = np.array([activePoint]),
-            y = np.array([vz_product[activePoint]]),
+            y = np.array([currentPoint.vz_product()[activePoint]]),
             mode = 'markers'
         )
     layout={
@@ -355,7 +260,7 @@ def display_click_data(click2D,click3D,relayoutData):
     clicked = {'active point': activePoint}
     # if click2D : clicked["2D"] = click2D
     # if click3D : clicked["3D"] = click3D
-    return json.dumps(clicked, indent=2)
+    return json.dumps(click3D, indent=2)
 
 
 if __name__ == '__main__':

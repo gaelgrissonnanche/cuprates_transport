@@ -15,7 +15,7 @@ band_parameters = np.array(bs.bandParameters(), dtype = np.float64)  # returns [
 
 # bs.setMuToDoping(0.22); 
 # print (bs.mu)
-bs.mu = -0.95*bs.t
+# bs.mu = -0.95*bs.t
 p = bs.doping()
 print("p = " + "{0:.3f}".format(p))
 
@@ -37,7 +37,6 @@ print("discretization time : %.6s seconds" % (time.time() - start_discre_time))
 B_amp = 45 # in Tesla
 mesh_B_theta = 23 # number of theta angles for B
 B_theta_max  = 110 # theta max for B, in degrees
-
 B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
 B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 
