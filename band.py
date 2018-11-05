@@ -10,72 +10,6 @@ from numba import int32, float32
 hbar = 1 # velocity will be in units of 1 / hbar,
          # this hbar is taken into accound in the constant units_move_eq
 
-## ABOUT JUST IN TIME (JIT) COMPILATION
-# jitclass do not work, the best option is to call a jit otimized function from inside the class.
-
-@jit(nopython = True, cache = True)
-def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
-    e_2D  = -2 * t * ( cos(kx*a) + cos(ky*b) ) 
-    e_2D += -4 * tp * cos(kx*a) * cos(ky*b) 
-    e_2D += -2 * tpp * ( cos(2*kx*a) + cos(2*ky*b) )
-    e_2D += -mu
-
-    e_z  = -2 * tz * cos(kz*c/2)
-    e_z *= cos(kx*a/2) * cos(ky*b/2)
-    e_z *= (cos(kx*a) - cos(ky*b) )**2
-    # mind the '+='
-    e_z += -2 * tz2 * cos(kz* c / 2.)
-
-    return e_2D + e_z
-
-@jit(nopython = True, cache = True)
-def optimized_v_3D_func(kx, ky, kz, a, b, c,t, tp, tpp, tz, tz2):
-    d = c / 2
-    
-    kxa = kx*a
-    kxb = ky*b
-    kzd = kz*d
-    coskx = cos(kxa)
-    cosky = cos(kxb)
-    coskz = cos(kzd)
-    sinkx = sin(kxa)
-    sinky = sin(kxb)
-    sinkz = sin(kzd)
-    sin2kx = sin(2*kx*a)
-    sin2ky = sin(2*ky*b)
-    coskx_2 = cos(kxa/2)
-    cosky_2 = cos(kxb/2)
-    sinkx_2 = sin(kxa/2)
-    sinky_2 = sin(kxb/2)
-
-    d_e2D_dkx = 2*t*a*sinkx + 4*tp*a*sinkx*cosky + 4*tpp*a*sin2kx
-    d_e2D_dky = 2*t*b*sinky + 4*tp*b*coskx*sinky + 4*tpp*b*sin2ky
-    d_e2D_dkz = 0
-
-    sigma = coskx_2*cosky_2
-    d_sigma_dkx = - a/2*sinkx_2*cosky_2
-    d_sigma_dky = - b/2*coskx_2*sinky_2
-    diff = (coskx - cosky)
-    square = (diff)**2
-    d_square_dkx = 2*(diff)*(-a*sinkx)
-    d_square_dky = 2*(diff)*(+b*sinky)
-
-    d_ez_dkx = - 2*tz*d_sigma_dkx*square*coskz - 2*tz*sigma*d_square_dkx*coskz
-    d_ez_dky = - 2*tz*d_sigma_dky*square*coskz - 2*tz*sigma*d_square_dky*coskz
-    d_ez_dkz = - 2*tz*sigma*square*(-d*sinkz) + 2*tz2*(-d)*sinkz
-
-    vx = (d_e2D_dkx + d_ez_dkx)/hbar
-    vy = (d_e2D_dky + d_ez_dky)/hbar
-    vz = (d_e2D_dkz + d_ez_dkz)/hbar
-
-    return vx, vy, vz
-
-
-def rotation(x, y, angle):
-    xp =  cos(angle)*x + sin(angle)*y
-    yp = -sin(angle)*x + cos(angle)*y
-    return xp, yp
-
 class BandStructure:
     def __init__(self):
         self.a   =  3.74
@@ -208,7 +142,7 @@ class BandStructure:
                     kyf = np.append(kyf, y_int/self.a)  ## a becaus anisotropy was taken into account earlier
                     kzf = np.append(kzf, kz*np.ones_like(x_int))
                     self.dkf = np.append(self.dkf, dkf_weight * np.ones_like(x_int))
-
+            
             self.numberPointsPerKz_list.append(4 * numberPointsPerKz)
 
         self.kf = np.vstack([kxf, kyf, kzf]) # dim -> (n, i0) = (xyz, position on FS)
@@ -217,3 +151,69 @@ class BandStructure:
         vx, vy, vz = self.v_3D_func(self.kf[0,:], self.kf[1,:], self.kf[2,:])
         self.vf = np.vstack([vx, vy, vz]) # dim -> (i, i0) = (xyz, position on FS)
 
+
+
+## ABOUT JUST IN TIME (JIT) COMPILATION
+# jitclass do not work, the best option is to call a jit otimized function from inside the class.
+@jit(nopython = True, cache = True)
+def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
+    e_2D  = -2 * t * ( cos(kx*a) + cos(ky*b) ) 
+    e_2D += -4 * tp * cos(kx*a) * cos(ky*b) 
+    e_2D += -2 * tpp * ( cos(2*kx*a) + cos(2*ky*b) )
+    e_2D += -mu
+
+    e_z  = -2 * tz * cos(kz*c/2)
+    e_z *= cos(kx*a/2) * cos(ky*b/2)
+    e_z *= (cos(kx*a) - cos(ky*b) )**2
+    # mind the '+='
+    e_z += -2 * tz2 * cos(kz* c / 2.)
+
+    return e_2D + e_z
+
+@jit(nopython = True, cache = True)
+def optimized_v_3D_func(kx, ky, kz, a, b, c,t, tp, tpp, tz, tz2):
+    d = c / 2
+    
+    kxa = kx*a
+    kxb = ky*b
+    kzd = kz*d
+    coskx = cos(kxa)
+    cosky = cos(kxb)
+    coskz = cos(kzd)
+    sinkx = sin(kxa)
+    sinky = sin(kxb)
+    sinkz = sin(kzd)
+    sin2kx = sin(2*kx*a)
+    sin2ky = sin(2*ky*b)
+    coskx_2 = cos(kxa/2)
+    cosky_2 = cos(kxb/2)
+    sinkx_2 = sin(kxa/2)
+    sinky_2 = sin(kxb/2)
+
+    d_e2D_dkx = 2*t*a*sinkx + 4*tp*a*sinkx*cosky + 4*tpp*a*sin2kx
+    d_e2D_dky = 2*t*b*sinky + 4*tp*b*coskx*sinky + 4*tpp*b*sin2ky
+    d_e2D_dkz = 0
+
+    sigma = coskx_2*cosky_2
+    d_sigma_dkx = - a/2*sinkx_2*cosky_2
+    d_sigma_dky = - b/2*coskx_2*sinky_2
+    diff = (coskx - cosky)
+    square = (diff)**2
+    d_square_dkx = 2*(diff)*(-a*sinkx)
+    d_square_dky = 2*(diff)*(+b*sinky)
+
+    d_ez_dkx = - 2*tz*d_sigma_dkx*square*coskz - 2*tz*sigma*d_square_dkx*coskz
+    d_ez_dky = - 2*tz*d_sigma_dky*square*coskz - 2*tz*sigma*d_square_dky*coskz
+    d_ez_dkz = - 2*tz*sigma*square*(-d*sinkz) + 2*tz2*(-d)*sinkz
+
+    vx = (d_e2D_dkx + d_ez_dkx)/hbar
+    vy = (d_e2D_dky + d_ez_dky)/hbar
+    vz = (d_e2D_dkz + d_ez_dkz)/hbar
+
+    return vx, vy, vz
+
+
+def rotation(x, y, angle):
+    xp =  cos(angle)*x + sin(angle)*y
+    yp = -sin(angle)*x + cos(angle)*y
+    return xp, yp

@@ -9,27 +9,11 @@ from band import BandStructure
 from chambers import amroPoint
 
 bs = BandStructure()
-band_parameters = np.array(bs.bandParameters(), dtype = np.float64)  # returns [a, b, c, mu, t, tp, tpp, tz, tz2]
-
-## FS Discretization
-
-# bs.setMuToDoping(0.22); 
-# print (bs.mu)
-# bs.mu = -0.95*bs.t
 p = bs.doping()
-print("p = " + "{0:.3f}".format(p))
-
-
-start_discre_time = time.time()
 bs.discretize_FS()
-print("discretization time : %.6s seconds" % (time.time() - start_discre_time))
 
-# ### uncomment to plot FS
-# from mpl_toolkits.mplot3d import Axes3D
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-# ax.scatter(bs.kf[0], bs.kf[1], bs.kf[2], color='k', marker='.')
-# plt.show()
+
+# Bamp, Btheta, Bphi = np.meshgrid(np.array([45]),np.array([0, 15, 30, 45]),np.linspace(0, 11*pi/18, 23),indexing = 'ij')
 
 
 
@@ -40,28 +24,32 @@ B_theta_max  = 110 # theta max for B, in degrees
 B_phi_a = np.array([0, 15, 30, 45]) * pi / 180
 B_theta_a = np.linspace(0, B_theta_max * pi / 180, mesh_B_theta)
 
+def computeAMROpoints(B_amp,B_phi_a,B_theta_a):
+    amroPointList = []
+    rho_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
+    for i in range(B_phi_a.shape[0]):
+        for j in range(B_theta_a.shape[0]):
+            currentPoint = amroPoint(bs, B_amp, B_theta_a[j], B_phi_a[i])
+            currentPoint.solveMovementFunc()
+            currentPoint.chambersFunc()
+            amroPointList.append(currentPoint)
+            
+            rho_zz_a[i, j] = 1 / currentPoint.sigma_zz # dim (phi, theta)
+    return rho_zz_a,amroPointList
 
 start_total_time = time.time()
-
-amroPointList = []
-rho_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
-for i in range(B_phi_a.shape[0]):
-    for j in range(B_theta_a.shape[0]):
-        currentPoint = amroPoint(bs, B_amp, B_theta_a[j], B_phi_a[i])
-        currentPoint.solveMovementFunc()
-        currentPoint.chambersFunc()
-        amroPointList.append(currentPoint)
-        
-        rho_zz_a[i, j] = 1 / currentPoint.sigma_zz # dim (phi, theta)
-                
-
+rho_zz_a, amroPointList = computeAMROpoints(B_amp,B_phi_a,B_theta_a)
 rho_zz_0 = rho_zz_a[:,0]
-
 print("AMRO time : %.6s seconds" % (time.time() - start_total_time))
 
 
 
-
+# ### uncomment to plot FS
+# from mpl_toolkits.mplot3d import Axes3D
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+# ax.scatter(bs.kf[0], bs.kf[1], bs.kf[2], color='k', marker='.')
+# plt.show()
 
 # ## Save Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # ## >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -125,7 +113,6 @@ for tick in axes.yaxis.get_major_ticks():
     tick.set_pad(8)
 
 #///// Labels //////#
-t = band_parameters[4]
 label_parameters = [r"$p$ = " + "{0:.3f}".format(p),
                     r"$B$ = " + "{0:.0f}".format(B_amp) + " T",
                     "",
