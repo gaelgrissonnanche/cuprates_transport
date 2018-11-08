@@ -32,6 +32,9 @@ class amroPoint:
     def __init__(self, band, Bamp, Btheta, Bphi):
 
         self.bandObject = band ## WARNING do not modify within this object
+        self.Bamp = Bamp
+        self.Btheta = Btheta
+        self.Bphi = Bphi
         self.B = B_func(Bamp, Btheta, Bphi) # np array fo Bx,By,Bz
         self.gamma_0 = 152 # in THz
         self.gamma_k = 649 # in THz
@@ -52,7 +55,17 @@ class amroPoint:
         self.vft = None
         self.sigma_zz = None
 
-        
+    def __eq__(self, other):
+        return (
+                self.Bamp       == other.Bamp 
+            and self.Btheta     == other.Btheta
+            and self.Bphi       == other.Bphi
+            and self.sigma_zz   == other.sigma_zz
+        )
+    
+    def __ne__(self, other):
+        return not self == other
+
     def solveMovementFunc(self):
         
         t_len = self.t.shape[0]
