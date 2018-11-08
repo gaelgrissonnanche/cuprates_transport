@@ -22,6 +22,7 @@ from chambers import amroPoint
 startTime = time.time()
 print('discretizing fermi surface')
 band = BandStructure()
+band.setMuToDoping(0.30)
 band.half_FS_z = False
 band.discretize_FS()
 print("discretizing time : %.6s s\n" % (time.time() - startTime))
@@ -41,16 +42,18 @@ def computeAMROpoints(B_amp,B_phi_a,B_theta_a):
 
 startTime = time.time()
 print('computing AMRO curves')
-B_theta_a = np.linspace(0, 11*pi/18, 31)
-rho_zz_a, amroPointList = computeAMROpoints(45,np.array([0, 15, 30, 45]) * pi / 180, B_theta_a)
+B_theta_a = np.linspace(0, 11*pi/18, 23)
+rho_zz_a, amroPointList = computeAMROpoints(45,np.array([0,45]) * pi / 180, B_theta_a)
 rho_zz_0 = rho_zz_a[:,0]
 print("AMRO time : %.6s s\n" % (time.time() - startTime))
 
 currentPoint = amroPointList[0]
-refPoint = currentPoint
+zeroPoint =  amroPointList[0]
+refPoint = zeroPoint
+previousPoint =  amroPointList[0]
 
-mesh_xy_graph = 61
-mesh_z_graph = 61
+mesh_xy_graph = 51
+mesh_z_graph = 51
 kx_a = np.linspace(-5*pi/4/band.a, 5*pi/4/band.a, mesh_xy_graph)
 ky_a = np.linspace(-5*pi/4/band.b, 5*pi/4/band.b, mesh_xy_graph)
 kz_a = np.linspace(-2*pi/band.c, 2*pi/band.c, mesh_z_graph) # 2*pi/c because bodycentered unit cell
@@ -120,7 +123,7 @@ graph3D = {
             },
             'zaxis': {
                 'title': 'kz',
-                'range': [-2*pi/band.c, 2*pi/band.c]
+                'range': [-(10/4.)*pi/band.c, (10/4.)*pi/band.c]
             }
         },
         'hoverinfo':'closest',
@@ -185,11 +188,15 @@ app.layout = html.Div([
         html.Div(children=[
             html.Div([ html.H1('AMRO'),
                 dcc.Graph(id='amroGraph', figure = amroGraph),
+                html.Button('Toggle relative/absolute', 
+                    id='relabsButton', className = 'active', style={'width': '49%', 'display': 'inline-block', 'vertical-align': 'middle'}),
+                html.Button('Toggle reference: phi=0 / previous', 
+                    id='previousButton', style={'width': '49%', 'display': 'inline-block', 'vertical-align': 'middle'}),
                 dcc.Graph(id='weightGraph', figure = weightGraph)
             ], style={'width': '49%', 'display': 'inline-block', 'vertical-align': 'middle'}),
             html.Div(children=[
                 html.Button('Toggle surface (to click points)', id='FSbutton'),
-                dcc.Graph(id='3Dgraph', figure = graph3D)
+                dcc.Graph(id='3Dgraph', figure = graph3D, className='center')
             ], style={'width': '49%', 'height': '150%', 'display': 'inline-block', 'vertical-align': 'middle', 'horizontal': 'center'}),
         html.Div([ dcc.Markdown(d("**Click Data**Click on points.")),
             html.Pre(id='click-data')]),
@@ -228,11 +235,15 @@ def updateActivePoint(click2D,click3D):
         activeWeight = point3D
 
 activeAMRO = 0
+previousAMRO = 0
 lastClickedAMRO = 0
 def updateCurrentPoint(clickAmro):
     global activeAMRO
     global lastClickedAMRO
     global currentPoint
+    global refPoint
+    global previousPoint
+    global previousAMRO
 
     if clickAmro:
         ii = clickAmro['points'][0]['curveNumber']
@@ -241,14 +252,18 @@ def updateCurrentPoint(clickAmro):
         activeAMRO = nn
 
     if activeAMRO != lastClickedAMRO:
-        lastClickedAMRO = activeAMRO
+        previousPoint = amroPointList[previousAMRO]
         currentPoint = amroPointList[activeAMRO]
-
-
+        previousAMRO = lastClickedAMRO
+        lastClickedAMRO = activeAMRO
+        
 @app.callback(Output('3Dgraph', 'figure'),
-            [Input('amroGraph', 'clickData'), Input('weightGraph', 'clickData'),Input('3Dgraph', 'clickData'),Input('FSbutton', 'n_clicks')],
+            [   Input('amroGraph', 'clickData'), 
+                Input('weightGraph', 'clickData'),
+                Input('3Dgraph', 'clickData'),
+                Input('FSbutton', 'n_clicks')  ],
             [State('3Dgraph', 'relayoutData')])
-def update_3Dgraph(clickAmro,click2D,click3D,n_clicks,relayoutData):
+def update_3Dgraph(clickAmro,click2D,click3D,FS_n_clicks,relayoutData):
     global activeAMRO
     global activeWeight
     updatedGraph = graph3D
@@ -274,8 +289,8 @@ def update_3Dgraph(clickAmro,click2D,click3D,n_clicks,relayoutData):
         )
     )
     updatedGraph['data'] = [fsData, trajectoryData, fermiSurface['data'][0]]
-    if n_clicks:
-        if n_clicks%2: updatedGraph['data'] = [fsData, trajectoryData]
+    if FS_n_clicks:
+        if FS_n_clicks%2: updatedGraph['data'] = [fsData, trajectoryData]
         
     if relayoutData and 'scene.camera' in relayoutData:
         updatedGraph['layout']['scene']['camera']= relayoutData['scene.camera']
@@ -284,24 +299,46 @@ def update_3Dgraph(clickAmro,click2D,click3D,n_clicks,relayoutData):
 
 
 @app.callback(Output('weightGraph', 'figure'),
-              [Input('amroGraph', 'clickData'), Input('weightGraph', 'clickData'),Input('3Dgraph', 'clickData')],
-              [State('weightGraph', 'relayoutData')])
-def update_2Dgraph(clickAmro,click2D,click3D,relayoutData):
+              [ Input('amroGraph', 'clickData'),
+                Input('weightGraph', 'clickData'),
+                Input('3Dgraph', 'clickData'),
+                Input('relabsButton', 'n_clicks'),
+                Input('previousButton', 'n_clicks')  ],
+              [ State('weightGraph', 'relayoutData') ])
+def update_2Dgraph(clickAmro,click2D,click3D,relabs_nClicks,previous_nClicks,relayoutData):
     global activeWeight
+    global refPoint
+    global currentPoint
 
     updatedGraph = weightGraph
     updatedGraph['data'][0] = {
-        'x': np.arange(currentPoint.vz_product().shape[0]),
-        'y': currentPoint.vz_product() / refPoint.vz_product(),
+        'x': np.arange( currentPoint.vz_product().shape[0] ),
+        'y': currentPoint.vz_product(), # ,#
         'type': 'scatter',
         'mode': 'lines'
         }
     updatedGraph['data'][1] = {
-        'x': np.array([activeWeight]),
-        'y': np.array([(currentPoint.vz_product() / refPoint.vz_product())[activeWeight]]),
+        'x': np.array([ activeWeight ]),
+        'y': np.array([ currentPoint.vz_product()[activeWeight] ]), 
         'type': 'scatter',
         'mode': 'markers'
         }
+
+    if previous_nClicks:
+        if previous_nClicks % 2:
+            refPoint = zeroPoint
+        else :
+            refPoint = previousPoint
+
+    if relabs_nClicks:
+        if relabs_nClicks % 2:
+            updatedGraph['data'][0]['y'] = currentPoint.vz_product()-refPoint.vz_product()
+            updatedGraph['data'][1]['y'] = np.array([ (currentPoint.vz_product()-refPoint.vz_product())[activeWeight] ])
+            # updatedGraph['layout']['yaxis']['range'] = [-0.01,0.01]
+        else :
+            updatedGraph['data'][0]['y'] = currentPoint.vz_product()
+            updatedGraph['data'][1]['y'] = np.array([ currentPoint.vz_product()[activeWeight] ])
+
     if relayoutData:
         if 'xaxis.range[0]' in relayoutData:
             updatedGraph['layout']['xaxis'] = {'range': [relayoutData['xaxis.range[0]'],relayoutData['xaxis.range[1]']]}
@@ -319,7 +356,7 @@ def display_click_data(clickAmro,click2D,click3D,relayoutData):
     global activeAMRO
     updateActivePoint(click2D,click3D)
     updateCurrentPoint(clickAmro)
-
+    print('previous = ',previousAMRO,'  current = ',activeAMRO)
     return json.dumps(clickAmro, indent=2)
 
 
