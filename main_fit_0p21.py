@@ -18,7 +18,7 @@ tp  = -0.14 * t
 tpp =  0.07 * t
 tz  =  0.07 * t
 tz2 = - 0 * t
-mu  = 0.825 * t # van Hove 0.84
+mu  = 0.79 * t # van Hove 0.84
 
 ## Life time
 gamma_0 = 155 # in THz
@@ -52,21 +52,21 @@ from lmfit import minimize, Parameters, fit_report
 
 ## Interpolate data over theta of simulation
 
-data = np.loadtxt("data_NdLSCO_0p25/0p25_0degr_45T_25K.dat", dtype = "float", comments = "#")
+data = np.loadtxt("data_NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_0.dat", dtype = "float", comments = "#")
 x = data[:,0]
-y = data[:,1]
+y = data[:,2]
 rzz_0 = np.interp(B_theta_a*180/pi, x, y)
-data = np.loadtxt("data_NdLSCO_0p25/0p25_15degr_45T_25K.dat", dtype = "float", comments = "#")
+data = np.loadtxt("data_NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_15.dat", dtype = "float", comments = "#")
 x = data[:,0]
-y = data[:,1]
+y = data[:,2]
 rzz_15 = np.interp(B_theta_a*180/pi, x, y)
-data = np.loadtxt("data_NdLSCO_0p25/0p25_30degr_45T_25K.dat", dtype = "float", comments = "#")
+data = np.loadtxt("data_NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_30.dat", dtype = "float", comments = "#")
 x = data[:,0]
-y = data[:,1]
+y = data[:,2]
 rzz_30 = np.interp(B_theta_a*180/pi, x, y)
-data = np.loadtxt("data_NdLSCO_0p25/0p25_45degr_45T_25K.dat", dtype = "float", comments = "#")
+data = np.loadtxt("data_NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_45.dat", dtype = "float", comments = "#")
 x = data[:,0]
-y = data[:,1]
+y = data[:,2]
 rzz_45 = np.interp(B_theta_a*180/pi, x, y)
 
 
@@ -76,12 +76,15 @@ def residualFunc(pars, rzz_0, rzz_15, rzz_30, rzz_45):
     gamma_0 = pars["gamma_0"].value
     gamma_k = pars["gamma_k"].value
     power = pars["power"].value
+    mu = pars["mu"].value
 
     print("gamma_0 = ", gamma_0)
     print("gamma_k = ", gamma_k)
     print("power = ", power)
+    print("mu = ", mu)
 
     tau_parameters = np.array([gamma_0, gamma_k, power], dtype = np.float64)
+    band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz, tz2], dtype = np.float64)
     rzz_fit_list = admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B_theta_a, fig_show = False)
 
     diff_0  = rzz_0  - rzz_fit_list[0]
@@ -92,9 +95,10 @@ def residualFunc(pars, rzz_0, rzz_15, rzz_30, rzz_45):
     return np.concatenate((diff_0, diff_15, diff_30, diff_45))
 
 pars = Parameters()
-pars.add("gamma_0", value = gamma_0)
-pars.add("gamma_k", value = gamma_k)
+pars.add("gamma_0", value = gamma_0, min = 0)
+pars.add("gamma_k", value = gamma_k, min = 0)
 pars.add("power", value = power, vary = False)
+pars.add("mu", value = mu, vary = False)
 
 out = minimize(residualFunc, pars, args=(rzz_0, rzz_15, rzz_30, rzz_45))
 
@@ -103,8 +107,10 @@ print(fit_report(out.params))
 gamma_0 = out.params["gamma_0"].value
 gamma_k = out.params["gamma_k"].value
 power = out.params["power"].value
+mu = out.params["mu"].value
 
 tau_parameters = np.array([gamma_0, gamma_k, power], dtype = np.float64)
+band_parameters = np.array([a, b, c, mu, t, tp, tpp, tz, tz2], dtype = np.float64)
 rzz_fit_list = admrFunc(band_parameters, mesh_parameters, tau_parameters, B_amp, B_phi_a, B_theta_a, fig_show = False)
 
 
@@ -141,7 +147,7 @@ fig.subplots_adjust(left = 0.18, right = 0.82, bottom = 0.18, top = 0.95) # adju
 axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
 #############################################
-fig.text(0.79,0.86, r"NdLSCO 0.25", ha = "right")
+fig.text(0.79,0.86, r"NdLSCO 0.21", ha = "right")
 
 fig.text(0.84,0.89, r"$T$ = " + str(T) + " K", ha = "left")
 fig.text(0.84,0.82, r"$H$ = " + str(H) + " T", ha = "left")
@@ -196,5 +202,5 @@ axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
 axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
 plt.show()
-fig.savefig("data_NdLSCO_0p25/fit_NdLSCO_0p25.pdf", bbox_inches = "tight")
+fig.savefig("data_NdLSCO_0p21/fit_NdLSCO_0p21.pdf", bbox_inches = "tight")
 plt.close()

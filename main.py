@@ -90,7 +90,7 @@ mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType),
 
 
 ## Discretize FS
-# kf, vf, dkf, numberPointsPerKz_list = discretize_FS(band_parameters, mesh_parameters)
+kf, vf, dkf, numberPointsPerKz_list = discretize_FS(band_parameters, mesh_parameters)
 
 # tau_0 = 1 / gamma_0
 # ## For figures, compute t-dependence
@@ -132,41 +132,42 @@ kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 # #//////////////////////////////////////////////////////////////////////////////#
 
 # ### uncomment to plot FS
+# from mpl_toolkits.mplot3d import Axes3D
 # fig = plt.figure()
 # ax = fig.add_subplot(111, projection='3d')
 # ax.scatter(kf[0], kf[1], kf[2], color='k', marker='.')
 # plt.show()
 
-##>>>> 2D Fermi Surface for different kz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
+# ##>>>> 2D Fermi Surface for different kz >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
+# fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
 
-for tick in axes.xaxis.get_major_ticks():
-    tick.set_pad(7)
-for tick in axes.yaxis.get_major_ticks():
-    tick.set_pad(8)
+# for tick in axes.xaxis.get_major_ticks():
+#     tick.set_pad(7)
+# for tick in axes.yaxis.get_major_ticks():
+#     tick.set_pad(8)
 
-fig.text(0.27,0.86, r"$k_{\rm z}$ =", fontsize = 14)
-fig.text(0.34,0.86, r"0", fontsize = 14, color = "#FF0000")
-fig.text(0.34,0.83, r"$\pi/c$", fontsize = 14, color = "#00DC39")
-fig.text(0.34,0.80, r"2$\pi/c$", fontsize = 14, color = "#6577FF")
+# fig.text(0.27,0.86, r"$k_{\rm z}$ =", fontsize = 14)
+# fig.text(0.34,0.86, r"0", fontsize = 14, color = "#FF0000")
+# fig.text(0.34,0.83, r"$\pi/c$", fontsize = 14, color = "#00DC39")
+# fig.text(0.34,0.80, r"2$\pi/c$", fontsize = 14, color = "#6577FF")
 
-line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
-line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, pi / c, band_parameters), 0, colors = '#00DC39', linewidths = 3)
-line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 2 * pi / c, band_parameters), 0, colors = '#6577FF', linewidths = 3)
+# line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 0, band_parameters), 0, colors = '#FF0000', linewidths = 3)
+# line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, pi / c, band_parameters), 0, colors = '#00DC39', linewidths = 3)
+# line = axes.contour(kxx*a, kyy*b, e_3D_func(kxx, kyy, 2 * pi / c, band_parameters), 0, colors = '#6577FF', linewidths = 3)
 
-axes.set_xlim(-pi, pi)
-axes.set_ylim(-pi, pi)
-axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+# axes.set_xlim(-pi, pi)
+# axes.set_ylim(-pi, pi)
+# axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+# axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-axes.set_xticks([-pi, 0., pi])
-axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
-axes.set_yticks([-pi, 0., pi])
-axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+# axes.set_xticks([-pi, 0., pi])
+# axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+# axes.set_yticks([-pi, 0., pi])
+# axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
-plt.show()
-#//////////////////////////////////////////////////////////////////////////////#
+# plt.show()
+# #//////////////////////////////////////////////////////////////////////////////#
 
 # ##>>>> Life Time >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure

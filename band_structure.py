@@ -92,15 +92,13 @@ def discretize_FS(band_parameters, mesh_parameters):
 
     mesh_xy_rough = 501 # make denser rough meshgrid to interpolate
     kz_a = np.linspace(0, 2*pi/c, mesh_z) # half of FBZ, 2*pi/c because bodycentered unit cell
+    dkz = kz_a[1] - kz_a[0] # integrand along z, in m^-1
     kx_a = np.linspace(0, pi/a, mesh_xy_rough)
     ky_a = np.linspace(0, pi/b, mesh_xy_rough)
     kxx, kyy = np.meshgrid(kx_a, ky_a, indexing = 'ij')
 
+
     numberPointsPerKz_list = []
-    kxf_list = []
-    kyf_list = []
-    kzf_list = []
-    dkf_list = []
 
     for j, kz in enumerate(kz_a):
         bands = e_3D_func(kxx, kyy, kz, band_parameters)
@@ -122,7 +120,7 @@ def discretize_FS(band_parameters, mesh_parameters):
             # choose at least a minimum of 4 points per contour
             numberPointsPerKz += mesh_xy
 
-            dkf_weight = s.max() / (mesh_xy + 1) # weight to ponderate dkf
+            ds = s.max() / (mesh_xy + 1) # integrand on the path
 
             s_int = np.linspace(0, s.max(), mesh_xy + 1) # regular spaced path, add one
             x_int = np.interp(s_int, s, x)[:-1] # interpolate and remove the last point (not to repeat)
@@ -143,12 +141,12 @@ def discretize_FS(band_parameters, mesh_parameters):
                 kxf = x_int/a
                 kyf = y_int/a
                 kzf = kz * np.ones_like(x_int)
-                dkf = dkf_weight * np.ones_like(x_int)
+                dkf = ds * dkz * np.ones_like(x_int) * 2 # factor because integrate only half kz.
             else:
                 kxf = np.append(kxf, x_int/a)
                 kyf = np.append(kyf, y_int/a)
                 kzf = np.append(kzf, kz*np.ones_like(x_int))
-                dkf = np.append(dkf, dkf_weight * np.ones_like(x_int))
+                dkf = np.append(dkf, ds * dkz * np.ones_like(x_int) * 2)
 
         numberPointsPerKz_list.append(4 * numberPointsPerKz)
 
