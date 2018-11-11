@@ -18,12 +18,12 @@ class BandStructure:
         self.a   = a  # in Angstrom
         self.b   = b  # in Angstrom
         self.c   = c  # in Angstrom
-        self.t   = t  # meV
-        self.tp  = tp  * self.t
-        self.tpp = tpp * self.t
-        self.tz  = tz  * self.t
-        self.tz2 = tz2 * self.t
-        self.mu  = mu  * self.t
+        self._t   = t  # meV
+        self._tp  = tp  * t
+        self._tpp = tpp * t
+        self._tz  = tz  * t
+        self._tz2 = tz2 * t
+        self._mu  = mu  * t
         self.p   = None # hole doping, unknown at first
 
         ## Discretization
@@ -50,16 +50,58 @@ class BandStructure:
         ## Compute Density of State
         self.dos = self.densityOfState()
 
+    ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def _get_t(self):
+        return self._t
+    def _set_t(self, t):
+        self._tp  = self.tp  * t
+        self._tpp = self.tpp * t
+        self._tz  = self.tz  * t
+        self._tz2 = self.tz2 * t
+        self._mu  = self.mu  * t
+        self._t = t
+    t = property(_get_t, _set_t)
+
+    def _get_mu(self):
+        return self._mu / self._t
+    def _set_mu(self, mu):
+        self._mu = mu * self._t
+    mu = property(_get_mu, _set_mu)
+
+    def _get_tp(self):
+        return self._tp / self._t
+    def _set_tp(self, tp):
+        self._tp = tp * self._t
+    tp = property(_get_tp, _set_tp)
+
+    def _get_tpp(self):
+        return self._tpp / self._t
+    def _set_tpp(self, tpp):
+        self._tpp = tpp * self._t
+    tpp = property(_get_tpp, _set_tpp)
+
+    def _get_tz(self):
+        return self._tz / self._t
+    def _set_tz(self, tz):
+        self._tz = tz * self._t
+    tz = property(_get_tz, _set_tz)
+
+    def _get_tz2(self):
+        return self._tz2 / self._t
+    def _set_tz2(self, tz2):
+        self._tz2 = tz2 * self._t
+    tz2 = property(_get_tz2, _set_tz2)
+
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def bandParameters(self):
-        return [self.a, self.b, self.c, self.mu, self.t, self.tp, self.tpp, self.tz, self.tz2]
+        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2]
 
 
     def e_3D_func(self, kx, ky, kz):
-        return optimized_e_3D_func(kx, ky, kz, self.a, self.b, self.c, self.mu, self.t, self.tp, self.tpp, self.tz, self.tz2)
+        return optimized_e_3D_func(kx, ky, kz, self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2)
 
     def v_3D_func(self, kx, ky, kz):
-        return optimized_v_3D_func(kx, ky, kz, self.a, self.b, self.c, self.t, self.tp, self.tpp, self.tz, self.tz2)
+        return optimized_v_3D_func(kx, ky, kz, self.a, self.b, self.c, self._t, self._tp, self._tpp, self._tz, self._tz2)
 
     def dispersionMesh(self, resX=500, resY=500, resZ=10):
         kx_a = np.linspace(-pi / self.a, pi / self.a, resX)
@@ -95,7 +137,7 @@ class BandStructure:
         return p_per_kz
 
     def dopingCondition(self, mu, ptarget):
-        self.mu = mu
+        self._mu = mu
         print(self.doping())
         return self.doping() - ptarget
 
@@ -103,7 +145,7 @@ class BandStructure:
     def setMuToDoping(self, pTarget, muStart=-8.0, xtol=0.001):
         solObject = optimize.root(self.dopingCondition, np.array(
             [muStart]), args=(pTarget,), options={'xtol': xtol})
-        self.mu = solObject.x[0]
+        self._mu = solObject.x[0]
 
 
     def discretize_FS(self):
