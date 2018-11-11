@@ -26,10 +26,10 @@ class Conductivity:
         self.bandObject = bandObject ## WARNING do not modify within this object
 
         # Magnetic field
-        self.Bamp   = Bamp
-        self.Btheta = Btheta
-        self.Bphi   = Bphi
-        self.B_vector = B_func(Bamp, Btheta, Bphi) # np array fo Bx,By,Bz
+        self._Bamp   = Bamp
+        self._Btheta = Btheta
+        self._Bphi   = Bphi
+        self._B_vector = self.BFunc() # np array fo Bx,By,Bz
 
         # Scattering rate
         self.gamma_0 = gamma_0 # in THz
@@ -52,41 +52,88 @@ class Conductivity:
         # Conductivity Tensor: x, y, z = 0, 1, 2
         self.sigma = np.empty((3,3), dtype= np.float64)
 
+    ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def _get_B_vector(self):
+        return self._B_vector
+    def _set_B_vector(self, B_vector):
+        print("Cannot access B_vector directly, just change Bamp, Bphi, Btheta")
+    B_vector = property(_get_B_vector, _set_B_vector)
+
+    def _get_Bamp(self):
+        return self._Bamp
+    def _set_Bamp(self, Bamp):
+        self._Bamp = Bamp
+        self._B_vector = self.BFunc()
+    Bamp = property(_get_Bamp, _set_Bamp)
+
+    def _get_Bphi(self):
+        return self._Bphi
+    def _set_Bphi(self, Bphi):
+        self._Bphi = Bphi
+        self._B_vector = self.BFunc()
+    Bphi = property(_get_Bphi, _set_Bphi)
+
+    def _get_Btheta(self):
+        return self._Btheta
+    def _set_Btheta(self, Btheta):
+        self._Btheta = Btheta
+        self._B_vector = self.BFunc()
+    Btheta = property(_get_Btheta, _set_Btheta)
+
+    ## Special Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def __eq__(self, other):
         return (
-                self.Bamp       == other.Bamp
-            and self.Btheta     == other.Btheta
-            and self.Bphi       == other.Bphi
+                self._Bamp       == other._Bamp
+            and self._Btheta     == other._Btheta
+            and self._Bphi       == other._Bphi
             and self.sigma   == other.sigma
         )
 
     def __ne__(self, other):
         return not self == other
 
+    ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def BFunc(self):
+        B = self._Bamp * \
+            np.array([sin(self._Btheta*pi/180)*cos(self._Bphi*pi/180),
+                      sin(self._Btheta*pi/180)*sin(self._Bphi*pi/180),
+                      cos(self._Btheta*pi/180)])
+        return B
+
+    def crossProductVectorized(self, vx, vy, vz):
+        # (- B) represents -t in vj(-t, k) in the Chambers formula
+        # if integrated from 0 to +infinity, instead of -infinity to 0
+        product_x = vy[:] * -self._B_vector[2] - vz[:] * -self._B_vector[1]
+        product_y = vz[:] * -self._B_vector[0] - vx[:] * -self._B_vector[2]
+        product_z = vx[:] * -self._B_vector[1] - vy[:] * -self._B_vector[0]
+        return np.vstack((product_x, product_y, product_z))
+
     def solveMovementFunc(self):
-        t_len = self.t.shape[0]
-        kf_len = self.bandObject.kf.shape[1]
-        kf = self.bandObject.kf.flatten() # flatten to get all the initial kf solved at the same time
+        len_t = self.t.shape[0]
+        len_kf = self.bandObject.kf.shape[1]
+        # Flatten to get all the initial kf solved at the same time
+        self.bandObject.kf.shape = (3 * len_kf,)
         # Sovle differential equation
-        kft = odeint(self.diffEqFunc, kf, self.t, rtol = 1e-4, atol = 1e-4).transpose()
-        self.kft = np.reshape(kft, (3, kf_len, t_len))
+        self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.t, rtol = 1e-4, atol = 1e-4).transpose()
+        # Reshape arrays
+        self.bandObject.kf.shape = (3, len_kf)
+        self.kft.shape = (3, len_kf, len_t)
         # Velocity function of time
         self.vft = np.empty_like(self.kft, dtype = np.float64)
         self.vft[0, :, :], self.vft[1, :, :], self.vft[2, :, :] = self.bandObject.v_3D_func(self.kft[0, :, :], self.kft[1, :, :], self.kft[2, :, :])
 
     def solveMovementForPoint(self, kpoint):
-        t_len = self.t.shape[0]
+        len_t = self.t.shape[0]
         kt = odeint(self.diffEqFunc, kpoint, self.t, rtol = 1e-4, atol = 1e-4).transpose() # solve differential equation
-        kt = np.reshape(kt, (3, 1, t_len))
+        kt = np.reshape(kt, (3, 1, len_t))
         return kt
 
     def diffEqFunc(self, k, t):
         len_k = int(k.shape[0]/3)
         k.shape = (3, len_k) # reshape the flatten k
         vx, vy, vz =  self.bandObject.v_3D_func(k[0,:], k[1,:], k[2,:])
-        dkdt = ( - units_move_eq ) * crossProductVectorized(vx, vy, vz, -self.B_vector[0], -self.B_vector[1], -self.B_vector[2])
-                # (-) represent -t in vz(-t, k) in the Chambers formula
-                # integrated from 0 to +infinity
+        dkdt = ( - units_move_eq ) * self.crossProductVectorized(vx, vy, vz)
+
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
 
@@ -100,7 +147,7 @@ class Conductivity:
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0: vif = vxf """
         ## Velocity components
-        vif = self.bandObject.vf[i,:]
+        vif  = self.bandObject.vf[i,:]
         vjft = self.vft[j,:,:]
 
         # Integral over time
@@ -116,25 +163,6 @@ class Conductivity:
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
         # The integral over kf
         self.sigma[i,j] = units_chambers * np.sum(self.bandObject.dkf * self.VelocitiesProduct(i = i, j = j))
-
-
-
-
-
-# ABOUT JUST IN TIME (JIT) COMPILATION
-# jitclass do not work, the best option is to call a jit otimized function from inside the class.
-@jit(nopython=True, cache = True)
-def B_func(B_amp, B_theta, B_phi):
-    B = B_amp * np.array([sin(B_theta*pi/180)*cos(B_phi*pi/180), sin(B_theta*pi/180)*sin(B_phi*pi/180), cos(B_theta*pi/180)])
-    return B
-
-@jit("f8[:,:](f8[:], f8[:], f8[:], f8, f8, f8)", nopython=True, cache = True)
-def crossProductVectorized(vx, vy, vz, Bx, By , Bz):
-    product = np.empty((3, vx.shape[0]), dtype = np.float64)
-    product[0,:] = vy[:] * Bz - vz[:] * By
-    product[1,:] = vz[:] * Bx - vx[:] * Bz
-    product[2,:] = vx[:] * By - vy[:] * Bx
-    return product
 
 
 

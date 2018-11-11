@@ -15,16 +15,16 @@ class BandStructure:
     def __init__(self, a=3.74, b=3.74, c=13.3,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
                  numberOfKz=7, mesh_ds=pi/20):
-        self.a   = a  # in Angstrom
-        self.b   = b  # in Angstrom
-        self.c   = c  # in Angstrom
+        self.a    = a  # in Angstrom
+        self.b    = b  # in Angstrom
+        self.c    = c  # in Angstrom
         self._t   = t  # meV
         self._tp  = tp  * t
         self._tpp = tpp * t
         self._tz  = tz  * t
         self._tz2 = tz2 * t
         self._mu  = mu  * t
-        self.p   = None # hole doping, unknown at first
+        self.p    = None # hole doping, unknown at first
 
         ## Discretization
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi

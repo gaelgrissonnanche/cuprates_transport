@@ -2,10 +2,15 @@ import time
 
 from band import BandStructure
 from admr import ADMR
+from chambers import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 bandObject = BandStructure()
 
+# condObject = Conductivity(bandObject, Bamp=45, Bphi=0, Btheta=0)
+# print(condObject.Bamp)
+# condObject.Bamp = 2
+# print(condObject.B_vector)
 start_total_time = time.time()
 ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=152, gamma_k=649, power=12)
 ADMRObject.runADMR()
@@ -13,8 +18,6 @@ print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 
 ADMRObject.fileADMR()
 ADMRObject.figADMR()
-
-
 
 
 

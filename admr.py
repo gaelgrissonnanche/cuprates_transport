@@ -38,9 +38,9 @@ class ADMR:
         self.dt = self.tmax / self.Ntime
         self.t = np.arange(0, self.tmax, self.dt)
 
-        # Time-dependent kf, vf arrays[phi, theta]
-        self.kft_array = None
-        self.vft_array = None
+        # Time-dependent kf, vf dict[phi, theta]
+        self.kft_dict = {}
+        self.vft_dict = {}
 
     def runADMR(self):
         rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype = np.float64)
@@ -61,6 +61,8 @@ class ADMR:
 
                 rho_zz_array[l, m] = 1 / condObject.sigma[2,2]
                 self.condObject_dict[phi, theta] = condObject
+                self.kft_dict[phi, theta] = condObject.kft
+                self.vft_dict[phi, theta] = condObject.vft
 
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rzz_array = rho_zz_array / rho_zz_0_array
@@ -72,11 +74,11 @@ class ADMR:
                                  r"gk_"  + "{0:.1f}".format(self.gamma_k),
                                  r"pwr_"   + "{0:.0f}".format(self.power),
                                  r"t_"   + "{0:.1f}".format(self.bandObject.t),
-                                 r"mu_"  + "{0:.3f}".format(self.bandObject.mu/self.bandObject.t),
-                                 r"tp_"  + "{0:.3f}".format(self.bandObject.tp/self.bandObject.t),
-                                 r"tpp_" + "{0:.3f}".format(self.bandObject.tpp/self.bandObject.t),
-                                 r"tz_"  + "{0:.3f}".format(self.bandObject.tz/self.bandObject.t),
-                                 r"tz2_" + "{0:.3f}".format(self.bandObject.tz2/self.bandObject.t)]
+                                 r"mu_"  + "{0:.3f}".format(self.bandObject.mu),
+                                 r"tp_"  + "{0:.3f}".format(self.bandObject.tp),
+                                 r"tpp_" + "{0:.3f}".format(self.bandObject.tpp),
+                                 r"tz_"  + "{0:.3f}".format(self.bandObject.tz),
+                                 r"tz2_" + "{0:.3f}".format(self.bandObject.tz2)]
         file_name =  "Rzz"
         for string in file_parameters_list:
             file_name += "_" + string
@@ -84,7 +86,7 @@ class ADMR:
         return file_name
 
     def fileADMR(self, file_folder = "results_sim"):
-        array_1 = np.ones_like(self.rzz_array)
+        array_1 = np.ones(self.rzz_array.shape[1])
         Data = np.vstack((self.Btheta_array, self.rzz_array[0,:], self.rzz_array[1,:], self.rzz_array[2,:], self.rzz_array[3,:],
                           self.Bamp*array_1, self.gamma_0*array_1, self.gamma_k*array_1, self.power*array_1, self.bandObject.t*array_1, self.bandObject.tp*array_1, self.bandObject.tpp*array_1, self.bandObject.tz*array_1, self.bandObject.tz2*array_1, self.bandObject.mu*array_1, self.bandObject.mesh_ds*array_1, self.bandObject.numberOfKz*array_1))
         Data = Data.transpose()
@@ -107,10 +109,6 @@ class ADMR:
         mpl.rcParams['ytick.right'] = True
         mpl.rcParams['xtick.major.width'] = 0.6
         mpl.rcParams['ytick.major.width'] = 0.6
-        mpl.rcParams['xtick.major.size'] = 6
-        mpl.rcParams['ytick.major.size'] = 6
-        mpl.rcParams['xtick.minor.size'] = 4
-        mpl.rcParams['ytick.minor.size'] = 4
         mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
         mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
                                             # editing the text in illustrator
