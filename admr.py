@@ -133,11 +133,11 @@ class ADMR:
                             r"power = " + "{0:.0f}".format(self.power),
                             "",
                             r"$t$ = " + "{0:.1f}".format(self.bandObject.t) + " meV",
-                            r"$\mu$ = " + "{0:.3f}".format(self.bandObject.mu/self.bandObject.t) + r" $t$",
-                            r"$t^\prime$ = " + "{0:.3f}".format(self.bandObject.tp/self.bandObject.t) + r" $t$",
-                            r"$t^{\prime\prime}$ = " + "{0:.3f}".format(self.bandObject.tpp/self.bandObject.t) + r" $t$",
-                            r"$t_{\rm z}$ = " + "{0:.3f}".format(self.bandObject.tz/self.bandObject.t) + r" $t$",
-                            r"$t_{\rm z}^{\prime}$ = " + "{0:.3f}".format(self.bandObject.tz2/self.bandObject.t) + r" $t$"]
+                            r"$\mu$ = " + "{0:.3f}".format(self.bandObject.mu) + r" $t$",
+                            r"$t^\prime$ = " + "{0:.3f}".format(self.bandObject.tp) + r" $t$",
+                            r"$t^{\prime\prime}$ = " + "{0:.3f}".format(self.bandObject.tpp) + r" $t$",
+                            r"$t_{\rm z}$ = " + "{0:.3f}".format(self.bandObject.tz) + r" $t$",
+                            r"$t_{\rm z}^{\prime}$ = " + "{0:.3f}".format(self.bandObject.tz2) + r" $t$"]
 
         h_label = 0.92
         for label in label_parameters:
@@ -160,7 +160,7 @@ class ADMR:
         axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
         axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
 
-        plt.legend(loc = 3, fontsize = 14, frameon = False, numpoints = 1, markerscale = 1, handletextpad = 0.5)
+        plt.legend(loc = 0, fontsize = 14, frameon = False, numpoints = 1, markerscale = 1, handletextpad = 0.5)
 
         ## Set ticks space and minor ticks
         xtics = 30. # space between two ticks

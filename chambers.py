@@ -1,6 +1,5 @@
 import numpy as np
 from numpy import cos, sin, pi, exp, sqrt, arctan2
-from numba import jit, prange
 from scipy.integrate import odeint
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
@@ -143,6 +142,12 @@ class Conductivity:
         t_over_tau = np.cumsum( self.dt * ( self.gamma_0 + self.gamma_k * cos(2*phi)**self.power) )
         return t_over_tau
 
+    # def tOverTauFunc(self, k):
+    #     phi = arctan2(k[1,:], k[0,:])
+    #     # Integral from 0 to t of dt' / tau( k(t') ) or dt' / gamma( k(t') )
+    #     t_over_tau = np.cumsum( self.dt / ( 0.026 - 0.0135 * cos(4*phi)) )
+    #     return t_over_tau
+
     def VelocitiesProduct(self, i, j):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0: vif = vxf """
@@ -152,7 +157,7 @@ class Conductivity:
 
         # Integral over time
         v_product = np.empty(vif.shape[0], dtype = np.float64)
-        for i0 in prange(vif.shape[0]):
+        for i0 in range(vif.shape[0]):
             vj_sum_over_t = np.sum( self.bandObject.dos[i0] * vjft[i0,:] * exp( - self.tOverTauFunc(self.kft[:,i0,:]) ) * self.dt ) # integral over t
             v_product[i0] = vif[i0] * vj_sum_over_t # integral over z
 
