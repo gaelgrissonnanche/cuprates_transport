@@ -8,7 +8,7 @@ from chambers import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
-    def __init__(self, bandObject, Bamp=45, gamma_0=152, gamma_k=649, power=12):
+    def __init__(self, bandObject, Bamp=45, gamma_0=152, gamma_k=649, power=12, a0 = 0):
         # Band object
         self.bandObject = bandObject ## WARNING do not modify within this object
 
@@ -18,6 +18,7 @@ class ADMR:
         self.power   = int(power)
         if self.power % 2 == 1:
             self.power += 1
+        self.a0 = a0
 
         # Magnetic field
         self.Bamp         = Bamp # in Tesla
@@ -49,7 +50,7 @@ class ADMR:
             for m, theta in enumerate(self.Btheta_array):
 
                 condObject = Conductivity(self.bandObject, self.Bamp, phi, theta,
-                                        self.gamma_0, self.gamma_k, self.power)
+                                        self.gamma_0, self.gamma_k, self.power, self.a0)
                 condObject.tau_0 = self.tau_0
                 condObject.tmax  = self.tmax
                 condObject.Ntime = self.Ntime

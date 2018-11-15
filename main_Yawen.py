@@ -8,12 +8,13 @@ from chambers import Conductivity
 t = 533.616
 bandObject = BandStructure(t=t, mu=-569.868/t, tp=-113.561/t,
                            tpp=23.2192/t, tz=8.7296719/t, tz2=-0.89335299/t)
-# bandObject = BandStructure(t=533.616, mu=-1.068, tp=-0.213,
-#                            tpp=0.0435, tz=0.0164, tz2=-0.001674)
 
+# condObject = Conductivity(bandObject, Bamp=45, Bphi=0, Btheta=0, gamma_0 = 25*2*3.14, gamma_k = 0, power = 0)
+# condObject.solveMovementFunc()
+# condObject.figOnekft()
 
 start_total_time = time.time()
-ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=40, gamma_k=0, power=2)
+ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=25, gamma_k=0, power=0)
 ADMRObject.runADMR()
 print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 

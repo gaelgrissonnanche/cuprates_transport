@@ -178,7 +178,7 @@ class BandStructure:
                 numberPointsPerKz += mesh_xy
                           # discretize one fourth of FS, therefore need * 4
 
-                dpath = s.max() / (mesh_xy + 1)  # weight to ponderate self.dkf
+                dks = s.max() / (mesh_xy + 1) / self.a  # dk path
 
                 # regular spaced path, add one
                 s_int = np.linspace(0, s.max(), mesh_xy + 1)
@@ -203,14 +203,13 @@ class BandStructure:
                     kyf = y_int / self.a
                     # self.a (and not b) because anisotropy is taken into account earlier
                     kzf = kz * np.ones_like(x_int)
-                    self.dkf = 2 * dpath * dkz * np.ones_like(x_int)
-                                        # factor because integrate only half kz.
+                    self.dkf = 2 * dks * dkz * np.ones_like(x_int)
+                                        # factor 2 because integrate only half kz.
                 else:
                     kxf = np.append(kxf, x_int / self.a)
-                    # self.a (and not b) because anisotropy is taken into account earlier
                     kyf = np.append(kyf, y_int / self.a)
                     kzf = np.append(kzf, kz * np.ones_like(x_int))
-                    self.dkf = np.append(self.dkf, 2 * dpath * dkz * np.ones_like(x_int))
+                    self.dkf = np.append(self.dkf, 2 * dks * dkz * np.ones_like(x_int))
 
             self.numberPointsPerKz_list.append(4 * numberPointsPerKz)
 
@@ -302,8 +301,8 @@ class BandStructure:
         ky = np.linspace(-pi / self.b, pi / self.b, mesh_graph)
         kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-        fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
-        fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91) # adjust the box of axes regarding the figure size
+        fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6))
+        fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91)
 
         for tick in axes.xaxis.get_major_ticks():
             tick.set_pad(7)
