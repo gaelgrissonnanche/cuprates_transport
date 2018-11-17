@@ -154,7 +154,7 @@ class BandStructure:
         ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
         kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
                # half of FBZ, 2*pi/c because bodycentered unit cell
-        dkz = kz_a[1] - kz_a[0] # integrand along z, in A^-1
+        dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
         for j, kz in enumerate(kz_a):
@@ -220,6 +220,69 @@ class BandStructure:
         vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
         # dim -> (i, i0) = (xyz, position on FS)
         self.vf = np.vstack([vx, vy, vz])
+
+    # def discretize_FS(self):
+    #     mesh_xy_rough = 501  # make denser rough meshgrid to interpolate after
+    #     kx_a = np.linspace(- pi / self.a, pi / self.a, mesh_xy_rough)
+    #     ky_a = np.linspace(- pi / self.b, pi / self.b, mesh_xy_rough)
+    #     kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
+    #            # half of FBZ, 2*pi/c because bodycentered unit cell
+    #     dkz = kz_a[1] - kz_a[0] # integrand along z, in A^-1
+    #     kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
+
+    #     for j, kz in enumerate(kz_a):
+    #         bands = self.e_3D_func(kxx, kyy, kz)
+    #         contours = measure.find_contours(bands, 0)
+    #         numberPointsPerKz = 0
+
+    #         for i, contour in enumerate(contours):
+
+    #             # Contour come in units proportionnal to size of meshgrid
+    #             # one want to scale to units of kx and ky
+    #             x = (contour[:, 0] / (mesh_xy_rough - 1) -0.5) * 2*pi
+    #             y = (contour[:, 1] / (mesh_xy_rough - 1) -0.5) * 2*pi / (self.b / self.a)  # anisotropy
+
+    #             ds = sqrt(np.diff(x)**2 + np.diff(y)**2)  # segment lengths
+    #             s = np.zeros_like(x)  # arrays of zeros
+    #             s[1:] = np.cumsum(ds)  # integrate path, s[0] = 0
+
+    #             mesh_xy = int(max(np.ceil(s.max() / self.mesh_ds), 4))
+    #                       # choose at least a minimum of 4 points per contour
+    #             numberPointsPerKz += mesh_xy
+    #                       # discretize one fourth of FS, therefore need * 4
+
+    #             dks = s.max() / (mesh_xy + 1) / self.a  # dk path
+
+    #             # regular spaced path, add one
+    #             s_int = np.linspace(0, s.max(), mesh_xy + 1)
+    #             # interpolate and remove the last point (not to repeat)
+    #             x_int = np.interp(s_int, s, x)[:-1]
+    #             y_int = np.interp(s_int, s, y)[:-1]
+
+    #             # Put in an array /////////////////////////////////////////////////////#
+    #             if i == 0 and j == 0:  # for first contour and first kz
+    #                 kxf = x_int / self.a
+    #                 kyf = y_int / self.a
+    #                 # self.a (and not b) because anisotropy is taken into account earlier
+    #                 kzf = kz * np.ones_like(x_int)
+    #                 self.dkf = 2 * dks * dkz * np.ones_like(x_int)
+    #                                     # factor 2 because integrate only half kz.
+    #             else:
+    #                 kxf = np.append(kxf, x_int / self.a)
+    #                 kyf = np.append(kyf, y_int / self.a)
+    #                 kzf = np.append(kzf, kz * np.ones_like(x_int))
+    #                 self.dkf = np.append(self.dkf, 2 * dks * dkz * np.ones_like(x_int))
+
+    #         self.numberPointsPerKz_list.append(numberPointsPerKz)
+
+    #     # dim -> (n, i0) = (xyz, position on FS)
+    #     self.kf = np.vstack([kxf, kyf, kzf])
+
+    #     # Compute Velocity at t = 0 on Fermi Surface
+    #     vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
+    #     # dim -> (i, i0) = (xyz, position on FS)
+    #     self.vf = np.vstack([vx, vy, vz])
+
 
     def densityOfState(self):
         # Density of State

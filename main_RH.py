@@ -13,15 +13,26 @@ e = 1.6e-19 # C
 a = 3.74e-10 #m
 c = 13.3e-10 # m
 
-B_array = np.arange(1, 150, 10)
+B_array = np.arange(1, 150, 1)
 RH_array = np.empty_like(B_array, dtype = np.float64)
 
-bandObject = BandStructure(mu = -1.25, numberOfKz=71, mesh_ds=np.pi/20)
+# bandObject = BandStructure(mu = -1.25, numberOfKz=71, mesh_ds=np.pi/20)
+t = 533.616
+bandObject = BandStructure(t=t, mu=-1.3, tp=-113.561/t,
+                           tpp=23.2192/t, tz=8.7296719/t, tz2=-0.89335299/t)
+
+# Data = np.vstack((bandObject.kf[0], bandObject.kf[1], bandObject.kf[2]))
+# Data = Data.transpose()
+
+# np.savetxt("FS_kx_ky_kz.dat", Data, fmt='%.7e',
+# header = "kx\tky\tkz", comments = "#")
+
 # bandObject.figMultipleFS2D()
+# bandObject.figDiscretizeFS2D()
 
 for i, B in enumerate(B_array):
 
-    condObject = Conductivity(bandObject, Bamp=B, Bphi=0, Btheta=0, gamma_0=1, gamma_k=0, power=0)
+    condObject = Conductivity(bandObject, Bamp=B, Bphi=0, Btheta=0, gamma_0=2, gamma_k=0, power=0)
     condObject.solveMovementFunc()
     condObject.chambersFunc(0, 0)
     condObject.chambersFunc(0, 1)

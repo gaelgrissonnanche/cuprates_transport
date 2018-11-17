@@ -1,5 +1,5 @@
 import time
-
+import numpy as np
 from band import BandStructure
 from admr import ADMR
 from chambers import Conductivity
@@ -9,17 +9,20 @@ t = 533.616
 bandObject = BandStructure(t=t, mu=-569.868/t, tp=-113.561/t,
                            tpp=23.2192/t, tz=8.7296719/t, tz2=-0.89335299/t)
 
+bandObject.figDiscretizeFS2D()
+
+
 # condObject = Conductivity(bandObject, Bamp=45, Bphi=0, Btheta=0, gamma_0 = 25*2*3.14, gamma_k = 0, power = 0)
 # condObject.solveMovementFunc()
 # condObject.figOnekft()
 
-start_total_time = time.time()
-ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=25, gamma_k=0, power=0)
-ADMRObject.runADMR()
-print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
+# start_total_time = time.time()
+# ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=25, gamma_k=0, power=0)
+# ADMRObject.runADMR()
+# print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 
-ADMRObject.fileADMR()
-ADMRObject.figADMR()
+# ADMRObject.fileADMR()
+# ADMRObject.figADMR()
 
 
 
