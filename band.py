@@ -12,7 +12,7 @@ hbar = 1  # velocity will be in units of 1 / hbar,
 # this hbar is taken into accound in the constant units_move_eq
 
 class BandStructure:
-    def __init__(self, a=3.74, b=3.74, c=13.3,
+    def __init__(self, a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
                  numberOfKz=7, mesh_ds=pi/20):
         self.a    = a  # in Angstrom
@@ -354,7 +354,7 @@ class BandStructure:
         from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(self.kf[0], self.kf[1], self.kf[2], color='k', marker='.')
+        ax.scatter(self.kf[0,:], self.kf[1,:], self.kf[2,:], color='k', marker='.')
         plt.show()
 
     def figMultipleFS2D(self, kz = 0, meshXY = 1001):

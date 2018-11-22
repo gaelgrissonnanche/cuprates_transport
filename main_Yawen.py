@@ -16,13 +16,13 @@ bandObject.figDiscretizeFS2D()
 # condObject.solveMovementFunc()
 # condObject.figOnekft()
 
-# start_total_time = time.time()
-# ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=25, gamma_k=0, power=0)
-# ADMRObject.runADMR()
-# print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
+start_total_time = time.time()
+ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=25, gamma_k=0, power=0)
+ADMRObject.runADMR()
+print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 
-# ADMRObject.fileADMR()
-# ADMRObject.figADMR()
+ADMRObject.fileADMR()
+ADMRObject.figADMR()
 
 
 
