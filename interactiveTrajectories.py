@@ -12,7 +12,7 @@ from dash.dependencies import Input, Output, State
 from skimage import measure
 from textwrap import dedent as d
 from band import BandStructure
-from chambers import amroPoint
+from chambers import Conductivity
 
 startTime = time.time()
 print('discretizing fermi surface')
@@ -29,7 +29,7 @@ def computeAMROpoints(B_amp,B_phi_a,B_theta_a):
     for i in range(B_phi_a.shape[0]):
         amroListForTheta = []
         for j in range(B_theta_a.shape[0]):
-            dataPoint = amroPoint(band, B_amp, B_theta_a[j], B_phi_a[i])
+            dataPoint = Conductivity(band, B_amp, B_theta_a[j], B_phi_a[i])
             dataPoint.solveMovementFunc()
             dataPoint.chambersFunc()
             amroListForTheta.append(dataPoint)
@@ -126,22 +126,22 @@ graph3D = {
     }
 
 amroDataList = [{
-        'x': np.array( [ point.Btheta*180/pi for point in amroList ] ),
-        'y': np.array( [ amroList[0].sigma_zz/point.sigma_zz  for point in amroList ] ),
+        'x': np.array( [ point.Btheta*180/pi for point in amroListOfList ] ),
+        'y': np.array( [ amroListOfList[0].sigma[2,2]/point.sigma[2,2]  for point in amroListOfList ] ),
         'type': 'scatter',
         'mode': 'lines',
         'name': 'phi='+str(i*15)
-        } for i,amroList in enumerate(amroListOfList)]
+        } for i,amroListOfList in enumerate(amroListOfList)]
 
 amroDataCurrentPoint = {
         'x': currentPoint.Btheta * 180 / pi,
-        'y': amroListOfList[0][0].sigma_zz/currentPoint.sigma_zz,
+        'y': amroListOfList[0][0].sigma[2,2]/currentPoint.sigma[2,2],
         'type': 'scatter',
         'mode': 'markers'
         }
 amroDataRefPoint = {
         'x': refPoint.Btheta * 180 / pi,
-        'y': amroListOfList[0][0].sigma_zz/refPoint.sigma_zz,
+        'y': amroListOfList[0][0].sigma[2,2]/refPoint.sigma[2,2],
         'type': 'scatter',
         'mode': 'markers'
         }
@@ -165,13 +165,13 @@ amroGraph = {
 
 weightGraph = {
     'data': [{
-        'x': np.arange(currentPoint.vz_product().shape[0]),
-        'y': currentPoint.vz_product(),
+        'x': np.arange(currentPoint.VelocitiesProduct(2,2).shape[0]),
+        'y': currentPoint.VelocitiesProduct(2,2),
         'type': 'scatter',
         'mode': 'lines'
         },{
         'x': np.array([ 0 ]),
-        'y': np.array([ currentPoint.vz_product()[0] ]),
+        'y': np.array([ currentPoint.VelocitiesProduct(2,2)[0] ]),
         'type': 'scatter',
         'mode': 'markers'
         }
@@ -289,13 +289,13 @@ def update_amroGraph(clickAmro,checkedOptions,relayoutData):
     updatedGraph = amroGraph
     amroDataCurrentPoint = {
         'x': np.array([ currentPoint.Btheta * 180 / pi ]),
-        'y': np.array([ zeroPoint.sigma_zz/currentPoint.sigma_zz ]),
+        'y': np.array([ zeroPoint.sigma[2,2]/currentPoint.sigma[2,2] ]),
         'type': 'scatter',
         'mode': 'markers'
         }
     amroDataRefPoint = {
         'x': np.array([ refPoint.Btheta * 180 / pi ]),
-        'y': np.array([ zeroPoint.sigma_zz/refPoint.sigma_zz ]),
+        'y': np.array([ zeroPoint.sigma[2,2]/refPoint.sigma[2,2] ]),
         'type': 'scatter',
         'mode': 'markers'
         }
@@ -357,25 +357,25 @@ def update_2Dgraph(clickAmro,click2D,click3D,checkedOptions,relayoutData):
 
     updatedGraph = weightGraph
     updatedGraph['data'][0] = {
-        'x': np.arange( currentPoint.vz_product().shape[0] ),
-        'y': currentPoint.vz_product(), # ,#
+        'x': np.arange( currentPoint.VelocitiesProduct(2,2).shape[0] ),
+        'y': currentPoint.VelocitiesProduct(2,2), # ,#
         'type': 'scatter',
         'mode': 'lines'
         }
     updatedGraph['data'][1] = {
         'x': np.array([ activeWeight ]),
-        'y': np.array([ currentPoint.vz_product()[activeWeight] ]), 
+        'y': np.array([ currentPoint.VelocitiesProduct(2,2)[activeWeight] ]), 
         'type': 'scatter',
         'mode': 'markers'
         }
 
     if 'relative' in checkedOptions:
-        updatedGraph['data'][0]['y'] = currentPoint.vz_product()-refPoint.vz_product()
-        updatedGraph['data'][1]['y'] = np.array([ (currentPoint.vz_product()-refPoint.vz_product())[activeWeight] ])
+        updatedGraph['data'][0]['y'] = currentPoint.VelocitiesProduct(2,2)-refPoint.VelocitiesProduct(2,2)
+        updatedGraph['data'][1]['y'] = np.array([ (currentPoint.VelocitiesProduct(2,2)-refPoint.VelocitiesProduct(2,2))[activeWeight] ])
         # updatedGraph['layout']['yaxis']['range'] = [-0.01,0.01]
     else :
-        updatedGraph['data'][0]['y'] = currentPoint.vz_product()
-        updatedGraph['data'][1]['y'] = np.array([ currentPoint.vz_product()[activeWeight] ])
+        updatedGraph['data'][0]['y'] = currentPoint.VelocitiesProduct(2,2)
+        updatedGraph['data'][1]['y'] = np.array([ currentPoint.VelocitiesProduct(2,2)[activeWeight] ])
 
     if relayoutData:
         if 'xaxis.range[0]' in relayoutData:
