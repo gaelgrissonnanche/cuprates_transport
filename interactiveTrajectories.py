@@ -25,11 +25,10 @@ print("discretizing time : %.6s s\n" % (time.time() - startTime))
 
 def computeAMROpoints(B_amp,B_phi_a,B_theta_a):
     amroListForPhi = []
-    rho_zz_a = np.empty((B_phi_a.shape[0], B_theta_a.shape[0]), dtype = np.float64)
     for i in range(B_phi_a.shape[0]):
         amroListForTheta = []
         for j in range(B_theta_a.shape[0]):
-            dataPoint = Conductivity(band, B_amp, B_theta_a[j], B_phi_a[i])
+            dataPoint = Conductivity(band, B_amp, B_phi_a[i], B_theta_a[j])
             dataPoint.solveMovementFunc()
             dataPoint.chambersFunc()
             amroListForTheta.append(dataPoint)
@@ -39,8 +38,8 @@ def computeAMROpoints(B_amp,B_phi_a,B_theta_a):
 
 startTime = time.time()
 print('computing AMRO curves')
-B_theta_a = np.linspace(0, 11*pi/18, 35)
-amroListOfList = computeAMROpoints(45,np.array([0,15,30,45]) * pi / 180, B_theta_a)
+B_theta_a = np.linspace(0, 115, 22)
+amroListOfList = computeAMROpoints(45,np.array([0,15,30,45]), B_theta_a)
 print("AMRO time : %.6s s\n" % (time.time() - startTime))
 
 
@@ -126,7 +125,7 @@ graph3D = {
     }
 
 amroDataList = [{
-        'x': np.array( [ point.Btheta*180/pi for point in amroListOfList ] ),
+        'x': np.array( [ point.Btheta for point in amroListOfList ] ),
         'y': np.array( [ amroListOfList[0].sigma[2,2]/point.sigma[2,2]  for point in amroListOfList ] ),
         'type': 'scatter',
         'mode': 'lines',
@@ -134,13 +133,13 @@ amroDataList = [{
         } for i,amroListOfList in enumerate(amroListOfList)]
 
 amroDataCurrentPoint = {
-        'x': currentPoint.Btheta * 180 / pi,
+        'x': currentPoint.Btheta,
         'y': amroListOfList[0][0].sigma[2,2]/currentPoint.sigma[2,2],
         'type': 'scatter',
         'mode': 'markers'
         }
 amroDataRefPoint = {
-        'x': refPoint.Btheta * 180 / pi,
+        'x': refPoint.Btheta,
         'y': amroListOfList[0][0].sigma[2,2]/refPoint.sigma[2,2],
         'type': 'scatter',
         'mode': 'markers'
@@ -288,13 +287,13 @@ def update_amroGraph(clickAmro,checkedOptions,relayoutData):
 
     updatedGraph = amroGraph
     amroDataCurrentPoint = {
-        'x': np.array([ currentPoint.Btheta * 180 / pi ]),
+        'x': np.array([ currentPoint.Btheta ]),
         'y': np.array([ zeroPoint.sigma[2,2]/currentPoint.sigma[2,2] ]),
         'type': 'scatter',
         'mode': 'markers'
         }
     amroDataRefPoint = {
-        'x': np.array([ refPoint.Btheta * 180 / pi ]),
+        'x': np.array([ refPoint.Btheta ]),
         'y': np.array([ zeroPoint.sigma[2,2]/refPoint.sigma[2,2] ]),
         'type': 'scatter',
         'mode': 'markers'
