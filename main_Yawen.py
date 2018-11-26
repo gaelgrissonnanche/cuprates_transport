@@ -9,7 +9,7 @@ t = 533.616
 bandObject = BandStructure(t=t, mu=-569.868/t, tp=-113.561/t,
                            tpp=23.2192/t, tz=8.7296719/t, tz2=-0.89335299/t)
 
-bandObject.figDiscretizeFS2D()
+# bandObject.figDiscretizeFS2D()
 
 
 # condObject = Conductivity(bandObject, Bamp=45, Bphi=0, Btheta=0, gamma_0 = 25*2*3.14, gamma_k = 0, power = 0)

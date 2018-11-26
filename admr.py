@@ -34,8 +34,8 @@ class ADMR:
 
         # Time parameters
         self.tau_0 = 1 / self.gamma_0 # in picoseconds
-        self.tmax = 10 * self.tau_0 # in picoseconds
-        self.Ntime = 300 # number of steps in time
+        self.tmax = 8 * self.tau_0 # in picoseconds
+        self.Ntime = 500 # number of steps in time
         self.dt = self.tmax / self.Ntime
         self.t = np.arange(0, self.tmax, self.dt)
 
