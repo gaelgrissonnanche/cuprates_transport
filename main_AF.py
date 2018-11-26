@@ -1,21 +1,26 @@
 import time
 
-from band import BandStructure
+from band_AF import BandStructure
 from admr import ADMR
 from chambers import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-bandObject = BandStructure(mu = -0.9)
-bandObject.figMultipleFS2D()
+bandObject = BandStructure(mu = -0.78, gap = 10, sign_band = -1)
+# bandObject.setMuToDoping(pTarget = 0.2)
+# print(bandObject.mu)
+# bandObject.discretize_FS()
+# bandObject.figDiscretizeFS2D()
+# bandObject.figMultipleFS2D()
+
 # condObject = Conductivity(bandObject, Bamp=45, Bphi=0, Btheta=0)
 
-# start_total_time = time.time()
-# ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=15, gamma_k=0, power=12, a0=0)
-# ADMRObject.runADMR()
-# print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
+start_total_time = time.time()
+ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=10, gamma_k=0, power=12, a0=0)
+ADMRObject.runADMR()
+print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 
-# ADMRObject.fileADMR()
-# ADMRObject.figADMR()
+ADMRObject.fileADMR()
+ADMRObject.figADMR()
 
 
 

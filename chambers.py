@@ -43,10 +43,11 @@ class Conductivity:
 
         # Time parameters
         self.tau_0 = 1 / self.gamma_0 # in picoseconds
-        self.tmax = 10 * self.tau_0 # in picoseconds
+        self.tmax = 8 * self.tau_0 # in picoseconds
         self.Ntime = 500 # number of steps in time
         self.dt = self.tmax / self.Ntime
         self.t = np.arange(0, self.tmax, self.dt)
+        self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1] # integrand for tau_function
 
         # Time-dependent kf, vf
         self.kft = None
@@ -138,7 +139,7 @@ class Conductivity:
         phi = arctan2(k[1,:], k[0,:])
         dos = 1 / sqrt(v[0,:]**2 + v[1,:]**2 + v[2,:]**2)
         # Integral from 0 to t of dt' / tau( k(t') ) or dt' / gamma( k(t') )
-        t_over_tau = np.cumsum( self.dt * ( self.gamma_0*( 1 + self.a0 * dos) + self.gamma_k * cos(2*phi)**self.power) )
+        t_over_tau = np.cumsum( self.dt_array * ( self.gamma_0 * ( 1 + self.a0 * dos) + self.gamma_k * cos(2*phi)**self.power ) )
         return t_over_tau
 
     def solveMovementForPoint(self, kpoint):

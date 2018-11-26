@@ -14,6 +14,7 @@ hbar = 1  # velocity will be in units of 1 / hbar,
 class BandStructure:
     def __init__(self, a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
+                 Q_vector = np.array([pi, pi, 0]), gap = 0, sign_band = 1,
                  numberOfKz=7, mesh_ds=pi/20):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
@@ -25,6 +26,11 @@ class BandStructure:
         self._tz2 = tz2 * t
         self._mu  = mu  * t
         self.p    = None # hole doping, unknown at first
+
+        ## Antiferromagnetism
+        self.Q_vector  = Q_vector
+        self.gap       = gap
+        self.sign_band = sign_band
 
         ## Discretization
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi
@@ -100,8 +106,27 @@ class BandStructure:
     def e_3D_func(self, kx, ky, kz):
         return optimized_e_3D_func(kx, ky, kz, self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2)
 
+    def e_AF_func(self, kx, ky, kz):
+        e_3D = self.e_3D_func(kx, ky, kz)
+        e_3D_Q = self.e_3D_func(kx + self.Q_vector[0]/self.a, ky + self.Q_vector[1]/self.b, kz + self.Q_vector[2]/self.c)
+        E_AF = 0.5 * (e_3D + e_3D_Q) + self.sign_band * sqrt(0.25*(e_3D - e_3D_Q)**2 + self.gap**2)
+        return E_AF
+
     def v_3D_func(self, kx, ky, kz):
         return optimized_v_3D_func(kx, ky, kz, self.a, self.b, self.c, self._t, self._tp, self._tpp, self._tz, self._tz2)
+
+    def v_AF_func(self, kx, ky, kz):
+        vx, vy, vz = self.v_3D_func(kx, ky, kz)
+        vxQ, vyQ, vzQ = self.v_3D_func(kx + self.Q_vector[0]/self.a, ky + self.Q_vector[1]/self.b, kz + self.Q_vector[2]/self.c)
+        e_3D = self.e_3D_func(kx, ky, kz)
+        e_3D_Q = self.e_3D_func(kx + self.Q_vector[0]/self.a, ky + self.Q_vector[1]/self.b, kz + self.Q_vector[2]/self.c)
+
+        vx_AF = 0.5*(vx + vxQ) + self.sign_band * 0.25 * (vx - vxQ) * (e_3D - e_3D_Q) / sqrt(0.25*(e_3D - e_3D_Q)**2 + self.gap**2)
+        vy_AF = 0.5*(vy + vyQ) + self.sign_band * 0.25 * (vy - vyQ) * (e_3D - e_3D_Q) / sqrt(0.25*(e_3D - e_3D_Q)**2 + self.gap**2)
+        vz_AF = 0.5*(vz + vzQ) + self.sign_band * 0.25 * (vz - vzQ) * (e_3D - e_3D_Q) / sqrt(0.25*(e_3D - e_3D_Q)**2 + self.gap**2)
+
+        return vx_AF, vy_AF, vz_AF
+
 
     def dispersionMesh(self, resX=500, resY=500, resZ=10):
         kx_a = np.linspace(-pi / self.a, pi / self.a, resX)
@@ -109,7 +134,7 @@ class BandStructure:
         kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, resZ)
         kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
 
-        disp = self.e_3D_func(kxx, kyy, kzz)
+        disp = self.e_AF_func(kxx, kyy, kzz)
         return disp
 
     def doping(self, resX=500, resY=500, resZ=10):
@@ -118,7 +143,7 @@ class BandStructure:
         # Number of k in the total Brillouin Zone
         N = E.shape[0] * E.shape[1] * E.shape[2]
         # Number of electron in the total Brillouin Zone
-        n = 2 / N * np.sum(np.greater_equal(0, E))
+        n = 1 / N * np.sum(np.greater_equal(0, E))
                 # number of quasiparticles below mu, 2 is for the spin
         # Number of holes
         self.p = 1 - n
@@ -131,7 +156,7 @@ class BandStructure:
         # Number of k in the Brillouin zone per plane
         Nz = E.shape[0] * E.shape[1]
         # Number of electron in the Brillouin zone per plane
-        n_per_kz = 2 / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
+        n_per_kz = 1 / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
         p_per_kz = 1 - n_per_kz
 
         return p_per_kz
@@ -150,15 +175,15 @@ class BandStructure:
 
     def discretize_FS(self):
         mesh_xy_rough = 501  # make denser rough meshgrid to interpolate after
-        kx_a = np.linspace(0, pi / self.a, mesh_xy_rough)
-        ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
+        kx_a = np.linspace(-pi / self.a, pi / self.a, mesh_xy_rough)
+        ky_a = np.linspace(-pi / self.b, pi / self.b, mesh_xy_rough)
         kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
                # half of FBZ, 2*pi/c because bodycentered unit cell
         dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
         for j, kz in enumerate(kz_a):
-            bands = self.e_3D_func(kxx, kyy, kz)
+            bands = self.e_AF_func(kxx, kyy, kz)
             contours = measure.find_contours(bands, 0)
             numberPointsPerKz = 0
 
@@ -166,8 +191,8 @@ class BandStructure:
 
                 # Contour come in units proportionnal to size of meshgrid
                 # one want to scale to units of kx and ky
-                x = contour[:, 0] / (mesh_xy_rough - 1) * pi
-                y = contour[:, 1] / (mesh_xy_rough - 1) * pi / (self.b / self.a)  # anisotropy
+                x = (contour[:, 0] / (mesh_xy_rough - 1) - 0.5) * 2*pi
+                y = (contour[:, 1] / (mesh_xy_rough - 1) - 0.5) * 2*pi / (self.b / self.a)  # anisotropy
 
                 ds = sqrt(np.diff(x)**2 + np.diff(y)**2)  # segment lengths
                 s = np.zeros_like(x)  # arrays of zeros
@@ -186,17 +211,6 @@ class BandStructure:
                 x_int = np.interp(s_int, s, x)[:-1]
                 y_int = np.interp(s_int, s, y)[:-1]
 
-                # Rotate the contour to get the entire Fermi surface
-                # ### WARNING NOT ROBUST IN THE CASE OF C4 SYMMETRY BREAKING
-                x_dump = x_int
-                y_dump = y_int
-                for angle in [pi / 2, pi, 3 * pi / 2]:
-                    x_int_p, y_int_p = rotation(x_int, y_int, angle)
-                    x_dump = np.append(x_dump, x_int_p)
-                    y_dump = np.append(y_dump, y_int_p)
-                x_int = x_dump
-                y_int = y_dump
-
                 # Put in an array /////////////////////////////////////////////////////#
                 if i == 0 and j == 0:  # for first contour and first kz
                     kxf = x_int / self.a
@@ -211,13 +225,13 @@ class BandStructure:
                     kzf = np.append(kzf, kz * np.ones_like(x_int))
                     self.dkf = np.append(self.dkf, 2 * dks * dkz * np.ones_like(x_int))
 
-            self.numberPointsPerKz_list.append(4 * numberPointsPerKz)
+            self.numberPointsPerKz_list.append(numberPointsPerKz)
 
         # dim -> (n, i0) = (xyz, position on FS)
         self.kf = np.vstack([kxf, kyf, kzf])
 
         # Compute Velocity at t = 0 on Fermi Surface
-        vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
+        vx, vy, vz = self.v_AF_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
         # dim -> (i, i0) = (xyz, position on FS)
         self.vf = np.vstack([vx, vy, vz])
 
@@ -265,7 +279,7 @@ class BandStructure:
 
         fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
-        axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.e_AF_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
         line = axes.plot(self.kf[0,:self.numberPointsPerKz_list[0]] * self.a,
                          self.kf[1,:self.numberPointsPerKz_list[0]] * self.b)
         plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
@@ -316,9 +330,9 @@ class BandStructure:
         fig.text(0.34,0.83, r"$\pi/c$", fontsize = 14, color = "#00DC39")
         fig.text(0.34,0.80, r"2$\pi/c$", fontsize = 14, color = "#6577FF")
 
-        axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
-        axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, pi/self.c), 0, colors = '#00DC39', linewidths = 3)
-        axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 2*pi/self.c), 0, colors = '#6577FF', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.e_AF_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.e_AF_func(kxx, kyy, pi/self.c), 0, colors = '#00DC39', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.e_AF_func(kxx, kyy, 2*pi/self.c), 0, colors = '#6577FF', linewidths = 3)
 
         axes.set_xlim(-pi, pi)
         axes.set_ylim(-pi, pi)
