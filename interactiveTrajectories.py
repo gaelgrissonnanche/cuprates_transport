@@ -43,8 +43,8 @@ def computeAMROpoints(B_amp,B_phi_a,B_theta_a):
 
 startTime = time.time()
 print('computing AMRO curves')
-B_theta_a = np.linspace(0, 115, 10)
-amroListOfList = computeAMROpoints(45,np.array([0]), B_theta_a)
+B_theta_a = np.linspace(0, 115, 20)
+amroListOfList = computeAMROpoints(45,np.array([0,30]), B_theta_a)
 print("AMRO time : %.6s s\n" % (time.time() - startTime))
 
 
