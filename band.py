@@ -25,6 +25,7 @@ class BandStructure:
         self._tz2 = tz2 * t
         self._mu  = mu  * t
         self.p    = None # hole doping, unknown at first
+        self.dos  = None
 
         ## Discretization
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi
@@ -41,14 +42,14 @@ class BandStructure:
         self.numberPointsPerKz_list = []
 
         ## Make initial discretization of the Fermi surface within constructor
-        self.discretize_FS()
+        # self.discretize_FS()
 
         ## Compute the doping
-        self.doping()
-        print("p = " + "{0:.3f}".format(self.p))
+        # self.doping()
+        # print("p = " + "{0:.3f}".format(self.p))
 
         ## Compute Density of State
-        self.dos = self.densityOfState()
+        # self.dos = self.densityOfState()
 
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def _get_t(self):
@@ -96,12 +97,13 @@ class BandStructure:
     def bandParameters(self):
         return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2]
 
-
     def e_3D_func(self, kx, ky, kz):
-        return optimized_e_3D_func(kx, ky, kz, self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2)
+        return optimized_e2D_func(kx, ky, kz, *self.bandParameters()) + optimized_ez_func(kx, ky, kz, *self.bandParameters())
 
     def v_3D_func(self, kx, ky, kz):
-        return optimized_v_3D_func(kx, ky, kz, self.a, self.b, self.c, self._t, self._tp, self._tpp, self._tz, self._tz2)
+        vx2, vy2, vz2 = optimized_v2D_func(kx, ky, kz, *self.bandParameters())
+        vx3, vy3, vz3 = optimized_vz_func(kx, ky, kz, *self.bandParameters())
+        return  (vx2 + vx3)/hbar, (vy2 + vy3)/hbar, (vz2 + vz3)/hbar
 
     def dispersionMesh(self, resX=500, resY=500, resZ=10):
         kx_a = np.linspace(-pi / self.a, pi / self.a, resX)
@@ -227,6 +229,7 @@ class BandStructure:
         # Density of State
         dos = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
                 # dos = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
+        self.dos = dos
         return dos
 
     ## Figures ////////////////////////////////////////////////////////////////#
@@ -338,24 +341,47 @@ class BandStructure:
 # ABOUT JUST IN TIME (JIT) COMPILATION
 # jitclass do not work, the best option is to call a jit otimized function from inside the class.
 @jit(nopython=True, cache=True)
-def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
+def optimized_e2D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     # 2D Dispersion
     e_2D = -2 * t * (cos(kx * a) + cos(ky * b))
     e_2D += -4 * tp * cos(kx * a) * cos(ky * b)
     e_2D += -2 * tpp * (cos(2 * kx * a) + cos(2 * ky * b))
     e_2D += -mu
-    # Kz dispersion
+    return e_2D
+
+@jit(nopython=True, cache=True)
+def optimized_ez_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     d = c / 2.
     e_z = -2 * tz * cos(kz * d)
     e_z *= cos(kx * a / 2) * cos(ky * b / 2)
     e_z *= (cos(kx * a) - cos(ky * b))**2
     e_z += -2 * tz2 * cos(kz * d) # mind the '+='
-
-    return e_2D + e_z
+    return e_z
 
 
 @jit(nopython=True, cache=True)
-def optimized_v_3D_func(kx, ky, kz, a, b, c, t, tp, tpp, tz, tz2):
+def optimized_v2D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
+    d = c / 2
+    kxa = kx * a
+    kxb = ky * b
+    kzd = kz * d
+    coskx = cos(kxa)
+    cosky = cos(kxb)
+    sinkx = sin(kxa)
+    sinky = sin(kxb)
+    sin2kx = sin(2 * kx * a)
+    sin2ky = sin(2 * ky * b)
+
+    vx = 2 * t * a * sinkx + 4 * tp * \
+        a * sinkx * cosky + 4 * tpp * a * sin2kx
+    vy = 2 * t * b * sinky + 4 * tp * \
+        b * coskx * sinky + 4 * tpp * b * sin2ky
+    vz = 0
+    return vx, vy, vz
+
+
+@jit(nopython=True, cache=True)
+def optimized_vz_func(kx, ky, kz,a, b, c, mu, t, tp, tpp, tz, tz2):
     d = c / 2
     kxa = kx * a
     kxb = ky * b
@@ -373,13 +399,6 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, t, tp, tpp, tz, tz2):
     sinkx_2 = sin(kxa / 2)
     sinky_2 = sin(kxb / 2)
 
-    # Velocity from e_2D
-    d_e2D_dkx = 2 * t * a * sinkx + 4 * tp * \
-        a * sinkx * cosky + 4 * tpp * a * sin2kx
-    d_e2D_dky = 2 * t * b * sinky + 4 * tp * \
-        b * coskx * sinky + 4 * tpp * b * sin2ky
-    d_e2D_dkz = 0
-
     # Velocity from e_z
     sigma = coskx_2 * cosky_2
     diff = (coskx - cosky)
@@ -389,21 +408,59 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, t, tp, tpp, tz, tz2):
     d_square_dkx = 2 * (diff) * (-a * sinkx)
     d_square_dky = 2 * (diff) * (+b * sinky)
 
-    d_ez_dkx = - 2 * tz * d_sigma_dkx * square * \
+    vx = - 2 * tz * d_sigma_dkx * square * \
         coskz - 2 * tz * sigma * d_square_dkx * coskz
-    d_ez_dky = - 2 * tz * d_sigma_dky * square * \
+    vy = - 2 * tz * d_sigma_dky * square * \
         coskz - 2 * tz * sigma * d_square_dky * coskz
-    d_ez_dkz = - 2 * tz * sigma * square * \
+    vz = - 2 * tz * sigma * square * \
         (-d * sinkz) + 2 * tz2 * (-d) * sinkz
 
-    vx = (d_e2D_dkx + d_ez_dkx) / hbar
-    vy = (d_e2D_dky + d_ez_dky) / hbar
-    vz = (d_e2D_dkz + d_ez_dkz) / hbar
-
     return vx, vy, vz
+
+
 
 
 def rotation(x, y, angle):
     xp = cos(angle) * x + sin(angle) * y
     yp = -sin(angle) * x + cos(angle) * y
     return xp, yp
+
+
+
+
+
+
+
+
+class HolePocket(BandStructure):
+    def __init__(self, AFgap=0.1, Qx=pi, Qy=pi, Qz=0, **kwargs):        
+        self.M = AFgap
+
+        super().__init__(**kwargs)
+        self.Qx = Qx/self.a
+        self.Qy = Qy/self.b
+        self.Qz = Qy/self.c
+
+    def e_3D_func(self, kx, ky, kz):
+        xi2 = optimized_e2D_func(kx, ky, kz, *self.bandParameters())
+        xi2Q = optimized_e2D_func(kx+self.Qx, ky+self.Qy, kz+self.Qz, *self.bandParameters())
+        xi3 = optimized_ez_func(kx, ky, kz, *self.bandParameters())
+
+        return (xi2+xi2Q)/2 - np.sqrt( (xi2-xi2Q)**2 /4 + self.M**2 )
+
+    def v_3D_func(self, kx, ky, kz):
+        xi2 = optimized_e2D_func(kx, ky, kz, *self.bandParameters())
+        xi2Q = optimized_e2D_func(kx+self.Qx, ky+self.Qy, kz+self.Qz, *self.bandParameters())
+
+        vx2, vy2, vz2 = optimized_v2D_func(kx, ky, kz, *self.bandParameters())
+        vx2Q, vy2Q, vz2Q = optimized_v2D_func(kx+self.Qx, ky+self.Qy, kz+self.Qz, *self.bandParameters())
+        vx3, vy3, vz3 = optimized_vz_func(kx, ky, kz, *self.bandParameters())
+
+        Root = np.sqrt( (xi2-xi2Q)**2 /4 + self.M**2 )
+
+        dEdx = (vx2+vx2Q)/2 - (vx2-vx2Q)/2 / Root + vx3
+        dEdy = (vy2+vy2Q)/2 - (vy2-vy2Q)/2 / Root + vy3
+        dEdz = (vz2+vz2Q)/2 - (vz2-vz2Q)/2 / Root + vz3
+
+        return  dEdx/hbar, dEdy/hbar, dEdz/hbar
+
