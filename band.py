@@ -129,15 +129,15 @@ class BandStructure:
         return p_per_kz
 
     def dopingCondition(self, mu, ptarget):
-        self._mu = mu
-        print(self.doping())
+        self.mu = mu[0]
+        print('mu = '+'{0:.4f}'.format(self.mu)+' yields:')
         return self.doping() - ptarget
 
 
-    def setMuToDoping(self, pTarget, muStart=-8.0, xtol=0.001):
+    def setMuToDoping(self, pTarget, muStart=-0.8, xtol=0.001):
         solObject = optimize.root(self.dopingCondition, np.array(
             [muStart]), args=(pTarget,), options={'xtol': xtol})
-        self._mu = solObject.x[0]
+        self.mu = solObject.x[0]
 
 
     def discretize_FS(self):
