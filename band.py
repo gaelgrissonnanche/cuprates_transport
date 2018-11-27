@@ -149,6 +149,14 @@ class BandStructure:
         dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
+        BZmask = np.zeros(kxx.shape, dtype=bool) # array of false
+        for ij, kx in np.ndenumerate(kxx):
+            if (kyy[ij] < pi + kxx[ij] and
+                kyy[ij] < pi - kxx[ij] and
+                kyy[ij] > -pi + kxx[ij] and
+                kyy[ij] > -pi - kxx[ij]):
+                BZmask[ij] = True
+
         for j, kz in enumerate(kz_a):
             bands = self.e_3D_func(kxx, kyy, kz)
             contours = measure.find_contours(bands, 0)
@@ -350,26 +358,24 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
 def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     d = c / 2
     kxa = kx * a
-    kxb = ky * b
+    kyb = ky * b
     kzd = kz * d
     coskx = cos(kxa)
-    cosky = cos(kxb)
+    cosky = cos(kyb)
     coskz = cos(kzd)
     sinkx = sin(kxa)
-    sinky = sin(kxb)
+    sinky = sin(kyb)
     sinkz = sin(kzd)
-    sin2kx = sin(2 * kx * a)
-    sin2ky = sin(2 * ky * b)
+    sin2kx = sin(2 * kxa)
+    sin2ky = sin(2 * kyb)
     coskx_2 = cos(kxa / 2)
-    cosky_2 = cos(kxb / 2)
+    cosky_2 = cos(kyb / 2)
     sinkx_2 = sin(kxa / 2)
-    sinky_2 = sin(kxb / 2)
+    sinky_2 = sin(kyb / 2)
 
     # Velocity from e_2D
-    d_e2D_dkx = 2 * t * a * sinkx + 4 * tp * \
-        a * sinkx * cosky + 4 * tpp * a * sin2kx
-    d_e2D_dky = 2 * t * b * sinky + 4 * tp * \
-        b * coskx * sinky + 4 * tpp * b * sin2ky
+    d_e2D_dkx = 2 * t * a * sinkx + 4 * tp * a * sinkx * cosky + 4 * tpp * a * sin2kx
+    d_e2D_dky = 2 * t * b * sinky + 4 * tp * b * coskx * sinky + 4 * tpp * b * sin2ky
     d_e2D_dkz = 0
 
     # Velocity from e_z
@@ -381,12 +387,9 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     d_square_dkx = 2 * (diff) * (-a * sinkx)
     d_square_dky = 2 * (diff) * (+b * sinky)
 
-    d_ez_dkx = - 2 * tz * d_sigma_dkx * square * \
-        coskz - 2 * tz * sigma * d_square_dkx * coskz
-    d_ez_dky = - 2 * tz * d_sigma_dky * square * \
-        coskz - 2 * tz * sigma * d_square_dky * coskz
-    d_ez_dkz = - 2 * tz * sigma * square * \
-        (-d * sinkz) + 2 * tz2 * (-d) * sinkz
+    d_ez_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
+    d_ez_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
+    d_ez_dkz = - 2 * tz * sigma * square * (-d * sinkz) + 2 * tz2 * (-d) * sinkz
 
     vx = (d_e2D_dkx + d_ez_dkx) / hbar
     vy = (d_e2D_dky + d_ez_dky) / hbar
@@ -403,19 +406,24 @@ def rotation(x, y, angle):
 
 
 class HolePocket(BandStructure):
-    def __init__(self, AFgap=0.1, Qx=pi, Qy=pi, Qz=0, **kwargs):
-        self.M = AFgap
-
+    def __init__(self, M=0.2, Qx=pi, Qy=pi, Qz=0, **kwargs):
         super().__init__(**kwargs)
+        self._M = M*self.t
         self.Qx = Qx/self.a
         self.Qy = Qy/self.b
         self.Qz = Qy/self.c
 
+    def _get_M(self):
+        return self._M / self._t
+    def _set_M(self, M):
+        self._M = M * self._t
+    M = property(_get_M, _set_M)
+
     def e_3D_func(self, kx, ky, kz):
-        return optimizedAFfuncs(kx, ky, kz, self.M, *self.bandParameters() )[0]
+        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters() )[0]
 
     def v_3D_func(self, kx, ky, kz):
-        return optimizedAFfuncs(kx, ky, kz, self.M, *self.bandParameters() )[1:]
+        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters() )[1:]
 
     def doping(self, resX=500, resY=500, resZ=10):
         E = self.dispersionMesh(resX, resY, resZ)
@@ -448,39 +456,53 @@ class HolePocket(BandStructure):
 def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
     d = c / 2
     kxa = kx * a
-    kxb = ky * b
+    kyb = ky * b
     kzd = kz * d
     coskx = cos(kxa)
-    cosky = cos(kxb)
+    cosky = cos(kyb)
     coskz = cos(kzd)
     sinkx = sin(kxa)
-    sinky = sin(kxb)
+    sinky = sin(kyb)
     sinkz = sin(kzd)
-    cos2kx = cos(2 * kx * a)
-    cos2ky = cos(2 * ky * b)
-    sin2kx = sin(2 * kx * a)
-    sin2ky = sin(2 * ky * b)
+    cos2kx = cos(2 * kxa)
+    cos2ky = cos(2 * kyb)
+    sin2kx = sin(2 * kxa)
+    sin2ky = sin(2 * kyb)
     coskx_2 = cos(kxa / 2)
-    cosky_2 = cos(kxb / 2)
+    cosky_2 = cos(kyb / 2)
     sinkx_2 = sin(kxa / 2)
-    sinky_2 = sin(kxb / 2)
+    sinky_2 = sin(kyb / 2)
+
     # Decomposition: epsilon(k) = zeta(k) + xi(k)  to take advantage of zeta(k+Q) = zeta(k)
     zeta_k      = -4.*tp*coskx*cosky - 2.*tpp*(cos2kx + cos2ky) - mu
-    dzeta_k_dkx =  4.*tp*sinkx*cosky + 4.*tpp*sin2kx
-    dzeta_k_dky =  4.*tp*coskx*sinky + 4.*tpp*sin2ky
-    xi_k      = -2.*t*(coskx + cosky)
-    dxi_k_dkx =  2.*t*sinkx
-    dxi_k_dky =  2.*t*sinky
+    dzeta_k_dkx =  4.*a*tp*sinkx*cosky + 4.*a*tpp*sin2kx
+    dzeta_k_dky =  4.*b*tp*coskx*sinky + 4.*b*tpp*sin2ky
+    xi_k      =   -2.*t*(coskx + cosky)
+    dxi_k_dkx =    2.*a*t*sinkx
+    dxi_k_dky =    2.*b*t*sinky
 
     epsilon_k      = xi_k           + zeta_k
     depsilon_k_dkx = dxi_k_dkx      + dzeta_k_dkx
     depsilon_k_dky = dxi_k_dky      + dzeta_k_dky
+
+    epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2
+
     # kz dispersion and its derivatives (won't be affected by Q)
     # Full simplified with mathematica
-    epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2
-    depz_dkx = -tz*cosky_2*(-4-5*coskx+cosky)*(-coskx+cosky)*coskz*sinkx_2
-    depz_dky = -tz*coskx_2*(-4+coskx-5*cosky)*(coskx-cosky)*coskz*sinky_2
-    depz_dkz = -tz*coskx_2*cosky_2*(coskx-cosky)*(coskx-cosky)*sinkz  -tz2*sinkz
+    # depz_dkx = tz*cosky_2*(-4-5*coskx+cosky)*(-coskx+cosky)*coskz*a*sinkx_2
+    # depz_dky = tz*coskx_2*(-4+coskx-5*cosky)*(coskx-cosky)*coskz*b*sinky_2
+    # depz_dkz = tz*coskx_2*cosky_2*(coskx-cosky)*(coskx-cosky)*c*sinkz  +tz2*d*sinkz
+
+    sigma = coskx_2 * cosky_2
+    diff = (coskx - cosky)
+    square = (diff)**2
+    d_sigma_dkx = - a/2 * sinkx_2 * cosky_2
+    d_sigma_dky = - b/2 * coskx_2 * sinky_2
+    d_square_dkx = 2 * (diff) * (-a * sinkx)
+    d_square_dky = 2 * (diff) * (+b * sinky)
+    depz_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
+    depz_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
+    depz_dkz = - 2 * tz * sigma * square * (-d * sinkz) + 2 * tz2 * (-d) * sinkz
 
     # AF EIGENVALUES
     #epsilon(k+Q) and its derivatives
@@ -504,7 +526,7 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
         Rk          = sqrt( Dk*Dk + M*M )
         dRk_dkx     = Dk*dDk_dkx/Rk
         dRk_dky     = Dk*dDk_dky/Rk
-    #finally calculate the eigen values and their derivatives (vertices):
+    #finally calculate the eigenvalues and their derivatives (vertices):
     # Ekp          =   Sk         +   Rk
     # dEkp_dkx     =  dSk_dkx     +  dRk_dkx
     # dEkp_dky     =  dSk_dky     +  dRk_dky
