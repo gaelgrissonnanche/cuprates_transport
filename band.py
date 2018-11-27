@@ -41,15 +41,6 @@ class BandStructure:
         ## Save number of points in each kz plane
         self.numberPointsPerKz_list = []
 
-        ## Make initial discretization of the Fermi surface within constructor
-        # self.discretize_FS()
-
-        ## Compute the doping
-        # self.doping()
-        # print("p = " + "{0:.3f}".format(self.p))
-
-        ## Compute Density of State
-        # self.dos = self.densityOfState()
 
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def _get_t(self):
@@ -122,6 +113,7 @@ class BandStructure:
                 # number of quasiparticles below mu, 2 is for the spin
         # Number of holes
         self.p = 1 - n
+        print("p = " + "{0:.3f}".format(self.p))
 
         return self.p
 
@@ -402,8 +394,6 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
 
     return vx, vy, vz
 
-
-
 def rotation(x, y, angle):
     xp = cos(angle) * x + sin(angle) * y
     yp = -sin(angle) * x + cos(angle) * y
@@ -413,7 +403,7 @@ def rotation(x, y, angle):
 
 
 class HolePocket(BandStructure):
-    def __init__(self, AFgap=0.1, Qx=pi, Qy=pi, Qz=0, **kwargs):        
+    def __init__(self, AFgap=0.1, Qx=pi, Qy=pi, Qz=0, **kwargs):
         self.M = AFgap
 
         super().__init__(**kwargs)
@@ -426,6 +416,31 @@ class HolePocket(BandStructure):
 
     def v_3D_func(self, kx, ky, kz):
         return optimizedAFfuncs(kx, ky, kz, self.M, *self.bandParameters() )[1:]
+
+    def doping(self, resX=500, resY=500, resZ=10):
+        E = self.dispersionMesh(resX, resY, resZ)
+
+        # Number of k in the total Brillouin Zone
+        N = E.shape[0] * E.shape[1] * E.shape[2]
+        # Number of electron in the total Brillouin Zone
+        n = 1 / N * np.sum(np.greater_equal(0, E))
+                # number of quasiparticles below mu, 2 is for the spin
+        # Number of holes
+        self.p = 1 - n
+        print("p = " + "{0:.3f}".format(self.p))
+
+        return self.p
+
+    def dopingPerkz(self, resX=500, resY=500, resZ=10):
+        E = self.dispersionMesh(resX, resY, resZ)
+
+        # Number of k in the Brillouin zone per plane
+        Nz = E.shape[0] * E.shape[1]
+        # Number of electron in the Brillouin zone per plane
+        n_per_kz = 1 / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
+        p_per_kz = 1 - n_per_kz
+
+        return p_per_kz
 
 
 ## These definition are only valid for (Qx,Qy)=(pi,pi) without coherence of the AF in z
@@ -449,12 +464,10 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
     cosky_2 = cos(kxb / 2)
     sinkx_2 = sin(kxa / 2)
     sinky_2 = sin(kxb / 2)
-    
     # Decomposition: epsilon(k) = zeta(k) + xi(k)  to take advantage of zeta(k+Q) = zeta(k)
     zeta_k      = -4.*tp*coskx*cosky - 2.*tpp*(cos2kx + cos2ky) - mu
     dzeta_k_dkx =  4.*tp*sinkx*cosky + 4.*tpp*sin2kx
     dzeta_k_dky =  4.*tp*coskx*sinky + 4.*tpp*sin2ky
-    
     xi_k      = -2.*t*(coskx + cosky)
     dxi_k_dkx =  2.*t*sinkx
     dxi_k_dky =  2.*t*sinky
@@ -462,7 +475,6 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
     epsilon_k      = xi_k           + zeta_k
     depsilon_k_dkx = dxi_k_dkx      + dzeta_k_dkx
     depsilon_k_dky = dxi_k_dky      + dzeta_k_dky
-    
     # kz dispersion and its derivatives (won't be affected by Q)
     # Full simplified with mathematica
     epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2
@@ -483,23 +495,22 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
     Dk          = 0.5*(  epsilon_k         -   epsilon_kQ)
     dDk_dkx     = 0.5*( depsilon_k_dkx     -  depsilon_kQ_dkx)
     dDk_dky     = 0.5*( depsilon_k_dky     -  depsilon_kQ_dky)
-    
+
     if M<=0.00001:
-        Rk = Dk 
+        Rk = Dk
         dRk_dkx = dDk_dkx
         dRk_dky = dDk_dky
     else:
         Rk          = sqrt( Dk*Dk + M*M )
         dRk_dkx     = Dk*dDk_dkx/Rk
         dRk_dky     = Dk*dDk_dky/Rk
-    
     #finally calculate the eigen values and their derivatives (vertices):
     # Ekp          =   Sk         +   Rk
     # dEkp_dkx     =  dSk_dkx     +  dRk_dkx
     # dEkp_dky     =  dSk_dky     +  dRk_dky
-    
+
     Ekm          =   Sk         -   Rk
     dEkm_dkx     =  dSk_dkx     -  dRk_dkx
     dEkm_dky     =  dSk_dky     -  dRk_dky
-    
+
     return Ekm+epz_k, (dEkm_dkx+depz_dkx)/hbar, (dEkm_dky+depz_dky)/hbar, depz_dkz/hbar

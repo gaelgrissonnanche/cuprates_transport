@@ -8,7 +8,7 @@ from chambers import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
-    def __init__(self, bandObject, Bamp=45, gamma_0=152, gamma_k=649, power=12, a0 = 0):
+    def __init__(self, bandObject, Bamp=45, gamma_0=15, gamma_k=65, power=12, a0 = 0):
         # Band object
         self.bandObject = bandObject ## WARNING do not modify within this object
 
