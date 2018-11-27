@@ -14,7 +14,7 @@ hbar = 1  # velocity will be in units of 1 / hbar,
 class BandStructure:
     def __init__(self, a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
-                 numberOfKz=7, mesh_ds=pi/20):
+                 numberOfKz=7, mesh_ds=pi/15):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
         self.c    = c  # in Angstrom
@@ -25,6 +25,7 @@ class BandStructure:
         self._tz2 = tz2 * t
         self._mu  = mu  * t
         self.p    = None # hole doping, unknown at first
+        self.dos  = None
 
         ## Discretization
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi
@@ -40,15 +41,6 @@ class BandStructure:
         ## Save number of points in each kz plane
         self.numberPointsPerKz_list = []
 
-        ## Make initial discretization of the Fermi surface within constructor
-        self.discretize_FS()
-
-        ## Compute the doping
-        self.doping()
-        print("p = " + "{0:.3f}".format(self.p))
-
-        ## Compute Density of State
-        self.dos = self.densityOfState()
 
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def _get_t(self):
@@ -96,12 +88,11 @@ class BandStructure:
     def bandParameters(self):
         return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2]
 
-
     def e_3D_func(self, kx, ky, kz):
-        return optimized_e_3D_func(kx, ky, kz, self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2)
+        return optimized_e_3D_func(kx, ky, kz, *self.bandParameters())
 
     def v_3D_func(self, kx, ky, kz):
-        return optimized_v_3D_func(kx, ky, kz, self.a, self.b, self.c, self._t, self._tp, self._tpp, self._tz, self._tz2)
+        return optimized_v_3D_func(kx, ky, kz, *self.bandParameters())
 
     def dispersionMesh(self, resX=500, resY=500, resZ=10):
         kx_a = np.linspace(-pi / self.a, pi / self.a, resX)
@@ -122,6 +113,7 @@ class BandStructure:
                 # number of quasiparticles below mu, 2 is for the spin
         # Number of holes
         self.p = 1 - n
+        print("p = " + "{0:.3f}".format(self.p))
 
         return self.p
 
@@ -227,6 +219,7 @@ class BandStructure:
         # Density of State
         dos = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
                 # dos = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
+        self.dos = dos
         return dos
 
     ## Figures ////////////////////////////////////////////////////////////////#
@@ -334,7 +327,6 @@ class BandStructure:
         #//////////////////////////////////////////////////////////////////////////////#
 
 
-
 # ABOUT JUST IN TIME (JIT) COMPILATION
 # jitclass do not work, the best option is to call a jit otimized function from inside the class.
 @jit(nopython=True, cache=True)
@@ -355,7 +347,7 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
 
 
 @jit(nopython=True, cache=True)
-def optimized_v_3D_func(kx, ky, kz, a, b, c, t, tp, tpp, tz, tz2):
+def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     d = c / 2
     kxa = kx * a
     kxb = ky * b
@@ -402,8 +394,127 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, t, tp, tpp, tz, tz2):
 
     return vx, vy, vz
 
-
 def rotation(x, y, angle):
     xp = cos(angle) * x + sin(angle) * y
     yp = -sin(angle) * x + cos(angle) * y
     return xp, yp
+
+
+
+
+class HolePocket(BandStructure):
+    def __init__(self, AFgap=0.1, Qx=pi, Qy=pi, Qz=0, **kwargs):
+        self.M = AFgap
+
+        super().__init__(**kwargs)
+        self.Qx = Qx/self.a
+        self.Qy = Qy/self.b
+        self.Qz = Qy/self.c
+
+    def e_3D_func(self, kx, ky, kz):
+        return optimizedAFfuncs(kx, ky, kz, self.M, *self.bandParameters() )[0]
+
+    def v_3D_func(self, kx, ky, kz):
+        return optimizedAFfuncs(kx, ky, kz, self.M, *self.bandParameters() )[1:]
+
+    def doping(self, resX=500, resY=500, resZ=10):
+        E = self.dispersionMesh(resX, resY, resZ)
+
+        # Number of k in the total Brillouin Zone
+        N = E.shape[0] * E.shape[1] * E.shape[2]
+        # Number of electron in the total Brillouin Zone
+        n = 1 / N * np.sum(np.greater_equal(0, E))
+                # number of quasiparticles below mu, 2 is for the spin
+        # Number of holes
+        self.p = 1 - n
+        print("p = " + "{0:.3f}".format(self.p))
+
+        return self.p
+
+    def dopingPerkz(self, resX=500, resY=500, resZ=10):
+        E = self.dispersionMesh(resX, resY, resZ)
+
+        # Number of k in the Brillouin zone per plane
+        Nz = E.shape[0] * E.shape[1]
+        # Number of electron in the Brillouin zone per plane
+        n_per_kz = 1 / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
+        p_per_kz = 1 - n_per_kz
+
+        return p_per_kz
+
+
+## These definition are only valid for (Qx,Qy)=(pi,pi) without coherence of the AF in z
+@jit(nopython=True, cache=True)
+def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
+    d = c / 2
+    kxa = kx * a
+    kxb = ky * b
+    kzd = kz * d
+    coskx = cos(kxa)
+    cosky = cos(kxb)
+    coskz = cos(kzd)
+    sinkx = sin(kxa)
+    sinky = sin(kxb)
+    sinkz = sin(kzd)
+    cos2kx = cos(2 * kx * a)
+    cos2ky = cos(2 * ky * b)
+    sin2kx = sin(2 * kx * a)
+    sin2ky = sin(2 * ky * b)
+    coskx_2 = cos(kxa / 2)
+    cosky_2 = cos(kxb / 2)
+    sinkx_2 = sin(kxa / 2)
+    sinky_2 = sin(kxb / 2)
+
+    # Decomposition: epsilon(k) = zeta(k) + xi(k)  to take advantage of zeta(k+Q) = zeta(k)
+    zeta_k      = -4.*tp*coskx*cosky - 2.*tpp*(cos2kx + cos2ky) - mu
+    dzeta_k_dkx =  4.*tp*sinkx*cosky + 4.*tpp*sin2kx
+    dzeta_k_dky =  4.*tp*coskx*sinky + 4.*tpp*sin2ky
+
+    xi_k      = -2.*t*(coskx + cosky)
+    dxi_k_dkx =  2.*t*sinkx
+    dxi_k_dky =  2.*t*sinky
+
+    epsilon_k      = xi_k           + zeta_k
+    depsilon_k_dkx = dxi_k_dkx      + dzeta_k_dkx
+    depsilon_k_dky = dxi_k_dky      + dzeta_k_dky
+
+    # kz dispersion and its derivatives (won't be affected by Q)
+    # Full simplified with mathematica
+    epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2
+    depz_dkx = -tz*cosky_2*(-4-5*coskx+cosky)*(-coskx+cosky)*coskz*sinkx_2
+    depz_dky = -tz*coskx_2*(-4+coskx-5*cosky)*(coskx-cosky)*coskz*sinky_2
+    depz_dkz = -tz*coskx_2*cosky_2*(coskx-cosky)*(coskx-cosky)*sinkz  -tz2*sinkz
+
+    # AF EIGENVALUES
+    #epsilon(k+Q) and its derivatives
+    epsilon_kQ           = -xi_k           + zeta_k
+    depsilon_kQ_dkx      = -dxi_k_dkx      + dzeta_k_dkx
+    depsilon_kQ_dky      = -dxi_k_dky      + dzeta_k_dky
+
+    #precalculate sum, diff and radical:
+    Sk          = 0.5*(  epsilon_k         +   epsilon_kQ)
+    dSk_dkx     = 0.5*( depsilon_k_dkx     +  depsilon_kQ_dkx)
+    dSk_dky     = 0.5*( depsilon_k_dky     +  depsilon_kQ_dky)
+    Dk          = 0.5*(  epsilon_k         -   epsilon_kQ)
+    dDk_dkx     = 0.5*( depsilon_k_dkx     -  depsilon_kQ_dkx)
+    dDk_dky     = 0.5*( depsilon_k_dky     -  depsilon_kQ_dky)
+
+    if M<=0.00001:
+        Rk = Dk
+        dRk_dkx = dDk_dkx
+        dRk_dky = dDk_dky
+    else:
+        Rk          = sqrt( Dk*Dk + M*M )
+        dRk_dkx     = Dk*dDk_dkx/Rk
+        dRk_dky     = Dk*dDk_dky/Rk
+
+    #finally calculate the eigen values and their derivatives (vertices):
+    # Ekp          =   Sk         +   Rk
+    # dEkp_dkx     =  dSk_dkx     +  dRk_dkx
+    # dEkp_dky     =  dSk_dky     +  dRk_dky
+
+    Ekm          =   Sk         -   Rk
+    dEkm_dkx     =  dSk_dkx     -  dRk_dkx
+    dEkm_dky     =  dSk_dky     -  dRk_dky
+
+    return Ekm+epz_k, (dEkm_dkx+depz_dkx)/hbar, (dEkm_dky+depz_dky)/hbar, depz_dkz/hbar
