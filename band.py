@@ -366,10 +366,8 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     sinky_2 = sin(kyb / 2)
 
     # Velocity from e_2D
-    d_e2D_dkx = 2 * t * a * sinkx + 4 * tp * \
-        a * sinkx * cosky + 4 * tpp * a * sin2kx
-    d_e2D_dky = 2 * t * b * sinky + 4 * tp * \
-        b * coskx * sinky + 4 * tpp * b * sin2ky
+    d_e2D_dkx = 2 * t * a * sinkx + 4 * tp * a * sinkx * cosky + 4 * tpp * a * sin2kx
+    d_e2D_dky = 2 * t * b * sinky + 4 * tp * b * coskx * sinky + 4 * tpp * b * sin2ky
     d_e2D_dkz = 0
 
     # Velocity from e_z
@@ -381,12 +379,9 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     d_square_dkx = 2 * (diff) * (-a * sinkx)
     d_square_dky = 2 * (diff) * (+b * sinky)
 
-    d_ez_dkx = - 2 * tz * d_sigma_dkx * square * \
-        coskz - 2 * tz * sigma * d_square_dkx * coskz
-    d_ez_dky = - 2 * tz * d_sigma_dky * square * \
-        coskz - 2 * tz * sigma * d_square_dky * coskz
-    d_ez_dkz = - 2 * tz * sigma * square * \
-        (-d * sinkz) + 2 * tz2 * (-d) * sinkz
+    d_ez_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
+    d_ez_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
+    d_ez_dkz = - 2 * tz * sigma * square * (-d * sinkz) + 2 * tz2 * (-d) * sinkz
 
     vx = (d_e2D_dkx + d_ez_dkx) / hbar
     vy = (d_e2D_dky + d_ez_dky) / hbar
@@ -403,19 +398,24 @@ def rotation(x, y, angle):
 
 
 class HolePocket(BandStructure):
-    def __init__(self, AFgap=0.1, Qx=pi, Qy=pi, Qz=0, **kwargs):
-        self.M = AFgap
-
+    def __init__(self, M=0.2, Qx=pi, Qy=pi, Qz=0, **kwargs):
         super().__init__(**kwargs)
+        self._M = M*self.t
         self.Qx = Qx/self.a
         self.Qy = Qy/self.b
         self.Qz = Qy/self.c
 
+    def _get_M(self):
+        return self._M / self._t
+    def _set_M(self, M):
+        self._M = M * self._t
+    M = property(_get_M, _set_M)
+
     def e_3D_func(self, kx, ky, kz):
-        return optimizedAFfuncs(kx, ky, kz, self.M, *self.bandParameters() )[0]
+        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters() )[0]
 
     def v_3D_func(self, kx, ky, kz):
-        return optimizedAFfuncs(kx, ky, kz, self.M, *self.bandParameters() )[1:]
+        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters() )[1:]
 
     def doping(self, resX=500, resY=500, resZ=10):
         E = self.dispersionMesh(resX, resY, resZ)
@@ -442,79 +442,6 @@ class HolePocket(BandStructure):
 
         return p_per_kz
 
-    # def discretize_FS(self):
-    #     mesh_xy_rough = 501  # make denser rough meshgrid to interpolate after
-    #     kx_a = np.linspace(0, pi / self.a, mesh_xy_rough)
-    #     ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
-    #     kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
-    #            # half of FBZ, 2*pi/c because bodycentered unit cell
-    #     dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
-    #     kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
-
-    #     for j, kz in enumerate(kz_a):
-    #         bands = self.e_3D_func(kxx, kyy, kz)
-    #         contours = measure.find_contours(bands, 0)
-    #         numberPointsPerKz = 0
-
-    #         for i, contour in enumerate(contours):
-
-    #             # Contour come in units proportionnal to size of meshgrid
-    #             # one want to scale to units of kx and ky
-    #             x = contour[:, 0] / (mesh_xy_rough - 1) * pi
-    #             y = contour[:, 1] / (mesh_xy_rough - 1) * pi / (self.b / self.a)  # anisotropy
-
-    #             ds = sqrt(np.diff(x)**2 + np.diff(y)**2)  # segment lengths
-    #             s = np.zeros_like(x)  # arrays of zeros
-    #             s[1:] = np.cumsum(ds)  # integrate path, s[0] = 0
-
-    #             mesh_xy = int(max(np.ceil(s.max() / self.mesh_ds), 4))
-    #                       # choose at least a minimum of 4 points per contour
-    #             numberPointsPerKz += mesh_xy
-    #                       # discretize one fourth of FS, therefore need * 4
-
-    #             dks = s.max() / (mesh_xy + 1) / self.a  # dk path
-
-    #             # regular spaced path, add one
-    #             s_int = np.linspace(0, s.max(), mesh_xy + 1)
-    #             # interpolate and remove the last point (not to repeat)
-    #             x_int = np.interp(s_int, s, x)[:-1]
-    #             y_int = np.interp(s_int, s, y)[:-1]
-
-    #             # Rotate the contour to get the entire Fermi surface
-    #             # ### WARNING NOT ROBUST IN THE CASE OF C4 SYMMETRY BREAKING
-    #             x_dump = x_int
-    #             y_dump = y_int
-    #             for angle in [pi / 2, pi, 3 * pi / 2]:
-    #                 x_int_p, y_int_p = rotation(x_int, y_int, angle)
-    #                 x_dump = np.append(x_dump, x_int_p)
-    #                 y_dump = np.append(y_dump, y_int_p)
-    #             x_int = x_dump
-    #             y_int = y_dump
-
-    #             # Put in an array /////////////////////////////////////////////////////#
-    #             if i == 0 and j == 0:  # for first contour and first kz
-    #                 kxf = x_int / self.a
-    #                 kyf = y_int / self.a
-    #                 # self.a (and not b) because anisotropy is taken into account earlier
-    #                 kzf = kz * np.ones_like(x_int)
-    #                 self.dkf = 2 * dks * dkz * np.ones_like(x_int)
-    #                                     # factor 2 because integrate only half kz.
-    #             else:
-    #                 kxf = np.append(kxf, x_int / self.a)
-    #                 kyf = np.append(kyf, y_int / self.a)
-    #                 kzf = np.append(kzf, kz * np.ones_like(x_int))
-    #                 self.dkf = np.append(self.dkf, 2 * dks * dkz * np.ones_like(x_int))
-
-    #         self.numberPointsPerKz_list.append(4 * numberPointsPerKz)
-
-    #     # dim -> (n, i0) = (xyz, position on FS)
-    #     self.kf = np.vstack([kxf, kyf, kzf])
-
-    #     # Compute Velocity at t = 0 on Fermi Surface
-    #     vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
-    #     # dim -> (i, i0) = (xyz, position on FS)
-    #     self.vf = np.vstack([vx, vy, vz])
-
 
 ## These definition are only valid for (Qx,Qy)=(pi,pi) without coherence of the AF in z
 @jit(nopython=True, cache=True)
@@ -529,10 +456,10 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
     sinkx = sin(kxa)
     sinky = sin(kyb)
     sinkz = sin(kzd)
-    cos2kx = cos(2 * kx * a)
-    cos2ky = cos(2 * ky * b)
-    sin2kx = sin(2 * kx * a)
-    sin2ky = sin(2 * ky * b)
+    cos2kx = cos(2 * kxa)
+    cos2ky = cos(2 * kyb)
+    sin2kx = sin(2 * kxa)
+    sin2ky = sin(2 * kyb)
     coskx_2 = cos(kxa / 2)
     cosky_2 = cos(kyb / 2)
     sinkx_2 = sin(kxa / 2)
@@ -540,23 +467,34 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
 
     # Decomposition: epsilon(k) = zeta(k) + xi(k)  to take advantage of zeta(k+Q) = zeta(k)
     zeta_k      = -4.*tp*coskx*cosky - 2.*tpp*(cos2kx + cos2ky) - mu
-    dzeta_k_dkx =  4.*tp*sinkx*cosky + 4.*tpp*sin2kx
-    dzeta_k_dky =  4.*tp*coskx*sinky + 4.*tpp*sin2ky
-
-    xi_k      = -2.*t*(coskx + cosky)
-    dxi_k_dkx =  2.*t*sinkx
-    dxi_k_dky =  2.*t*sinky
+    dzeta_k_dkx =  4.*a*tp*sinkx*cosky + 4.*a*tpp*sin2kx
+    dzeta_k_dky =  4.*b*tp*coskx*sinky + 4.*b*tpp*sin2ky
+    xi_k      =   -2.*t*(coskx + cosky)
+    dxi_k_dkx =    2.*a*t*sinkx
+    dxi_k_dky =    2.*b*t*sinky
 
     epsilon_k      = xi_k           + zeta_k
     depsilon_k_dkx = dxi_k_dkx      + dzeta_k_dkx
     depsilon_k_dky = dxi_k_dky      + dzeta_k_dky
 
+    epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2
+
     # kz dispersion and its derivatives (won't be affected by Q)
     # Full simplified with mathematica
-    epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2
-    depz_dkx = -tz*cosky_2*(-4-5*coskx+cosky)*(-coskx+cosky)*coskz*sinkx_2
-    depz_dky = -tz*coskx_2*(-4+coskx-5*cosky)*(coskx-cosky)*coskz*sinky_2
-    depz_dkz = -tz*coskx_2*cosky_2*(coskx-cosky)*(coskx-cosky)*sinkz  -tz2*sinkz
+    # depz_dkx = tz*cosky_2*(-4-5*coskx+cosky)*(-coskx+cosky)*coskz*a*sinkx_2
+    # depz_dky = tz*coskx_2*(-4+coskx-5*cosky)*(coskx-cosky)*coskz*b*sinky_2
+    # depz_dkz = tz*coskx_2*cosky_2*(coskx-cosky)*(coskx-cosky)*c*sinkz  +tz2*d*sinkz
+
+    sigma = coskx_2 * cosky_2
+    diff = (coskx - cosky)
+    square = (diff)**2
+    d_sigma_dkx = - a/2 * sinkx_2 * cosky_2
+    d_sigma_dky = - b/2 * coskx_2 * sinky_2
+    d_square_dkx = 2 * (diff) * (-a * sinkx)
+    d_square_dky = 2 * (diff) * (+b * sinky)
+    depz_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
+    depz_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
+    depz_dkz = - 2 * tz * sigma * square * (-d * sinkz) + 2 * tz2 * (-d) * sinkz
 
     # AF EIGENVALUES
     #epsilon(k+Q) and its derivatives
@@ -580,8 +518,7 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
         Rk          = sqrt( Dk*Dk + M*M )
         dRk_dkx     = Dk*dDk_dkx/Rk
         dRk_dky     = Dk*dDk_dky/Rk
-
-    #finally calculate the eigen values and their derivatives (vertices):
+    #finally calculate the eigenvalues and their derivatives (vertices):
     # Ekp          =   Sk         +   Rk
     # dEkp_dkx     =  dSk_dkx     +  dRk_dkx
     # dEkp_dky     =  dSk_dky     +  dRk_dky
