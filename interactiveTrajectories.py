@@ -11,12 +11,12 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from skimage import measure
 from textwrap import dedent as d
-from band import BandStructure, HolePocket
+from band import BandStructure, Pocket
 from chambers import Conductivity
 
 startTime = time.time()
 print('discretizing fermi surface')
-band = HolePocket()
+band = Pocket()
 # band.setMuToDoping(0.30)
 band.half_FS_z = False
 band.discretize_FS()

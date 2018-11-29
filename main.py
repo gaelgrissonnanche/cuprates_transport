@@ -1,12 +1,13 @@
 import time
 
-from band import BandStructure, HolePocket
+from numpy import pi
+from band import BandStructure, Pocket
 from admr import ADMR
 from chambers import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 
-# holePkt = HolePocket()
+# holePkt = Pocket()
 # holePkt.discretize_FS()
 # holePkt.densityOfState()
 # holePkt.doping()
@@ -31,16 +32,19 @@ from chambers import Conductivity
 # ADMRObject.fileADMR()
 # ADMRObject.figADMR()
 
-
-bandObject2 = HolePocket(M=0.5)
+# bandObject2 = BandStructure()
+bandObject2 = Pocket(M=0.8)
 bandObject2.mu=-0.9
+bandObject2.mesh_ds=pi/20
+# bandObject2.electronPocket=True
 bandObject2.doping()
 bandObject2.discretize_FS()
 bandObject2.densityOfState()
 # bandObject2.figMultipleFS2D()
 
 start_total_time = time.time()
-ADMRObject2 = ADMR(bandObject2, Bamp=45, gamma_0=5, gamma_k=0, power=12, a0=0)
+ADMRObject2 = ADMR(bandObject2, Bamp=45, gamma_0=50, gamma_k=0, power=12, a0=0)
+
 ADMRObject2.runADMR()
 print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 

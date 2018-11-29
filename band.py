@@ -11,6 +11,19 @@ import matplotlib.pyplot as plt
 hbar = 1  # velocity will be in units of 1 / hbar,
 # this hbar is taken into accound in the constant units_move_eq
 
+# to complete
+# def dopingCondition(bandIterable, mu, ptarget):
+#         for band in bandIterable
+#             band.mu = mu
+#             print(band.doping())
+#         return self.doping() - ptarget
+
+# def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.001):
+#     solObject = optimize.root(self.dopingCondition, np.array(
+#         [muStart]), args=(pTarget,), options={'xtol': xtol})
+    
+#     self._mu = solObject.x[0]
+
 class BandStructure:
     def __init__(self, a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
@@ -26,6 +39,7 @@ class BandStructure:
         self._mu  = mu  * t
         self.p    = None # hole doping, unknown at first
         self.dos  = None
+        self.nbPerBZ = 2
 
         ## Discretization
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi
@@ -109,7 +123,7 @@ class BandStructure:
         # Number of k in the total Brillouin Zone
         N = E.shape[0] * E.shape[1] * E.shape[2]
         # Number of electron in the total Brillouin Zone
-        n = 2 / N * np.sum(np.greater_equal(0, E))
+        n = self.nbPerBZ / N * np.sum(np.greater_equal(0, E))
                 # number of quasiparticles below mu, 2 is for the spin
         # Number of holes
         self.p = 1 - n
@@ -123,22 +137,20 @@ class BandStructure:
         # Number of k in the Brillouin zone per plane
         Nz = E.shape[0] * E.shape[1]
         # Number of electron in the Brillouin zone per plane
-        n_per_kz = 2 / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
+        n_per_kz = self.nbPerBZ / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
         p_per_kz = 1 - n_per_kz
 
         return p_per_kz
 
     def dopingCondition(self, mu, ptarget):
-        self.mu = mu[0]
-        print('mu = '+'{0:.4f}'.format(self.mu)+' yields:')
+        self._mu = mu
+        print(self.doping())
         return self.doping() - ptarget
 
-
-    def setMuToDoping(self, pTarget, muStart=-0.8, xtol=0.001):
+    def setMuToDoping(self, pTarget, muStart=-8.0, xtol=0.001):
         solObject = optimize.root(self.dopingCondition, np.array(
             [muStart]), args=(pTarget,), options={'xtol': xtol})
-        self.mu = solObject.x[0]
-
+        self._mu = solObject.x[0]
 
     def discretize_FS(self):
         mesh_xy_rough = 501  # make denser rough meshgrid to interpolate after
@@ -148,14 +160,6 @@ class BandStructure:
                # half of FBZ, 2*pi/c because bodycentered unit cell
         dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
-
-        BZmask = np.zeros(kxx.shape, dtype=bool) # array of false
-        for ij, kx in np.ndenumerate(kxx):
-            if (kyy[ij] < pi + kxx[ij] and
-                kyy[ij] < pi - kxx[ij] and
-                kyy[ij] > -pi + kxx[ij] and
-                kyy[ij] > -pi - kxx[ij]):
-                BZmask[ij] = True
 
         for j, kz in enumerate(kz_a):
             bands = self.e_3D_func(kxx, kyy, kz)
@@ -405,13 +409,15 @@ def rotation(x, y, angle):
 
 
 
-class HolePocket(BandStructure):
+class Pocket(BandStructure):
     def __init__(self, M=0.2, Qx=pi, Qy=pi, Qz=0, **kwargs):
         super().__init__(**kwargs)
         self._M = M*self.t
         self.Qx = Qx/self.a
         self.Qy = Qy/self.b
         self.Qz = Qy/self.c
+        self.electronPocket = False
+        self.nbPerBZ = 1
 
     def _get_M(self):
         return self._M / self._t
@@ -420,40 +426,16 @@ class HolePocket(BandStructure):
     M = property(_get_M, _set_M)
 
     def e_3D_func(self, kx, ky, kz):
-        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters() )[0]
+        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters(), self.electronPocket)[0]
 
     def v_3D_func(self, kx, ky, kz):
-        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters() )[1:]
+        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters(), self.electronPocket)[1:]
 
-    def doping(self, resX=500, resY=500, resZ=10):
-        E = self.dispersionMesh(resX, resY, resZ)
-
-        # Number of k in the total Brillouin Zone
-        N = E.shape[0] * E.shape[1] * E.shape[2]
-        # Number of electron in the total Brillouin Zone
-        n = 1 / N * np.sum(np.greater_equal(0, E))
-                # number of quasiparticles below mu, 2 is for the spin
-        # Number of holes
-        self.p = 1 - n
-        print("p = " + "{0:.3f}".format(self.p))
-
-        return self.p
-
-    def dopingPerkz(self, resX=500, resY=500, resZ=10):
-        E = self.dispersionMesh(resX, resY, resZ)
-
-        # Number of k in the Brillouin zone per plane
-        Nz = E.shape[0] * E.shape[1]
-        # Number of electron in the Brillouin zone per plane
-        n_per_kz = 1 / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
-        p_per_kz = 1 - n_per_kz
-
-        return p_per_kz
 
 
 ## These definition are only valid for (Qx,Qy)=(pi,pi) without coherence of the AF in z
 @jit(nopython=True, cache=True)
-def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
+def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPocket=False):
     d = c / 2
     kxa = kx * a
     kyb = ky * b
@@ -526,13 +508,15 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2):
         Rk          = sqrt( Dk*Dk + M*M )
         dRk_dkx     = Dk*dDk_dkx/Rk
         dRk_dky     = Dk*dDk_dky/Rk
+
     #finally calculate the eigenvalues and their derivatives (vertices):
-    # Ekp          =   Sk         +   Rk
-    # dEkp_dkx     =  dSk_dkx     +  dRk_dkx
-    # dEkp_dky     =  dSk_dky     +  dRk_dky
+    if electronPocket:
+        Ek          =   Sk         +   Rk
+        dEk_dkx     =  dSk_dkx     +  dRk_dkx
+        dEk_dky     =  dSk_dky     +  dRk_dky
+    else: #holePocket
+        Ek          =   Sk         -   Rk
+        dEk_dkx     =  dSk_dkx     -  dRk_dkx
+        dEk_dky     =  dSk_dky     -  dRk_dky
 
-    Ekm          =   Sk         -   Rk
-    dEkm_dkx     =  dSk_dkx     -  dRk_dkx
-    dEkm_dky     =  dSk_dky     -  dRk_dky
-
-    return Ekm+epz_k, (dEkm_dkx+depz_dkx)/hbar, (dEkm_dky+depz_dky)/hbar, depz_dkz/hbar
+    return Ek+epz_k, (dEk_dkx+depz_dkx)/hbar, (dEk_dky+depz_dky)/hbar, depz_dkz/hbar
