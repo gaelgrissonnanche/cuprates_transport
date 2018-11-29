@@ -25,8 +25,11 @@ class ADMR:
         self.Btheta_min   = 0 # in degrees
         self.Btheta_max   = 110 # in degrees
         self.Btheta_step  = 5 # in degress
+        # self.Btheta_max   = 100 # in degrees
+        # self.Btheta_step  = 100/15 # in degress
         self.Btheta_array = np.arange(self.Btheta_min, self.Btheta_max + self.Btheta_step, self.Btheta_step)
         self.Bphi_array   = np.array([0, 15, 30, 45])
+        # self.Bphi_array   = np.array([0])
 
         # Array r_zz(phi, theta) = rho_zz(phim theta) / rho_zz(phi, theta = 0)
         self.rzz_array = None
@@ -39,9 +42,9 @@ class ADMR:
         self.dt = self.tmax / self.Ntime
         self.t = np.arange(0, self.tmax, self.dt)
 
-        # Time-dependent kf, vf dict[phi, theta]
-        self.kft_dict = {}
-        self.vft_dict = {}
+        # Time-dependent dict[phi, theta]
+        self.vproduct_dict = {}
+
 
     def runADMR(self):
         rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype = np.float64)
@@ -62,8 +65,8 @@ class ADMR:
 
                 rho_zz_array[l, m] = 1 / condObject.sigma[2,2]
                 self.condObject_dict[phi, theta] = condObject
-                self.kft_dict[phi, theta] = condObject.kft
-                self.vft_dict[phi, theta] = condObject.vft
+                self.vproduct_dict[phi, theta] = condObject.VelocitiesProduct(i = 2, j = 2)
+
 
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rzz_array = rho_zz_array / rho_zz_0_array

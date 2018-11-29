@@ -21,7 +21,9 @@ B_array = np.arange(Bmin, Bmax, Bstep)
 t = 533.616
 bandObject = BandStructure(t=t, mu=-693.7/t, tp=-113.561/t,
                            tpp=23.2192/t, tz=8.7296719/t, tz2=-0.89335299/t, mesh_ds = np.pi / 28)
-
+bandObject.discretize_FS()
+bandObject.densityOfState()
+bandObject.doping()
 
 # Data = np.vstack((bandObject.kf[0,:], bandObject.kf[1,:], bandObject.kf[2,:]))
 # Data = Data.transpose()

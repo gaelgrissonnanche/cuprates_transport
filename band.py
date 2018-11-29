@@ -21,7 +21,7 @@ hbar = 1  # velocity will be in units of 1 / hbar,
 # def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.001):
 #     solObject = optimize.root(self.dopingCondition, np.array(
 #         [muStart]), args=(pTarget,), options={'xtol': xtol})
-    
+
 #     self._mu = solObject.x[0]
 
 class BandStructure:

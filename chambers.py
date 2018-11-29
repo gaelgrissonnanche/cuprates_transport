@@ -158,7 +158,7 @@ class Conductivity:
         # Integral over time
         v_product = np.empty(vif.shape[0], dtype = np.float64)
         for i0 in range(vif.shape[0]):
-            vj_sum_over_t = np.sum( self.bandObject.dos[i0] * vjft[i0,:] * exp( - self.tOverTauFunc(self.kft[:,i0,:], self.vft[:,i0,:]) ) * self.dt ) # integral over t
+            vj_sum_over_t = np.sum( vjft[i0,:] * exp( - self.tOverTauFunc(self.kft[:,i0,:], self.vft[:,i0,:]) ) * self.dt ) # integral over t
             v_product[i0] = vif[i0] * vj_sum_over_t # integral over z
 
         return v_product
@@ -167,7 +167,7 @@ class Conductivity:
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
         # The integral over kf
-        self.sigma[i,j] = units_chambers * np.sum(self.bandObject.dkf * self.VelocitiesProduct(i = i, j = j))
+        self.sigma[i,j] = units_chambers * np.sum(self.bandObject.dos * self.bandObject.dkf * self.VelocitiesProduct(i = i, j = j))
 
     ## Figures ////////////////////////////////////////////////////////////////#
 
