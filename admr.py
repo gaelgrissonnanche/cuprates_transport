@@ -5,54 +5,95 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 
 from chambers import Conductivity
+from copy import deepcopy
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
-    def __init__(self, condObject):
-
-        # Band object
-        self.bandObject = condObject.bandObject ## WARNING do not modify within this object
-
-        # Conductivity object
-        self.condObject = condObject
-
-        # Magnetic field
-        self.Btheta_min   = 0 # in degrees
-        self.Btheta_max   = 110 # in degrees
-        self.Btheta_step  = 5 # in degress
-        # self.Btheta_max   = 100 # in degrees
-        # self.Btheta_step  = 100/15 # in degress
+    def __init__(self, condObjectTemplatesList, Btheta_min=0, Btheta_max=110, Btheta_step=5, Bphi_array=[0, 15, 30, 45],muteWarnings=False):
+        
+        ### FOR RETROCOMPATIBILITY ######
+        self.muteWrn = muteWarnings
+        if not isinstance(condObjectTemplatesList,list):
+            if not self.muteWrn: print("passing a single condObject to ADMR is deprecated, pass a list'")
+            condObjectTemplatesList = [condObjectTemplatesList]
+        #################################
+        
+        self.templateList = condObjectTemplatesList
+        
+        self.Btheta_min   = 0           # in degrees
+        self.Btheta_max   = 110         # in degrees
+        self.Btheta_step  = 5           # in degress
         self.Btheta_array = np.arange(self.Btheta_min, self.Btheta_max + self.Btheta_step, self.Btheta_step)
-        self.Bphi_array   = np.array([0, 15, 30, 45])
-        # self.Bphi_array   = np.array([0])
+        self.Bphi_array   = np.array(Bphi_array)
+       
+        self.condObjectDict = {}        # will implicitely contain all results of runADMR
+        self.buildCondObjectDict()
+        
+        self.rzz_array = None 
 
-        # Array r_zz(phi, theta) = rho_zz(phim theta) / rho_zz(phi, theta = 0)
-        self.rzz_array = None
-        self.condObject_dict = {}
 
-        # Time-dependent dict[phi, theta]
-        self.vproduct_dict = {}
+    ### FOR RETROCOMPATIBILITY ######        
+    @property
+    def bandObject(self):
+        if not self.muteWrn: print("ADMR.bandObject is deprecated, replace it by 'ADMR.condObjectDict[0,0,0].bandObject'")
+        return self.condObjectDict[0,0,0].bandObject
 
+    @property
+    def condObject(self):
+        if not self.muteWrn: print("ADMR.condObject is deprecated, replace it by 'ADMR.condObjectDict[0,0,0]'")
+        return self.condObjectDict[0,0,0]
+    
+    @property
+    def condObject_dict(self):
+        if not self.muteWrn: print("ADMR.condObject_dict[phi,theta] is deprecated, replace it by 'ADMR.condObjectDict[0,phi,theta]'")
+        condObject_dict = {}
+        for phi in self.Bphi_array:
+            for theta in self.Btheta_array:
+                condObject_dict[phi,theta] = self.condObjectDict[0,phi,theta]
+        return condObject_dict
+
+    @property       
+    def vproduct_dict(self):
+        if not self.muteWrn: print("ADMR.vproduct_dict[phi,theta] is deprecated, replace it by 'ADMR.condObjectDict[0,phi,theta].VelocitiesProduct(i = 2, j = 2)'")
+        vproduct_dict = {}
+        for phi in self.Bphi_array:
+            for theta in self.Btheta_array:
+                vproduct_dict[phi,theta] = self.condObjectDict[0,phi,theta].VelocitiesProduct(i = 2, j = 2)
+        return vproduct_dict
+    ##################################
+
+    def buildCondObjectDict(self):
+        for bandKey, condTemplate in enumerate(self.templateList):
+            for phi in self.Bphi_array:
+                for theta in self.Btheta_array:
+                    conductivity = deepcopy(condTemplate)
+                    conductivity.Bphi = phi
+                    conductivity.Btheta = theta
+                    self.condObjectDict[bandKey, phi, theta] = conductivity
+
+    def solveAllConductivity(self):
+         for bandKey, condTemplate in enumerate(self.templateList):
+            for phi in self.Bphi_array:
+                for theta in self.Btheta_array:
+                    self.condObjectDict[bandKey, phi, theta].solveMovementFunc()
+                    self.condObjectDict[bandKey, phi, theta].chambersFunc(i = 2, j = 2)
 
     def runADMR(self):
+        self.solveAllConductivity()
+
         rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype = np.float64)
-
-        for l, phi in enumerate(self.Bphi_array):
-            for m, theta in enumerate(self.Btheta_array):
-
-                self.condObject.Bphi = phi
-                self.condObject.Btheta = theta
-
-                self.condObject.solveMovementFunc()
-                self.condObject.chambersFunc(i = 2, j = 2)
-
-                rho_zz_array[l, m] = 1 / self.condObject.sigma[2,2]
-                self.condObject_dict[phi, theta] = self.condObject
-                self.vproduct_dict[phi, theta] = self.condObject.VelocitiesProduct(i = 2, j = 2)
-
-
+        for l,phi in enumerate(self.Bphi_array):
+            for m,theta in enumerate(self.Btheta_array):
+                sigma = 0
+                for bandKey, condTemplate in enumerate(self.templateList):
+                    sigma += self.condObjectDict[bandKey, phi, theta].sigma[2,2]
+                rho_zz_array[l, m] = 1 / sigma
+        
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rzz_array = rho_zz_array / rho_zz_0_array
+
+        self.condObject_dict[phi, theta] = self.condObject
+        self.vproduct_dict[phi, theta] = self.condObject.VelocitiesProduct(i = 2, j = 2)
 
     def fileNameFunc(self):
         file_parameters_list  = [r"p_"   + "{0:.3f}".format(self.bandObject.p),
@@ -69,7 +110,6 @@ class ADMR:
         file_name =  "Rzz"
         for string in file_parameters_list:
             file_name += "_" + string
-
         return file_name
 
     def fileADMR(self, file_folder = "results_sim"):
