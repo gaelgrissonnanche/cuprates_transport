@@ -27,7 +27,7 @@ class Conductivity:
         # Band object
         self.bandObject = bandObject ## WARNING do not modify within this object
 
-        # Magnetic field
+        # Magnetic field in degrees
         self._Bamp   = Bamp
         self._Btheta = Btheta
         self._Bphi   = Bphi
@@ -87,10 +87,10 @@ class Conductivity:
     ## Special Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def __eq__(self, other):
         return (
-                self._Bamp       == other._Bamp
-            and self._Btheta     == other._Btheta
-            and self._Bphi       == other._Bphi
-            and self.sigma   == other.sigma
+                self._Bamp   == other._Bamp
+            and self._Btheta == other._Btheta
+            and self._Bphi   == other._Bphi
+            and np.all(self.sigma == other.sigma)
         )
 
     def __ne__(self, other):
@@ -99,8 +99,8 @@ class Conductivity:
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def BFunc(self):
         B = self._Bamp * \
-            np.array([sin(self._Btheta*pi/180)*cos(self._Bphi*pi/180),
-                      sin(self._Btheta*pi/180)*sin(self._Bphi*pi/180),
+            np.array([sin(self._Btheta*pi/180) * cos(self._Bphi*pi/180),
+                      sin(self._Btheta*pi/180) * sin(self._Bphi*pi/180),
                       cos(self._Btheta*pi/180)])
         return B
 

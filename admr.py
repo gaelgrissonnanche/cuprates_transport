@@ -73,7 +73,7 @@ class ADMR:
                                  r"B_"   + "{0:.0f}".format(self.Bamp),
                                  r"g0_"  + "{0:.1f}".format(self.gamma_0),
                                  r"gk_"  + "{0:.1f}".format(self.gamma_k),
-                                 r"pwr_"   + "{0:.0f}".format(self.power),
+                                 r"pwr_" + "{0:.0f}".format(self.power),
                                  r"t_"   + "{0:.1f}".format(self.bandObject.t),
                                  r"mu_"  + "{0:.3f}".format(self.bandObject.mu),
                                  r"tp_"  + "{0:.3f}".format(self.bandObject.tp),
