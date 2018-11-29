@@ -1,0 +1,236 @@
+%	DOCUMENT TYPE
+%\documentclass{revtex4-1}
+%\documentclass[showkeys]{revtex4-1}
+%\documentclass[aps,prb,preprint,linenumbers]{revtex4-1}
+%\documentclass[aps,prb,reprint]{revtex4-1}
+%\documentclass[aps,prl,preprint,linenumbers]{revtex4-1}
+%\documentclass[aps,prl,reprint]{revtex4-1}
+
+\documentclass[aps,twocolumn,showpacs,nofootinbib]{revtex4-1}
+%\documentclass[aps, preprint, prb, linenumbers, showpacs]{revtex4-1}
+
+%	PACKAGES
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb,amsmath,esint,amsfonts,dsfont}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage[pdftex]{graphicx}
+\usepackage[pdftex,plainpages=false,colorlinks=true,linkcolor=Red, citecolor=blue, urlcolor=blue]{hyperref}
+\usepackage{bm}
+
+
+%	FONT
+%\usepackage{MinionPro}
+%\usepackage[T1]{fontenc}
+%\usepackage{microtype}
+%\usepackage{times}
+%\usepackage{mathptmx}
+%\usepackage{newtxtext,newtxmath}
+% \usepackage{txfonts}
+
+\renewcommand{\vec}[1]{\bm{\mathrm{#1}}}
+
+%	DOCUMENT
+\begin{document}
+
+\title{Notes on ARMO in Nd-LSCO}
+% \author{G. \surname{Grissonnanche}}
+% \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
+\author{S. \surname{Verret}}
+% \email[Corresponding author: ]{simon.verret@usherbrooke.ca}
+\affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
+% \author{A.-M.S. \surname{Tremblay}}
+% \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
+% \author{L. \surname{Taillefer}}
+% \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
+\date{\today}
+\keywords{}
+\begin{abstract}
+This short note gives the basic steps necessary to compute the angle-resolved magnetoresistance in the high temperature superconductor Nd-LSCO.
+\end{abstract}
+
+\maketitle
+
+\section{Chamber's Formula}
+The computation of AMRO starts from the Chambers Formula~\cite{ashcroft_solid_1976} for the conductivity tensor $\tensor \sigma$:
+\begin{align}
+\big[\tensor \sigma \big]_{\alpha\beta} 
+&=
+\frac{e^2}{V}\iiint_{\text{BZ}}\frac{d^3k}{4\pi^3}
+\bigg(
+-\frac{\partial f(\epsilon)}{\partial \epsilon}
+\bigg)_{\epsilon = E(\vec k)}
+\nonumber\\
+&\quad\times
+v_{\alpha}(\vec k)
+\int_{-\infty}^{0}dt \exp\bigg[\int_{-t}^{0}\frac{dt'}{\tau(\vec k(t'))}\bigg] v_{\beta}(\vec k(t))
+\label{chambers}
+\end{align}
+where the index $\alpha$ and $\beta$ stand for any of the spatial dimensions $x,y,z$. The electron charge is $-e$, $V$ is the normalization volume (sample volume), and $\tau(\vec k)$ is the $\vec k$-dependent lifetime (discussed in section~\ref{section_lifetime}). $\vec k$ is a wavevector belonging to the first Brillouin zone (BZ), $f(\epsilon)$ is the Fermi-Dirac distribution:
+\begin{align}
+f(\epsilon) = \frac{1}{e^{\beta(\epsilon-\mu)}+1}
+\end{align}
+which is evaluated at the carrier's dispersion~$E(\vec k)$, with inverse temperature $\beta=1/k_{B}T$ and chemical potential~$\mu$. We will consider two candidates for~$E(\vec k)$, given in section~\ref{section_disp}. The velocity $\vec v(\vec k)$ is always given by the group velocity of the chosen band:
+\begin{align}
+v_{\alpha}(\vec k) = \frac{1}{\hbar}\frac{\partial E(\vec k)}{\partial k_\alpha}.
+\end{align}
+Finally, $\vec k(t)$ is a trajectory starting from $\vec k(0)=\vec k$ and dictated by the semiclassical differential equation:
+\begin{align}
+\hbar\frac{d\vec k(t)}{dt} =
+-e \big(\vec v(\vec k(t))\times\vec B \big)
+\label{semiClassicalMovement}
+\end{align}
+where $\vec B$ is the magnetic field. This equation is solved for each starting point $\vec k$ using the Runge-Kutta (RK4) algorithm.
+
+\paragraph*{Simplifications} Note that each starting point in $\vec k$ contributes the following kernel to conductivity:
+\begin{align}
+\sigma_{\alpha\beta}(\vec k) \equiv
+v_{\alpha}(\vec k)
+\int_{-\infty}^{0}dt \exp\bigg[\int_{-t}^{0}\frac{dt'}{\tau(\vec k(t'))}\bigg] v_{\beta}(\vec k(t))
+\end{align}
+This not only allows to study the contribution of each $\vec k$ point to the integral, but also greatly lightens the notation in what follows. At low-temperature, Eq.~\ref{chambers} becomes:
+\begin{align}
+% \sigma_{\alpha\beta} 
+% &=
+% \frac{e^2}{V}\iiint_{\text{BZ}}\frac{d^3k}{4\pi^3}
+% \bigg(
+% -\frac{\partial f(\epsilon)}{\partial \epsilon}
+% \bigg)_{\epsilon = E(\vec k)}
+% \sigma_{\alpha\beta}(\vec k)
+% \\
+\lim_{T\rightarrow0}\sigma_{\alpha\beta} 
+&=
+\frac{e^2}{V}\iiint_{\text{BZ}}\frac{d^3k}{4\pi^3}
+\delta\big(E(\vec k) - \mu\big)
+\sigma_{\alpha\beta}(\vec k)
+\\
+&=\boxed{
+\frac{e^2}{4\pi^3V}\iint_{\text{FS}}d^2k_F
+\frac{\sigma_{\alpha\beta}(\vec k_F)}{|\vec v(\vec k_F)|}
+}.
+\label{zeroTemperature}
+\end{align}
+The last step involves the Dirac delta property:
+\begin{align}
+\delta\big(f(\vec k)\big)=\iint_{S} d^2 k_0 \frac{1}{|\vec \nabla_{\vec k} f(\vec k)|_{\vec k=\vec k_0}}.
+\end{align}
+where $\vec k_0$ are all possible zeros of $f(\vec k)$, which constitute a surface $S$ in the three dimensional $\vec k$-space. The conductivity integral on the Brillouin zone therefore reduces to an integral on the $\vec k_F$ of the Fermi surface~(FS).
+
+\paragraph*{Finite temperature} One could extend the above simplification to the finite temperature case by noting that:
+\begin{align}
+-\frac{\partial f(\epsilon)}{\partial \epsilon}
+\bigg|_{E(\vec k)}
+=
+-\int d\epsilon \frac{\partial f(\epsilon)}{\partial \epsilon} \delta\big(E(\vec k) - \epsilon\big)
+\end{align}
+which leads to:
+\begin{align}
+\boxed{
+\sigma_{\alpha\beta}
+=
+-\frac{e^2}{4\pi^3V} 
+\int d\epsilon
+\frac{\partial f(\epsilon)}{\partial \epsilon}
+\iint_{S(\epsilon)}d^2k
+\frac{\sigma_{\alpha\beta}(\vec k)}{|\vec v(\vec k)|}
+}.
+\label{finiteTemperature}
+\end{align}
+where $S(\epsilon)$ is the equi-energy surface given by $E(\vec k)=\epsilon$. Here we only consider the zero-temperature case.
+
+\section{Cuprates dispersion}\label{section_disp}
+
+The two candidates we consider for $E(\vec k)$ are the bare dispersion $\epsilon_{\text{3D}}$ and the antiferromagnetisme approximation for the pseudogap $E^{\pm}_{\text{3D}}(\vec k)$ introduced in what follow.
+
+\paragraph*{Bare dispersion} To simulate overdoped cuprates, we use the one-band three-dimensional dispersion measured by ARPES~\cite{horio_three-dimensional_2018} in Eu-LSCO:
+\begin{align}
+\epsilon_{\text{3D}}(\vec k)=\epsilon_{\vec k}+\epsilon_{\perp}(\vec k)
+\end{align}
+where:
+\begin{align}
+\epsilon_{\vec k} 
+&= 
+-2t\big(\cos (k_xa) + \cos (k_yb)\big)
+\nonumber\\
+&\phantom{=\ }
+-4t'\cos (k_xa)\cos (k_yb)
+\nonumber\\
+&\phantom{=\ }
+-2t''\big(\cos (2k_xa)+\cos (2k_yb)\big)
+\intertext{and:}
+\epsilon_{\perp}(\vec k)
+&=
+-2t_z\cos\Big(\frac{k_xa}{2}\Big)
+\cos\Big(\frac{k_yb}{2}\Big)
+\cos\Big(\frac{k_zc}{2}\Big)
+\nonumber\\
+&\phantom{=\ }
+\times\big(\cos (k_xa) - \cos (k_yb)\big)^2.
+\end{align}
+We use parameters $a=b=3.75$ {\AA}, $c=13.20$ {\AA}, $t=190$ meV, and $(t',t'',t_z)=(-0.14t,0.07t,0.07t)$. The chemical potential $\mu$ is obtained by solving the integral equation for a given doping $p$:
+\begin{align}
+p = 1 - \iiint_{BZ} \frac{d^{3}k}{4\pi^{3}} f(\epsilon_{\text{3D}}(\vec k))
+\end{align}
+
+\paragraph*{Pseudogap} 
+To fit the results for the pseudogap regime at $p<p^*$, we start from a two-dimensional antiferromagnetic (AF) reconstruction of the bare band (following recent success of such a model for the Hall number~\cite{storey_hall_2016,verret_phenomenological_2017}):
+\begin{align}
+E^{\pm}(\vec k) 
+= 
+\tfrac{1}{2}(\epsilon_{\vec k}+\epsilon_{\vec k+\vec Q})
+\pm \sqrt{
+\tfrac{1}{4}(\epsilon_{\vec k}-\epsilon_{\vec k+\vec Q})^2 + M^2}
+\end{align}
+We cannot extend this model straightforwardly to the three-dimensional dispersion, because taking $\epsilon_{\vec k}\rightarrow\epsilon_{\text{3D}}(\vec k)$ in the above equation results in C4 rotational symmetry breaking. This is because the body-centered structure of Nd-LSCO, taken into account in $\epsilon_\perp(\vec k)$, and in which antiferromagnetism is different for $\vec Q=(\pi/a,\pi/a,0)$ and $\vec Q=(\pi/a,-\pi/a,0)$. Therefore, we will suppose that the 2D planes are independent regarding antiferromagnetism, and add the $z$-dispersion after the reconstruction:  
+\begin{align}
+E^{\pm}_{\text{3D}}(\vec k)=E^{\pm}(\vec k)+\epsilon_{\perp}(\vec k)
+\end{align}
+This may be interpreted as antiferromagnetism uncorrelated between planes.
+
+\paragraph*{Optimization} The bottleneck when evaluating equations~\eqref{zeroTemperature} at zero temperature or~\eqref{finiteTemperature} at finite temperature is the repeated evaluation of the velocity required to solve the semiclassical equation~\eqref{semiClassicalMovement}. In practice, we can save a lot of computation time by noting that $\epsilon_{\vec k+\vec Q}$ and $\vec v(\vec k+\vec Q)$ are simply linked to $\epsilon_{\vec k}$. We first split the latter as:
+\begin{align}
+\epsilon_{\vec k} &= \zeta_{\vec k} + \xi_{\vec k}
+\\
+\xi_{\vec k}
+&\equiv
+-2t\big(\cos (k_xa) + \cos (k_yb)\big),
+\\
+\zeta_{\vec k} 
+&\equiv
+-4t'\cos (k_xa)\cos (k_yb)
+\nonumber \\
+&\phantom{=\ }
+-2t''\big(\cos (2k_xa)+\cos (2k_yb)\big)
+\end{align}
+and note that for $\vec Q=(\pi/a,\pi/a)$:
+\begin{align}
+\epsilon_{\vec k+\vec Q} &= \zeta_{\vec k} - \xi_{\vec k}
+\end{align}
+
+\section{Lifetime}\label{section_lifetime}
+
+The lifetime $\tau_{\vec k}$ functions we consider are those of previous work on Hall and Seebeck effets~\cite{verret_phenomenological_2017}, and those of the review by Hussey~\cite{hussey_phenomenology_2008}. The lifetime is the inverse of the scattering rate:
+\begin{align}
+\tau(\vec k)=\frac{1}{\Gamma(\vec k)},
+\end{align}
+and the scattering rate can take various forms:
+\begin{align}
+\Gamma(\vec k) 
+&=\eta_0
++ \eta_{\ell}|\vec v(\vec k)|
++ \frac{\eta_{g}}{|\vec v(\vec k)|}
+\nonumber\\&
+\phantom{=\ }
++ \eta_{\text{an}}\big(\cos k_x - \cos k_y\big)^2.
+\end{align}
+In this expression, small numerical values might be needed to prevent divergence. Respectively taken alone, $\eta_0$ would yield constant lifetime, $\eta_\ell$ would yield constant mean-free path, $\eta_g$ would yield scattering proportional to the density of state, and $\eta_{\text{an}}$ yields a phenomenological increase of the anti-nodal scattering. There can be various reasons to consider each terms separately, or combined.
+
+
+\begin{acknowledgments}
+Most of the work that lead to this note was done by Gaël Grissonanche, closely following the work of Pr. Brad Ramshaw and Yawen Fang in Cornell University.
+\end{acknowledgments}
+
+
+\bibliography{amro}
+
+\end{document}
+
