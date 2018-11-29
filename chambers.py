@@ -22,7 +22,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meVolt * picosecond / Angstrom / hbar**2
 
 
 class Conductivity:
-    def __init__(self, bandObject, Bamp, Bphi, Btheta, gamma_0=15, gamma_k=0, power=2, a0=0):
+    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, gamma_0=15, gamma_k=0, power=2, a0=0):
 
         # Band object
         self.bandObject = bandObject ## WARNING do not modify within this object

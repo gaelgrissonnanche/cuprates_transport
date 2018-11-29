@@ -8,20 +8,15 @@ from chambers import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
-    def __init__(self, bandObject, Bamp=45, gamma_0=15, gamma_k=65, power=12, a0 = 0):
-        # Band object
-        self.bandObject = bandObject ## WARNING do not modify within this object
+    def __init__(self, condObject):
 
-        # Scattering rate
-        self.gamma_0 = gamma_0 # in THz
-        self.gamma_k = gamma_k # in THz
-        self.power   = int(power)
-        if self.power % 2 == 1:
-            self.power += 1
-        self.a0 = a0
+        # Band object
+        self.bandObject = condObject.bandObject ## WARNING do not modify within this object
+
+        # Conductivity object
+        self.condObject = condObject
 
         # Magnetic field
-        self.Bamp         = Bamp # in Tesla
         self.Btheta_min   = 0 # in degrees
         self.Btheta_max   = 110 # in degrees
         self.Btheta_step  = 5 # in degress
@@ -35,13 +30,6 @@ class ADMR:
         self.rzz_array = None
         self.condObject_dict = {}
 
-        # Time parameters
-        self.tau_0 = 1 / self.gamma_0 # in picoseconds
-        self.tmax = 8 * self.tau_0 # in picoseconds
-        self.Ntime = 500 # number of steps in time
-        self.dt = self.tmax / self.Ntime
-        self.t = np.arange(0, self.tmax, self.dt)
-
         # Time-dependent dict[phi, theta]
         self.vproduct_dict = {}
 
@@ -52,20 +40,15 @@ class ADMR:
         for l, phi in enumerate(self.Bphi_array):
             for m, theta in enumerate(self.Btheta_array):
 
-                condObject = Conductivity(self.bandObject, self.Bamp, phi, theta,
-                                        self.gamma_0, self.gamma_k, self.power, self.a0)
-                condObject.tau_0 = self.tau_0
-                condObject.tmax  = self.tmax
-                condObject.Ntime = self.Ntime
-                condObject.dt    = self.dt
-                condObject.t     = self.t
+                self.condObject.Bphi = phi
+                self.condObject.Btheta = theta
 
-                condObject.solveMovementFunc()
-                condObject.chambersFunc(i = 2, j = 2)
+                self.condObject.solveMovementFunc()
+                self.condObject.chambersFunc(i = 2, j = 2)
 
-                rho_zz_array[l, m] = 1 / condObject.sigma[2,2]
-                self.condObject_dict[phi, theta] = condObject
-                self.vproduct_dict[phi, theta] = condObject.VelocitiesProduct(i = 2, j = 2)
+                rho_zz_array[l, m] = 1 / self.condObject.sigma[2,2]
+                self.condObject_dict[phi, theta] = self.condObject
+                self.vproduct_dict[phi, theta] = self.condObject.VelocitiesProduct(i = 2, j = 2)
 
 
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
@@ -73,10 +56,10 @@ class ADMR:
 
     def fileNameFunc(self):
         file_parameters_list  = [r"p_"   + "{0:.3f}".format(self.bandObject.p),
-                                 r"B_"   + "{0:.0f}".format(self.Bamp),
-                                 r"g0_"  + "{0:.1f}".format(self.gamma_0),
-                                 r"gk_"  + "{0:.1f}".format(self.gamma_k),
-                                 r"pwr_" + "{0:.0f}".format(self.power),
+                                 r"B_"   + "{0:.0f}".format(self.condObject.Bamp),
+                                 r"g0_"  + "{0:.1f}".format(self.condObject.gamma_0),
+                                 r"gk_"  + "{0:.1f}".format(self.condObject.gamma_k),
+                                 r"pwr_" + "{0:.0f}".format(self.condObject.power),
                                  r"t_"   + "{0:.1f}".format(self.bandObject.t),
                                  r"mu_"  + "{0:.3f}".format(self.bandObject.mu),
                                  r"tp_"  + "{0:.3f}".format(self.bandObject.tp),
@@ -92,7 +75,7 @@ class ADMR:
     def fileADMR(self, file_folder = "results_sim"):
         array_1 = np.ones(self.rzz_array.shape[1])
         Data = np.vstack((self.Btheta_array, self.rzz_array[0,:], self.rzz_array[1,:], self.rzz_array[2,:], self.rzz_array[3,:],
-                          self.Bamp*array_1, self.gamma_0*array_1, self.gamma_k*array_1, self.power*array_1, self.bandObject.t*array_1, self.bandObject.tp*array_1, self.bandObject.tpp*array_1, self.bandObject.tz*array_1, self.bandObject.tz2*array_1, self.bandObject.mu*array_1, self.bandObject.mesh_ds*array_1, self.bandObject.numberOfKz*array_1))
+                          self.condObject.Bamp*array_1, self.condObject.gamma_0*array_1, self.condObject.gamma_k*array_1, self.condObject.power*array_1, self.bandObject.t*array_1, self.bandObject.tp*array_1, self.bandObject.tpp*array_1, self.bandObject.tz*array_1, self.bandObject.tz2*array_1, self.bandObject.mu*array_1, self.bandObject.mesh_ds*array_1, self.bandObject.numberOfKz*array_1))
         Data = Data.transpose()
 
         np.savetxt(file_folder + "/" + self.fileNameFunc() + ".dat", Data, fmt='%.7e',
@@ -130,11 +113,11 @@ class ADMR:
 
         ## Labels
         label_parameters = [r"$p$ = " + "{0:.3f}".format(self.bandObject.p),
-                            r"$B$ = " + "{0:.0f}".format(self.Bamp) + " T",
+                            r"$B$ = " + "{0:.0f}".format(self.condObject.Bamp) + " T",
                             "",
-                            r"$\Gamma_{\rm 0}$ = " + "{0:.1f}".format(self.gamma_0) + " THz",
-                            r"$\Gamma_{\rm k}$ = " + "{0:.1f}".format(self.gamma_k) + " THz",
-                            r"power = " + "{0:.0f}".format(self.power),
+                            r"$\Gamma_{\rm 0}$ = " + "{0:.1f}".format(self.condObject.gamma_0) + " THz",
+                            r"$\Gamma_{\rm k}$ = " + "{0:.1f}".format(self.condObject.gamma_k) + " THz",
+                            r"power = " + "{0:.0f}".format(self.condObject.power),
                             "",
                             r"$t$ = " + "{0:.1f}".format(self.bandObject.t) + " meV",
                             r"$\mu$ = " + "{0:.3f}".format(self.bandObject.mu) + r" $t$",
@@ -202,10 +185,10 @@ class ADMR:
 
 
         ## Inset Life Time ////////////////////////////////////////////////////#
-        tau_0 = self.tau_0
-        gamma_0 = self.gamma_0
-        gamma_k = self.gamma_k
-        power = self.power
+        tau_0 = self.condObject.tau_0
+        gamma_0 = self.condObject.gamma_0
+        gamma_k = self.condObject.gamma_k
+        power = self.condObject.power
 
         axes_inset_tau = plt.axes([0.85, 0.18, .18, .18])
         axes_inset_tau.set_aspect(aspect=1)

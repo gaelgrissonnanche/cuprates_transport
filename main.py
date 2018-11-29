@@ -8,7 +8,6 @@ from chambers import Conductivity
 
 
 ## CLASSIC Bandstructure //////////////////////////////////////////////////////#
-
 bandObject = BandStructure(mu = -0.825)
 # bandObject.setMuToDoping(0.21)
 bandObject.discretize_FS()
@@ -16,9 +15,11 @@ bandObject.densityOfState()
 bandObject.doping()
 # bandObject.figMultipleFS2D()
 
+condObject = Conductivity(bandObject, Bamp=45, gamma_0=15, gamma_k=65, power=12, a0=0)
+
 
 start_total_time = time.time()
-ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=15, gamma_k=65, power=12, a0=0)
+ADMRObject = ADMR(condObject)
 ADMRObject.runADMR()
 print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 
@@ -26,12 +27,7 @@ ADMRObject.fileADMR()
 ADMRObject.figADMR()
 
 
-
-
-
-
-
-
+## AF reconstruction //////////////////////////////////////////////////////////#
 # holePkt = Pocket()
 # holePkt.discretize_FS()
 # holePkt.densityOfState()
