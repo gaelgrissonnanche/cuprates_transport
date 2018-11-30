@@ -22,7 +22,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meVolt * picosecond / Angstrom / hbar**2
 
 
 class Conductivity:
-    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, gamma_0=15, gamma_k=0, power=2, a0=0):
+    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, gamma_0=15, gamma_dos=0, gamma_k=0, power=2):
 
         # Band object
         self.bandObject = bandObject ## WARNING do not modify within this object
@@ -35,11 +35,11 @@ class Conductivity:
 
         # Scattering rate
         self.gamma_0 = gamma_0 # in THz
+        self.gamma_dos = gamma_dos # in THz
         self.gamma_k = gamma_k # in THz
         self.power   = int(power)
         if self.power % 2 == 1:
             self.power += 1
-        self.a0 = a0
 
         # Time parameters
         self.tau_0 = 1 / self.gamma_0 # in picoseconds
@@ -131,15 +131,15 @@ class Conductivity:
         k.shape = (3, len_k) # reshape the flatten k
         vx, vy, vz =  self.bandObject.v_3D_func(k[0,:], k[1,:], k[2,:])
         dkdt = ( - units_move_eq ) * self.crossProductVectorized(vx, vy, vz)
-
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
 
     def tOverTauFunc(self, k, v):
         phi = arctan2(k[1,:], k[0,:])
         dos = 1 / sqrt(v[0,:]**2 + v[1,:]**2 + v[2,:]**2)
-        # Integral from 0 to t of dt' / tau( k(t') ) or dt' / gamma( k(t') )
-        t_over_tau = np.cumsum( self.dt_array * ( self.gamma_0 * ( 1 + self.a0 * dos) + self.gamma_k * cos(2*phi)**self.power ) )
+        dos_max = np.max(dos)
+        # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
+        t_over_tau = np.cumsum( self.dt_array * ( self.gamma_0 + self.gamma_dos * dos / dos_max + self.gamma_k * cos(2*phi)**self.power ) )
         return t_over_tau
 
     def solveMovementForPoint(self, kpoint):
@@ -154,20 +154,16 @@ class Conductivity:
         ## Velocity components
         vif  = self.bandObject.vf[i,:]
         vjft = self.vft[j,:,:]
-
-        # Integral over time
         v_product = np.empty(vif.shape[0], dtype = np.float64)
         for i0 in range(vif.shape[0]):
             vj_sum_over_t = np.sum( vjft[i0,:] * exp( - self.tOverTauFunc(self.kft[:,i0,:], self.vft[:,i0,:]) ) * self.dt ) # integral over t
-            v_product[i0] = vif[i0] * vj_sum_over_t # integral over z
-
+            v_product[i0] = vif[i0] * vj_sum_over_t
         return v_product
 
     def chambersFunc(self, i = 2, j = 2):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
-        # The integral over kf
-        self.sigma[i,j] = units_chambers * np.sum(self.bandObject.dos * self.bandObject.dkf * self.VelocitiesProduct(i = i, j = j))
+        self.sigma[i,j] = units_chambers * np.sum( self.bandObject.dos * self.bandObject.dkf * self.VelocitiesProduct(i = i, j = j))
 
     ## Figures ////////////////////////////////////////////////////////////////#
 

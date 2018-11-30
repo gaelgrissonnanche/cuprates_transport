@@ -17,10 +17,10 @@ h_bandObject.doping()
 # h_bandObject.figDiscretizeFS2D()
 # h_bandObject.figMultipleFS2D()
 
-h_condObject = Conductivity(h_bandObject, Bamp=45, gamma_0=30, gamma_k=0, power=12, a0=0)
+h_condObject = Conductivity(h_bandObject, Bamp=45, gamma_0=30, gamma_k=0, power=12)
 
 start_total_time = time.time()
-ADMRObject = ADMR(condObject)
+ADMRObject = ADMR(h_condObject)
 ADMRObject.runADMR()
 print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 

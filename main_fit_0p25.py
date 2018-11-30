@@ -6,6 +6,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lmfit import minimize, Parameters, fit_report
 
 from band import BandStructure
+from chambers import Conductivity
 from admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
@@ -14,14 +15,14 @@ sample_name = r"Nd-LSCO $p$ = 0.25"
 ## Initial parameters
 gamma_0_ini  = 15 # in THZ
 gamma_0_vary = True
-gamma_k_ini  = 20 # in THz
-gamma_k_vary = True
-power_ini    = 2
+gamma_dos_ini = 1 # in THz
+gamma_dos_vary = True
+gamma_k_ini  = 0 # in THz
+gamma_k_vary = False
+power_ini    = 12
 power_vary   = False
-mu_ini       = -0.92
-mu_vary      = True
-a0_ini = 0 # 62066
-a0_vary = False
+mu_ini       = -0.825
+mu_vary      = False
 
 ## Graph values
 T = 25 # in Kelvin
@@ -57,16 +58,16 @@ rzz_45 = np.interp(Btheta_array, x, y)
 def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
 
     gamma_0 = pars["gamma_0"].value
+    gamma_dos = pars["gamma_dos"].value
     gamma_k = pars["gamma_k"].value
     power = pars["power"].value
     mu = pars["mu"].value
-    a0 = pars["a0"].value
 
     print("gamma_0 = ", gamma_0)
+    print("gamma_dos = ", gamma_dos)
     print("gamma_k = ", gamma_k)
     print("power = ", power)
     print("mu = ", mu)
-    print("a0 = ", a0)
 
     power = int(power)
     if power % 2 == 1:
@@ -74,7 +75,10 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
     start_total_time = time.time()
     bandObject.mu = mu
     bandObject.discretize_FS()
-    ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, a0=a0)
+    bandObject.densityOfState()
+    bandObject.doping()
+    condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
+    ADMRObject = ADMR([condObject], muteWarnings=True)
     ADMRObject.Btheta_array = Btheta_array
     ADMRObject.runADMR()
     print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
@@ -89,10 +93,10 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
 ## Initialize
 pars = Parameters()
 pars.add("gamma_0", value = gamma_0_ini, vary = gamma_0_vary, min = 0)
+pars.add("gamma_dos",      value = gamma_dos_ini, vary = gamma_dos_vary, min = 0)
 pars.add("gamma_k", value = gamma_k_ini, vary = gamma_k_vary, min = 0)
 pars.add("power",   value = power_ini, vary = power_vary, min = 2)
 pars.add("mu",      value = mu_ini, vary = mu_vary)
-pars.add("a0",      value = a0_ini, vary = a0_vary, min = 0)
 
 ## Run fit algorithm
 out = minimize(residualFunc, pars, args=(bandObject, rzz_0, rzz_15, rzz_30, rzz_45))
@@ -102,15 +106,18 @@ print(fit_report(out.params))
 
 ## Export final parameters from the fit
 gamma_0 = out.params["gamma_0"].value
+gamma_dos      = out.params["gamma_dos"].value
 gamma_k = out.params["gamma_k"].value
 power   = out.params["power"].value
 mu      = out.params["mu"].value
-a0      = out.params["a0"].value
 
 ## Compute ADMR with final parameters from the fit
 bandObject.mu = mu
 bandObject.discretize_FS()
-ADMRObject = ADMR(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power,a0=a0)
+bandObject.densityOfState()
+bandObject.doping()
+condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
+ADMRObject = ADMR([condObject], muteWarnings=True)
 ADMRObject.Btheta_array = Btheta_array
 ADMRObject.runADMR()
 
