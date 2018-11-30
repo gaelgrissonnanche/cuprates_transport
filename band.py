@@ -11,18 +11,28 @@ import matplotlib.pyplot as plt
 hbar = 1  # velocity will be in units of 1 / hbar,
 # this hbar is taken into accound in the constant units_move_eq
 
-# to complete
-# def dopingCondition(bandIterable, mu, ptarget):
-#         for band in bandIterable
-#             band.mu = mu
-#             print(band.doping())
-#         return self.doping() - ptarget
+def doping(bandIterable):
+        totalFilling=0
+        for i,band in enumerate(bandIterable):
+            band.updateFilling()
+            totalFilling += band.n
+            print("  filling band "+str(i)+" = " + "{0:.3f}".format(band.n))
+        doping = 1-totalFilling
+        print("  doping = " + "{0:.3f}".format(doping))
+        return doping
 
-# def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.001):
-#     solObject = optimize.root(self.dopingCondition, np.array(
-#         [muStart]), args=(pTarget,), options={'xtol': xtol})
+def dopingCondition(mu,ptarget,bandIterable):
+        print("mu = " + "{0:.3f}".format(mu[0]))
+        totalFilling=0
+        for i,band in enumerate(bandIterable):
+            band.mu = mu        
+        return doping(bandIterable) - ptarget
 
-#     self._mu = solObject.x[0]
+def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.005):
+    solObject = optimize.root(dopingCondition, np.array([muStart]), args=(pTarget,bandIterable), options={'xtol': xtol})
+    for band in bandIterable:
+        band.mu = solObject.x[0]
+
 
 class BandStructure:
     def __init__(self, a=3.74767, b=3.74767, c=13.2,
@@ -39,7 +49,7 @@ class BandStructure:
         self._mu  = mu  * t
         self.p    = None # hole doping, unknown at first
         self.dos  = None
-        self.nbPerBZ = 2
+        self.particlesPerkVolume = 2
 
         ## Discretization
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi
@@ -113,33 +123,33 @@ class BandStructure:
         ky_a = np.linspace(-pi / self.b, pi / self.b, resY)
         kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, resZ)
         kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-
         disp = self.e_3D_func(kxx, kyy, kzz)
         return disp
 
-    def doping(self, resX=500, resY=500, resZ=10):
+    def updateFilling(self, resX=500, resY=500, resZ=10):
         E = self.dispersionMesh(resX, resY, resZ)
+        kVolume = E.shape[0] * E.shape[1] * E.shape[2]
+        self.n = self.particlesPerkVolume / kVolume * np.sum(np.greater_equal(0, E))
+        self.p = 1 - self.n
+        return self.n
 
-        # Number of k in the total Brillouin Zone
-        N = E.shape[0] * E.shape[1] * E.shape[2]
-        # Number of electron in the total Brillouin Zone
-        n = self.nbPerBZ / N * np.sum(np.greater_equal(0, E))
-                # number of quasiparticles below mu, 2 is for the spin
-        # Number of holes
-        self.p = 1 - n
+    def doping(self, resX=500, resY=500, resZ=10):
+        self.updateFilling(resX,resY,resZ)
         print("p = " + "{0:.3f}".format(self.p))
-
         return self.p
+    
+    def filling(self, resX=500, resY=500, resZ=10):
+        self.updateFilling(resX,resY,resZ)
+        print("n = " + "{0:.3f}".format(self.n))
+        return self.n
 
     def dopingPerkz(self, resX=500, resY=500, resZ=10):
         E = self.dispersionMesh(resX, resY, resZ)
-
         # Number of k in the Brillouin zone per plane
         Nz = E.shape[0] * E.shape[1]
         # Number of electron in the Brillouin zone per plane
-        n_per_kz = self.nbPerBZ / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
+        n_per_kz = self.particlesPerkVolume / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
         p_per_kz = 1 - n_per_kz
-
         return p_per_kz
 
     def dopingCondition(self, mu, ptarget):
@@ -148,8 +158,7 @@ class BandStructure:
         return self.doping() - ptarget
 
     def setMuToDoping(self, pTarget, muStart=-8.0, xtol=0.001):
-        solObject = optimize.root(self.dopingCondition, np.array(
-            [muStart]), args=(pTarget,), options={'xtol': xtol})
+        solObject = optimize.root(self.dopingCondition, np.array([muStart]), args=(pTarget,), options={'xtol': xtol})
         self._mu = solObject.x[0]
 
     def discretize_FS(self):
@@ -224,8 +233,6 @@ class BandStructure:
         vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
         # dim -> (i, i0) = (xyz, position on FS)
         self.vf = np.vstack([vx, vy, vz])
-
-
 
     def densityOfState(self):
         # Density of State
@@ -410,14 +417,11 @@ def rotation(x, y, angle):
 
 
 class Pocket(BandStructure):
-    def __init__(self, M=0.2, Qx=pi, Qy=pi, Qz=0, **kwargs):
+    def __init__(self, M=0.2, electronPocket=False, **kwargs):
         super().__init__(**kwargs)
         self._M = M*self.t
-        self.Qx = Qx/self.a
-        self.Qy = Qy/self.b
-        self.Qz = Qy/self.c
-        self.electronPocket = False
-        self.nbPerBZ = 1
+        self.electronPocket = electronPocket
+        self.particlesPerkVolume = 1
 
     def _get_M(self):
         return self._M / self._t
