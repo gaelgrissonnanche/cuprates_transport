@@ -15,6 +15,7 @@ bandObject.densityOfState()
 bandObject.doping()
 # bandObject.figMultipleFS2D()
 
+
 condObject = Conductivity(bandObject, Bamp=45, gamma_0=15, gamma_dos=10, gamma_k=0, power=12)
 start_total_time = time.time()
 amro1band = ADMR([condObject], muteWarnings=True)

@@ -25,7 +25,7 @@ def dopingCondition(mu,ptarget,bandIterable):
         print("mu = " + "{0:.3f}".format(mu[0]))
         totalFilling=0
         for i,band in enumerate(bandIterable):
-            band.mu = mu        
+            band.mu = mu
         return doping(bandIterable) - ptarget
 
 def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.005):
@@ -53,8 +53,8 @@ class BandStructure:
 
         ## Discretization
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi
-        if numberOfKz % 2 == 0:  # make sure it is an odd number
-            numberOfKz += 1
+        # if numberOfKz % 2 == 0:  # make sure it is an odd number
+        #     numberOfKz += 1
         self.numberOfKz = numberOfKz  # between 0 and 2*pi / c
 
         ## Fermi surface arrays
@@ -137,7 +137,7 @@ class BandStructure:
         self.updateFilling(resX,resY,resZ)
         print("p = " + "{0:.3f}".format(self.p))
         return self.p
-    
+
     def filling(self, resX=500, resY=500, resZ=10):
         self.updateFilling(resX,resY,resZ)
         print("n = " + "{0:.3f}".format(self.n))
@@ -165,9 +165,12 @@ class BandStructure:
         mesh_xy_rough = 501  # make denser rough meshgrid to interpolate after
         kx_a = np.linspace(0, pi / self.a, mesh_xy_rough)
         ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
-        kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
+        # kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
+        #        # half of FBZ, 2*pi/c because bodycentered unit cell
+        # dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
+        kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.numberOfKz)
                # half of FBZ, 2*pi/c because bodycentered unit cell
-        dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
+        dkz = 4 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
         for j, kz in enumerate(kz_a):
@@ -186,7 +189,8 @@ class BandStructure:
                 s = np.zeros_like(x)  # arrays of zeros
                 s[1:] = np.cumsum(ds)  # integrate path, s[0] = 0
 
-                mesh_xy = int(max(np.ceil(s.max() / self.mesh_ds), 4))
+                mesh_xy = 30 # int(max(np.ceil(s.max() / self.mesh_ds), 4))
+                # mesh_xy = int(max(np.ceil(s.max() / self.mesh_ds), 4))
                           # choose at least a minimum of 4 points per contour
                 numberPointsPerKz += mesh_xy
                           # discretize one fourth of FS, therefore need * 4
@@ -216,13 +220,16 @@ class BandStructure:
                     kyf = y_int / self.a
                     # self.a (and not b) because anisotropy is taken into account earlier
                     kzf = kz * np.ones_like(x_int)
-                    self.dkf = 2 * dks * dkz * np.ones_like(x_int)
+                    # self.dkf = 2 * dks * dkz * np.ones_like(x_int)
+                    #                     # factor 2 because integrate only half kz.
+                    self.dkf = dks * dkz * np.ones_like(x_int)
                                         # factor 2 because integrate only half kz.
                 else:
                     kxf = np.append(kxf, x_int / self.a)
                     kyf = np.append(kyf, y_int / self.a)
                     kzf = np.append(kzf, kz * np.ones_like(x_int))
-                    self.dkf = np.append(self.dkf, 2 * dks * dkz * np.ones_like(x_int))
+                    # self.dkf = np.append(self.dkf, 2 * dks * dkz * np.ones_like(x_int))
+                    self.dkf = np.append(self.dkf, dks * dkz * np.ones_like(x_int))
 
             self.numberPointsPerKz_list.append(4 * numberPointsPerKz)
 
@@ -300,12 +307,14 @@ class BandStructure:
         plt.show()
         #//////////////////////////////////////////////////////////////////////#
 
-    def figDiscretizeFS3D(self):
+    def figDiscretizeFS3D(self, show_veloticites = False):
         """Show Discretized 3D Fermi Surface """
         from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(self.kf[0,:], self.kf[1,:], self.kf[2,:], color='k', marker='.')
+        if show_veloticites == True:
+            ax.quiver(self.kf[0,:], self.kf[1,:], self.kf[2,:], self.vf[0,:], self.vf[1,:], self.vf[2,:], length=0.1, normalize=True)
         plt.show()
 
     def figMultipleFS2D(self, kz = 0, meshXY = 1001):
@@ -400,7 +409,7 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
 
     d_ez_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
     d_ez_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
-    d_ez_dkz = - 2 * tz * sigma * square * (-d * sinkz) + 2 * tz2 * (-d) * sinkz
+    d_ez_dkz = - 2 * tz * sigma * square * (-d * sinkz) - 2 * tz2 * (-d) * sinkz
 
     vx = (d_e2D_dkx + d_ez_dkx) / hbar
     vy = (d_e2D_dky + d_ez_dky) / hbar
@@ -488,7 +497,7 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPo
     d_square_dky = 2 * (diff) * (+b * sinky)
     depz_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
     depz_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
-    depz_dkz = - 2 * tz * sigma * square * (-d * sinkz) + 2 * tz2 * (-d) * sinkz
+    depz_dkz = - 2 * tz * sigma * square * (-d * sinkz) - 2 * tz2 * (-d) * sinkz
 
     # AF EIGENVALUES
     #epsilon(k+Q) and its derivatives
