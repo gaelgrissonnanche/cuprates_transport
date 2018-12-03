@@ -41,8 +41,8 @@ for theta in Btheta_array:
 
 
 # condObject = Conductivity(bandObject, Bamp=45, Btheta=0, gamma_0=25, gamma_k=70, power=12, gamma_dos=0)
-# # condObject.solveMovementFunc()
-# # condObject.figOnekft()
+# condObject.solveMovementFunc()
+# condObject.figOnekft()
 
 
 # start_total_time = time.time()
