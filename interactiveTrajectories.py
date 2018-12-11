@@ -16,11 +16,11 @@ from chambers import Conductivity
 
 startTime = time.time()
 print('discretizing fermi surface')
-band = Pocket()
+band = BandStructure()
 # band.setMuToDoping(0.30)
-band.half_FS_z = False
 band.discretize_FS()
 band.densityOfState()
+band.doping()
 print("discretizing time : %.6s s\n" % (time.time() - startTime))
 
 # band.figDiscretizeFS3D()
@@ -33,12 +33,12 @@ def computeAMROpoints(B_amp,B_phi_a,B_theta_a):
     for i in range(B_phi_a.shape[0]):
         amroListForTheta = []
         for j in range(B_theta_a.shape[0]):
-            dataPoint = Conductivity(band, B_amp, B_phi_a[i], B_theta_a[j], gamma_0=15, gamma_k=65, power=12, a0=0)
+            dataPoint = Conductivity(band, B_amp, B_phi_a[i], B_theta_a[j], gamma_0=15, gamma_k=65, power=12)
             dataPoint.solveMovementFunc()
             dataPoint.chambersFunc(i = 2, j = 2)
             amroListForTheta.append(dataPoint)
         amroListForPhi.append(amroListForTheta)
-            
+
     return amroListForPhi
 
 startTime = time.time()
@@ -95,7 +95,7 @@ def vzFunction(kx,ky,kz):
     return (band.v_3D_func(kx, ky, kz)[2]+10)
 colormap=['rgb(255,105,180)','rgb(255,255,51)','rgb(0,191,255)']
 fermiSurface = ff.create_trisurf(
-    x = x, y = y, z = z, 
+    x = x, y = y, z = z,
     simplices = simplices,
     plot_edges = False,
     color_func = vzFunction
@@ -240,7 +240,7 @@ def updateActiveWeight(click2D,click3D):
         point2D = click2D['points'][0]['pointNumber']
     if click3D and click3D['points'][0]['curveNumber']==0:
         point3D = click3D['points'][0]['pointNumber']
-    
+
     if point2D and point3D:
         if lastClicked2D == point2D:
             activeWeight = point3D
@@ -308,7 +308,7 @@ def update_amroGraph(clickAmro,checkedOptions,relayoutData):
 
 
 @app.callback(Output('3Dgraph', 'figure'),
-              [ Input('amroGraph', 'clickData'), 
+              [ Input('amroGraph', 'clickData'),
                 Input('weightGraph', 'clickData'),
                 Input('3Dgraph', 'clickData'),
                 Input('FSbutton', 'n_clicks')  ],
@@ -341,7 +341,7 @@ def update_3Dgraph(clickAmro,click2D,click3D,FS_n_clicks,relayoutData):
     updatedGraph['data'] = [fsData, trajectoryData, fermiSurface['data'][0]]
     if FS_n_clicks:
         if FS_n_clicks%2: updatedGraph['data'] = [fsData, trajectoryData]
-        
+
     if relayoutData and 'scene.camera' in relayoutData:
         updatedGraph['layout']['scene']['camera']= relayoutData['scene.camera']
 
@@ -368,7 +368,7 @@ def update_2Dgraph(clickAmro,click2D,click3D,checkedOptions,relayoutData):
         }
     updatedGraph['data'][1] = {
         'x': np.array([ activeWeight ]),
-        'y': np.array([ currentPoint.VelocitiesProduct(2,2)[activeWeight] ]), 
+        'y': np.array([ currentPoint.VelocitiesProduct(2,2)[activeWeight] ]),
         'type': 'scatter',
         'mode': 'markers'
         }
@@ -386,7 +386,7 @@ def update_2Dgraph(clickAmro,click2D,click3D,checkedOptions,relayoutData):
             updatedGraph['layout']['xaxis'] = {'range': [relayoutData['xaxis.range[0]'],relayoutData['xaxis.range[1]']]}
         if 'yaxis.range[0]' in relayoutData:
             updatedGraph['layout']['yaxis'] = {'range': [relayoutData['yaxis.range[0]'],relayoutData['yaxis.range[1]']]}
-            
+
     return updatedGraph
 
 

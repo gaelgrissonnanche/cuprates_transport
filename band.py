@@ -135,7 +135,7 @@ class BandStructure:
 
     def doping(self, resX=500, resY=500, resZ=10):
         self.updateFilling(resX,resY,resZ)
-        print("p = " + "{0:.3f}".format(self.p))
+        # print("p = " + "{0:.3f}".format(self.p))
         return self.p
 
     def filling(self, resX=500, resY=500, resZ=10):
