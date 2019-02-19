@@ -14,9 +14,9 @@ from conductivity import Conductivity
 # h_bandObject.densityOfState()
 # h_bandObject.doping()
 # # h_bandObject.setMuToDoping(pTarget = 0.2)
-# print(h_bandObject.mu)
-# h_bandObject.discretize_FS()
-# h_bandObject.figDiscretizeFS2D()
+# # h_bandObject.discretize_FS()
+# # print("mu = " + str(h_bandObject.mu))
+# # h_bandObject.figDiscretizeFS2D()
 # # h_bandObject.figMultipleFS2D()
 # ## Conductivity >>>>>>>>>>>>>>>>>>>>>>>#
 # h_condObject = Conductivity(h_bandObject, Bamp=45, gamma_0=15, gamma_k=0, power=12)
@@ -53,12 +53,13 @@ from conductivity import Conductivity
 # ADMRObject.figADMR()
 
 ## TWO BAND p=0.19 //////////////////////////////////////////////////////////#
-hPocket = Pocket(mu = -0.825, M = 0.05, mesh_ds = pi/15, numberOfKz = 7)
+hPocket = Pocket(bandname="hPocket", mu = -0.825, M = 0.05, mesh_ds = pi/15, numberOfKz = 7)
 # hPocket.tp = -0.24
 ePocket = deepcopy(hPocket)
 ePocket.electronPocket=True
-setMuToDoping([hPocket,ePocket],0.15,muStart=-0.9)
-# hPocket.mu = ePocket.mu = -0.78
+# setMuToDoping([hPocket,ePocket],0.15,muStart=-0.9)
+hPocket.mu = ePocket.mu = -0.78
+ePocket.bandname = "ePocket"
 # hPocket.figMultipleFS2D()
 # ePocket.figMultipleFS2D()
 

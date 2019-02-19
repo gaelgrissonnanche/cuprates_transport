@@ -12,7 +12,7 @@ hbar = 1  # velocity will be in units of 1 / hbar,
 # this hbar is taken into accound in the constant units_move_eq
 
 class BandStructure:
-    def __init__(self, a=3.74767, b=3.74767, c=13.2,
+    def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
                  numberOfKz=7, mesh_ds=pi/15):
         self.a    = a  # in Angstrom
@@ -27,6 +27,7 @@ class BandStructure:
         self.p    = None # hole doping, unknown at first
         self.dos  = None
         self.particlesPerkVolume = 2
+        self.bandname = bandname # a string to designate the band
 
         ## Discretization
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi
@@ -213,7 +214,7 @@ class BandStructure:
 
         ## Output message
         if endmessage == True:
-            print("Discretized Fermi Surface")
+            print("  " + self.bandname + " discretized")
 
 
     def densityOfState(self):
@@ -534,7 +535,7 @@ def doping(bandIterable):
         for i,band in enumerate(bandIterable):
             band.updateFilling()
             totalFilling += band.n
-            print("  filling band "+str(i)+" = " + "{0:.3f}".format(band.n))
+            print("  filling "+ band.bandname + " = " + "{0:.3f}".format(band.n))
         doping = 1-totalFilling
         print("  doping = " + "{0:.3f}".format(doping))
         return doping

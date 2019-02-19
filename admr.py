@@ -79,6 +79,50 @@ class ADMR:
                     self.condObjectDict[bandKey, phi, theta].solveMovementFunc()
                     self.condObjectDict[bandKey, phi, theta].chambersFunc(i = 2, j = 2)
 
+
+
+
+
+
+    # def runADMR(self):
+    #     rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype= np.float64)
+
+    #     for l, phi in enumerate(self.Bphi_array):
+    #         for m, theta in enumerate(self.Btheta_array):
+
+    #             condObject = Conductivity(self.bandObject, self.Bamp, phi, theta,
+    #                                       self.gamma_0, self.gamma_k, self.power, self.a0)
+    #             condObject.tau_0 = self.tau_0
+    #             condObject.tmax = self.tmax
+    #             condObject.Ntime = self.Ntime
+    #             condObject.dt = self.dt
+    #             condObject.t = self.t
+
+    #             condObject.solveMovementFunc()
+    #             condObject.chambersFunc(i=2, j=2)
+
+    #             rho_zz_array[l, m] = 1 / condObject.sigma[2, 2]
+    #             self.condObject_dict[phi, theta] = condObject
+    #             self.kft_dict[phi, theta] = condObject.kft
+    #             self.vft_dict[phi, theta] = condObject.vft
+    #             # self.vproduct_dict[phi, theta] = condObject.VelocitiesProduct(i=2, j=2)
+
+    #     rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
+    #     self.rzz_array = rho_zz_array / rho_zz_0_array
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     def runADMR(self):
         self.solveAllConductivity()
 
