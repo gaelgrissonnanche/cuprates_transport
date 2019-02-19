@@ -24,7 +24,8 @@ class ADMR:
         self.Btheta_max   = 110         # in degrees
         self.Btheta_step  = 5           # in degress
         self.Btheta_array = np.arange(self.Btheta_min, self.Btheta_max + self.Btheta_step, self.Btheta_step)
-        self.Bphi_array   = np.array(Bphi_array)
+
+        self.Bphi_array = np.array(Bphi_array)
 
         self.condObjectDict = {}        # will implicitely contain all results of runADMR
         self.buildCondObjectDict()

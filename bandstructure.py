@@ -11,29 +11,6 @@ import matplotlib.pyplot as plt
 hbar = 1  # velocity will be in units of 1 / hbar,
 # this hbar is taken into accound in the constant units_move_eq
 
-def doping(bandIterable):
-        totalFilling=0
-        for i,band in enumerate(bandIterable):
-            band.updateFilling()
-            totalFilling += band.n
-            print("  filling band "+str(i)+" = " + "{0:.3f}".format(band.n))
-        doping = 1-totalFilling
-        print("  doping = " + "{0:.3f}".format(doping))
-        return doping
-
-def dopingCondition(mu,ptarget,bandIterable):
-        print("mu = " + "{0:.3f}".format(mu[0]))
-        totalFilling=0
-        for i,band in enumerate(bandIterable):
-            band.mu = mu
-        return doping(bandIterable) - ptarget
-
-def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.005):
-    solObject = optimize.root(dopingCondition, np.array([muStart]), args=(pTarget,bandIterable), options={'xtol': xtol})
-    for band in bandIterable:
-        band.mu = solObject.x[0]
-
-
 class BandStructure:
     def __init__(self, a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
@@ -161,7 +138,7 @@ class BandStructure:
         solObject = optimize.root(self.dopingCondition, np.array([muStart]), args=(pTarget,), options={'xtol': xtol})
         self._mu = solObject.x[0]
 
-    def discretize_FS(self):
+    def discretize_FS(self, endmessage=True):
         mesh_xy_rough = 501  # make denser rough meshgrid to interpolate after
         kx_a = np.linspace(0, pi / self.a, mesh_xy_rough)
         ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
@@ -233,6 +210,11 @@ class BandStructure:
         vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
         # dim -> (i, i0) = (xyz, position on FS)
         self.vf = np.vstack([vx, vy, vz])
+
+        ## Output message
+        if endmessage == True:
+            print("Discretized Fermi Surface")
+
 
     def densityOfState(self):
         # Density of State
@@ -355,7 +337,7 @@ class BandStructure:
 
 
 
-# ABOUT JUST IN TIME (JIT) COMPILATION
+# ABOUT JUST IN TIME (JIT) COMPILATION >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # jitclass do not work, the best option is to call a jit otimized function from inside the class.
 @jit(nopython=True, cache=True)
 def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
@@ -430,7 +412,7 @@ def rotation(x, y, angle):
 
 
 
-## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 class Pocket(BandStructure):
     def __init__(self, M=0.2, electronPocket=False, **kwargs):
         super().__init__(**kwargs)
@@ -539,3 +521,32 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPo
         dEk_dky     =  dSk_dky     -  dRk_dky
 
     return Ek+epz_k, (dEk_dkx+depz_dkx)/hbar, (dEk_dky+depz_dky)/hbar, depz_dkz/hbar
+
+
+
+
+
+
+
+## Functions to compute the doping of a two bands system and more >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+def doping(bandIterable):
+        totalFilling=0
+        for i,band in enumerate(bandIterable):
+            band.updateFilling()
+            totalFilling += band.n
+            print("  filling band "+str(i)+" = " + "{0:.3f}".format(band.n))
+        doping = 1-totalFilling
+        print("  doping = " + "{0:.3f}".format(doping))
+        return doping
+
+def dopingCondition(mu,ptarget,bandIterable):
+        print("mu = " + "{0:.3f}".format(mu[0]))
+        totalFilling=0
+        for band in bandIterable:
+            band.mu = mu
+        return doping(bandIterable) - ptarget
+
+def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.005):
+    solObject = optimize.root(dopingCondition, np.array([muStart]), args=(pTarget,bandIterable), options={'xtol': xtol})
+    for band in bandIterable:
+        band.mu = solObject.x[0]

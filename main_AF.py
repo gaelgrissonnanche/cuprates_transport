@@ -8,7 +8,7 @@ from conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 # ## ONE Band AF ////////////////////////////////////////////////////////////////#
-# h_bandObject = Pocket(mu = -0.825, M = 0.2, mesh_ds = pi / 40, numberOfKz = 7)
+# h_bandObject = Pocket(mu=-0.825, M=0.2, mesh_ds = pi/40, numberOfKz = 7)
 # ## Discretize >>>>>>>>>>>>>>>>>>>>>>>#
 # h_bandObject.discretize_FS()
 # h_bandObject.densityOfState()
@@ -28,58 +28,58 @@ from conductivity import Conductivity
 # ADMRObject.fileADMR()
 # ADMRObject.figADMR()
 
-## ONE Band AF Yawen Parameters ///////////////////////////////////////////////#
-t = 190
-h_bandObject = Pocket(t=t, tp=-76/t, tpp=13.397/t, tz=13.397/t, tz2=0,
-                      mu = -100/t, M = 10/t,
-                      mesh_ds = pi/80, numberOfKz=7)
-## Discretize >>>>>>>>>>>>>>>>>>>>>>>#
-h_bandObject.discretize_FS()
-h_bandObject.densityOfState()
-h_bandObject.doping()
-# h_bandObject.setMuToDoping(pTarget = 0.2)
-# print(h_bandObject.mu)
-# h_bandObject.discr÷etize_FS()
-h_bandObject.figDiscretizeFS2D()
-# h_bandObject.figMultipleFS2D()
-## Conductivity >>>>>>>>>>>>>>>>>>>>>>>#
-h_condObject = Conductivity(h_bandObject, Bamp=45, gamma_0=14.28, gamma_k=0, power=12)
-## ADMR >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-start_total_time = time.time()
-ADMRObject = ADMR([h_condObject], muteWarnings=True)
-ADMRObject.runADMR()
-print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
-ADMRObject.fileADMR()
-ADMRObject.figADMR()
-
-# ## TWO BAND p=0.19 //////////////////////////////////////////////////////////#
-# hPocket = Pocket(mu = -0.825, M = 0.05, mesh_ds = pi / 15, numberOfKz = 7)
-# # hPocket.tp = -0.24
-# ePocket = deepcopy(hPocket)
-# ePocket.electronPocket=True
-# # setMuToDoping([hPocket,ePocket],0.15,muStart=-0.9)
-# hPocket.mu = ePocket.mu = -0.78
-# # hPocket.figMultipleFS2D()
-# # ePocket.figMultipleFS2D()
-
-# doping([hPocket, ePocket])
-
+# ## ONE Band AF Yawen Parameters ///////////////////////////////////////////////#
+# t = 190
+# h_bandObject = Pocket(t=t, tp=-76/t, tpp=13.397/t, tz=13.397/t, tz2=0,
+#                       mu = -100/t, M=10/t,
+#                       mesh_ds = pi/80, numberOfKz=7)
 # ## Discretize >>>>>>>>>>>>>>>>>>>>>>>#
-# # ePocket.mesh_ds=pi/30
-# hPocket.discretize_FS()
-# hPocket.densityOfState()
-# hPocket.doping()
-# # ePocket.mesh_ds=pi/30
-# ePocket.discretize_FS()
-# ePocket.densityOfState()
-# ePocket.doping()
-
-# hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=20, gamma_k=0, power=12, gamma_dos=0)
-# ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=10, gamma_k=0, power=12, gamma_dos=0)
+# h_bandObject.discretize_FS()
+# h_bandObject.densityOfState()
+# h_bandObject.doping()
+# # h_bandObject.setMuToDoping(pTarget = 0.2)
+# # print(h_bandObject.mu)
+# # h_bandObject.discr÷etize_FS()
+# h_bandObject.figDiscretizeFS2D()
+# # h_bandObject.figMultipleFS2D()
+# ## Conductivity >>>>>>>>>>>>>>>>>>>>>>>#
+# h_condObject = Conductivity(h_bandObject, Bamp=45, gamma_0=14.28, gamma_k=0, power=12)
+# ## ADMR >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # start_total_time = time.time()
-# amro2band = ADMR([hPocketCondObject,ePocketCondObject], muteWarnings=True)
-# # amro2band = ADMR([hPocketCondObject], muteWarnings=True)
-# # amro2band = ADMR([ePocketCondObject], muteWarnings=True)
-# amro2band.runADMR()
-# print("amro2bands time : %.6s seconds" % (time.time() - start_total_time))
-# amro2band.figADMR()
+# ADMRObject = ADMR([h_condObject], muteWarnings=True)
+# ADMRObject.runADMR()
+# print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
+# ADMRObject.fileADMR()
+# ADMRObject.figADMR()
+
+## TWO BAND p=0.19 //////////////////////////////////////////////////////////#
+hPocket = Pocket(mu = -0.825, M = 0.05, mesh_ds = pi/15, numberOfKz = 7)
+# hPocket.tp = -0.24
+ePocket = deepcopy(hPocket)
+ePocket.electronPocket=True
+setMuToDoping([hPocket,ePocket],0.15,muStart=-0.9)
+# hPocket.mu = ePocket.mu = -0.78
+# hPocket.figMultipleFS2D()
+# ePocket.figMultipleFS2D()
+
+doping([hPocket, ePocket])
+
+## Discretize >>>>>>>>>>>>>>>>>>>>>>>#
+# ePocket.mesh_ds=pi/30
+hPocket.discretize_FS()
+hPocket.densityOfState()
+hPocket.doping()
+# ePocket.mesh_ds=pi/30
+ePocket.discretize_FS()
+ePocket.densityOfState()
+ePocket.doping()
+
+hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=20, gamma_k=0, power=12, gamma_dos=0)
+ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=10, gamma_k=0, power=12, gamma_dos=0)
+start_total_time = time.time()
+amro2band = ADMR([hPocketCondObject,ePocketCondObject], muteWarnings=True)
+# amro2band = ADMR([hPocketCondObject], muteWarnings=True)
+# amro2band = ADMR([ePocketCondObject], muteWarnings=True)
+amro2band.runADMR()
+print("amro2bands time : %.6s seconds" % (time.time() - start_total_time))
+amro2band.figADMR()
