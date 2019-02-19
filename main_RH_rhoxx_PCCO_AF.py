@@ -2,9 +2,9 @@ import time
 from numpy import pi
 from copy import deepcopy
 
-from band import *
+from bandstructure import *
 from admr import ADMR
-from chambers import Conductivity
+from conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 a = 3.95e-10 # m

@@ -6,7 +6,7 @@
 %\documentclass[aps,prl,preprint,linenumbers]{revtex4-1}
 %\documentclass[aps,prl,reprint]{revtex4-1}
 
-\documentclass[aps,twocolumn,showpacs,nofootinbib]{revtex4-1}
+\documentclass[aps,preprint,notitlepage,nofootinbib]{revtex4-1}
 %\documentclass[aps, preprint, prb, linenumbers, showpacs]{revtex4-1}
 
 %	PACKAGES
@@ -16,10 +16,13 @@
 \usepackage[pdftex]{graphicx}
 \usepackage[pdftex,plainpages=false,colorlinks=true,linkcolor=Red, citecolor=blue, urlcolor=blue]{hyperref}
 \usepackage{bm}
+\usepackage[most]{tcolorbox}
+\usepackage{mathtools} % for Aboxed
+\usepackage{empheq}
 
 
 %	FONT
-%\usepackage{MinionPro}
+% \usepackage[fullfamily,lf,minionint,openg,loosequotes]{MinionPro}
 %\usepackage[T1]{fontenc}
 %\usepackage{microtype}
 %\usepackage{times}
@@ -32,116 +35,452 @@
 %	DOCUMENT
 \begin{document}
 
-\title{Notes on ARMO in Nd-LSCO}
-% \author{G. \surname{Grissonnanche}}
-% \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
+\title{Insights on Electronic Transport in Cuprates}
 \author{S. \surname{Verret}}
-% \email[Corresponding author: ]{simon.verret@usherbrooke.ca}
 \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
-% \author{A.-M.S. \surname{Tremblay}}
-% \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
-% \author{L. \surname{Taillefer}}
-% \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
 \date{\today}
 \keywords{}
 \begin{abstract}
-This short note gives the basic steps necessary to compute the angle-resolved magnetoresistance in the high temperature superconductor Nd-LSCO.
+I will write the abstract once the document has fully take form.
 \end{abstract}
 
 \maketitle
 
-\section{Chamber's Formula}
-The computation of AMRO starts from the Chambers Formula~\cite{ashcroft_solid_1976} for the conductivity tensor $\tensor \sigma$:
+
+\section{Conductivity tensors}
+\noindent
+Three conductivity tensors $\tensor{\sigma}$, $\tensor{\alpha}$, and $\tensor{\beta}$ suffice to determine all transport coefficients. They are defined by the relations between the $x$,$y$,$z$ components of the electric current, $\vec j_e$, the heat current $\vec j_Q$, the electric field $\vec E$, and the Temperature gradient $\vec \nabla T$~\cite{ashcroft_solid_1976,arsenault_transport_2013}:
 \begin{align}
-\big[\tensor \sigma \big]_{\alpha\beta} 
+\vec j_e &= \tensor{\sigma}\ \vec E + \tensor{\alpha}\ (-\vec \nabla T)\\
+\vec j_Q &= \tensor{\alpha'}\ \vec E + \tensor{\beta}\ (-\vec \nabla T).
+\end{align}
+Note: these conductivity tensors are also often noted $\tensor{\sigma}=L_{11}$, $\tensor{\alpha}=L_{12}$, $\tensor{\beta}=L_{22}$. They depend on temperature $T$ and magnetic field $\vec B$, satisfying the Onsager relations:
+\begin{align}
+\tensor{\sigma}(\vec B) &= \tensor{\sigma}^{\intercal}(-\vec B)\\
+\tensor{\alpha}(\vec B) &= -T\tensor{\alpha'}^{\intercal}(-\vec B)\\
+\tensor{\beta}(\vec B) &= \tensor{\beta}^{\intercal}(-\vec B).
+\end{align}
+The second Onsager relation explains why we do not need to worry about $\tensor{\alpha'}=L_{21}$.
+
+In almost all cases, these tensors can be computed as energy integrals of the same kernel $\sigma_{ij}(\epsilon)$, which can be viewed as a \emph{density of conductivity}. The specific heat $C_V$ can also be computed with such an integral, but of the density of states $N(\epsilon)$ in the place of $\sigma_{ij}(\epsilon)$. With $i,j$ denoting $x$,$y$,$z$ components of the tensors, these integrals are:
+\begin{align}
+\sigma_{ij}
 &=
-\frac{e^2}{V}\iiint_{\text{BZ}}\frac{d^3k}{4\pi^3}
-\bigg(
--\frac{\partial f(\epsilon)}{\partial \epsilon}
-\bigg)_{\epsilon = E(\vec k)}
-\nonumber\\
-&\quad\times
-v_{\alpha}(\vec k)
-\int_{-\infty}^{0}dt \exp\bigg[\int_{-t}^{0}\frac{dt'}{\tau(\vec k(t'))}\bigg] v_{\beta}(\vec k(t))
-\label{chambers}
+\int_{-\infty}^{\infty} d\epsilon
+\Big(-\frac{\partial f(\epsilon)}{\partial \epsilon}\Big)\sigma_{ij}(\epsilon)
+\label{sigma}
+\\
+\alpha_{ij}
+&=
+\int_{-\infty}^{\infty}d\epsilon
+\bigg[\Big(-\frac{\partial f(\epsilon)}{\partial \epsilon}\Big)\frac{\epsilon}{T}\bigg]\frac{\sigma_{ij}(\epsilon)}{-e}
+\label{alpha}
+\\
+\beta_{ij}
+&=
+\int_{-\infty}^{\infty}d\epsilon
+\bigg[\Big(-\frac{\partial f(\epsilon)}{\partial \epsilon}\Big)\frac{\epsilon^2}{T}\bigg]\frac{\sigma_{ij}(\epsilon)}{e^2}
+\label{beta}
+\\
+C_V
+&=
+\int_{-\infty}^{\infty}d\epsilon
+\bigg[\Big(-\frac{\partial f(\epsilon)}{\partial \epsilon}\Big)\frac{\epsilon^2}{T}\bigg]N(\epsilon).
 \end{align}
-where the index $\alpha$ and $\beta$ stand for any of the spatial dimensions $x,y,z$. The electron charge is $-e$, $V$ is the normalization volume (sample volume), and $\tau(\vec k)$ is the $\vec k$-dependent lifetime (discussed in section~\ref{section_lifetime}). $\vec k$ is a wavevector belonging to the first Brillouin zone (BZ), $f(\epsilon)$ is the Fermi-Dirac distribution:
+where the electron charge is $-e$. Thus, $\sigma_{ij}(\epsilon)$ act as a density of conductivity, which is ``sampled'', in these integrals, by derivatives of the Fermi-Dirac distribution~$f(\epsilon)$:
 \begin{align}
-f(\epsilon) = \frac{1}{e^{\beta(\epsilon-\mu)}+1}
+f(\epsilon) = \frac{1}{e^{(\epsilon-\mu)/k_{B}T}+1}.
 \end{align}
-which is evaluated at the carrier's dispersion~$E(\vec k)$, with inverse temperature $\beta=1/k_{B}T$ and chemical potential~$\mu$. We will consider two candidates for~$E(\vec k)$, given in section~\ref{section_disp}. The velocity $\vec v(\vec k)$ is always given by the group velocity of the chosen band:
+where~$\mu$ is the chemical potential.
+
+The remaining sections of this document explain how to compute $\sigma_{ij}(\epsilon)$ in various approximations.
+Before to do so, however, let us define the usual measurable transport quantities, and give some examples of how ``to think'' about the above integrals.
+
+\subsection{Resistivity \& Hall effect}
+
+The resistivity tensor $\tensor{\rho}$ is defined as $\tensor{\sigma}^{-1}$.
 \begin{align}
-v_{\alpha}(\vec k) = \frac{1}{\hbar}\frac{\partial E(\vec k)}{\partial k_\alpha}.
+\tensor{\rho} &\equiv \tensor{\sigma}^{-1}
 \end{align}
-Finally, $\vec k(t)$ is a trajectory starting from $\vec k(0)=\vec k$ and dictated by the semiclassical differential equation:
+For example, in the 2D case, $\tensor{\rho}$ is a $2\times2$ inverse:
+\begin{align}
+\tensor{\rho}
+&=
+\begin{pmatrix}
+\sigma_{xx} & \sigma_{xy}\\
+\sigma_{yx} & \sigma_{yy}
+\end{pmatrix}^{-1}
+=
+\frac{1}{\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}
+\begin{pmatrix}
+\sigma_{yy} & -\sigma_{xy}\\
+-\sigma_{yx} & \sigma_{xx}
+\end{pmatrix}^{-1}
+\end{align}
+The longitudinal resistivity is then given as:
+\begin{align}
+\rho_{xx} 
+&= 
+\frac{\sigma_{yy}}{\sigma_{xx}\sigma_{yy} - \sigma_{xy}\sigma_{yx}}
+\approx
+\frac{1}{\sigma_{xx}},
+\end{align}
+where $\sigma_{xy}$ and $\sigma_{yx}$ are usually only non-zero under magnetic field $\vec B$, are usually very small, and give rise to the transverse resistivity:
+\begin{align}
+\rho_{xy} 
+&= 
+\frac{-\sigma_{xy}}{\sigma_{xx}\sigma_{yy} - \sigma_{xy}\sigma_{yx}},
+\approx
+\frac{-\sigma_{xy}}{\sigma_{xx}\sigma_{yy}}.
+\end{align}
+From the latter, the Hall coefficient, $R_H$ and the Hall number, $n_H$, are defined as:
+\begin{align}
+R_H = \frac{-\rho_{xy}}{B}
+&\qquad
+n_H = \frac{1}{-eR_H}.
+\end{align}
+
+\subsection{Thermoelectricity: Seebeck, Pelletier \& Nernst effects}
+
+The Seebeck effect is 
+
+
+\subsection{Thermal conductivity \& Righi-Leduc effect}
+
+
+\section{Semi-classical case}
+\noindent
+To get full magnetic field dependence in $\sigma_{ij}(\epsilon)$, one must use the Chambers Formula~\cite{ashcroft_solid_1976}:
+\begin{align}
+\sigma_{ij}(\epsilon) 
+&=
+e^2\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+v_{i}(\vec k)\bar{v}_{j}(\vec k)
+\delta\big(\epsilon-E(\vec k)\big),
+\label{chambers1}
+\end{align}
+which is an integral on all $\vec k$-states in the first Brillouin zone (BZ). The Dirac delta indicates that each states only contributes to this ``density of conductivity'' at the energy~$E(\vec k)$. The weight of this contribution is given by a component of the group velocity~$\vec v(\vec k)$:
+\begin{align}
+v_{i}(\vec k) = \frac{1}{\hbar}\frac{\partial E(\vec k)}{\partial k_i},
+\label{velocity}
+\end{align}
+multiplied by a ``decaying'' or ``travelling'' velocity, $\bar{v}_{j}(\vec k)$:
+\begin{align}
+\bar{v}_{j}(\vec k)
+&=
+\int_{0}^{\infty}dt
+\exp\Big[
+-\int_{0}^{t}dt'/\tau_{\vec k(t')}
+\Big]
+v_{j}(\vec k(t)),
+\label{chambers2}
+\end{align}
+where we find the lifetime $\tau_{\vec k}$ (which is not only $\vec k$-dependent, but can also be $\epsilon$- and $T$-dependent, as discussed in section~\ref{section_lifetime}). Both $\tau_{\vec k}$ and $v_j(\vec k)$ are evaluated on a trajectory $\vec k(t)$, in $\vec k$-space. This trajectory starts at $\vec k(0)=\vec k$, and is governed by the semiclassical differential equation of motion:
 \begin{align}
 \hbar\frac{d\vec k(t)}{dt} =
 -e \big(\vec v(\vec k(t))\times\vec B \big)
 \label{semiClassicalMovement}
 \end{align}
-where $\vec B$ is the magnetic field. This equation is solved for each starting point $\vec k$ using the Runge-Kutta (RK4) algorithm.
+where $\vec B$ is the magnetic field. To compute conductivity tensors, one must thus solve the equation of motion \eqref{semiClassicalMovement} for each starting point $\vec k$ contained the integral of \eqref{chambers1}. Some simplifications are helpful.
 
-\paragraph*{Simplifications} Note that each starting point in $\vec k$ contributes the following kernel to conductivity:
+\begin{tcolorbox}[colback=black!2!white,colframe=white!10!black,title=All-in-one equation]
+At this point, we can reduce all the tensors into a single expression. We substitute \eqref{chambers2} and \eqref{velocity} in \eqref{chambers1}, and then substitute the result in \eqref{sigma}, \eqref{alpha}, and \eqref{beta}, unifying them in the following monster:
 \begin{align}
-\sigma_{\alpha\beta}(\vec k) \equiv
-v_{\alpha}(\vec k)
-\int_{-\infty}^{0}dt \exp\bigg[\int_{-t}^{0}\frac{dt'}{\tau(\vec k(t'))}\bigg] v_{\beta}(\vec k(t))
-\end{align}
-This not only allows to study the contribution of each $\vec k$ point to the integral, but also greatly lightens the notation in what follows. At low-temperature, Eq.~\ref{chambers} becomes:
-\begin{align}
-% \sigma_{\alpha\beta} 
-% &=
-% \frac{e^2}{V}\iiint_{\text{BZ}}\frac{d^3k}{4\pi^3}
-% \bigg(
-% -\frac{\partial f(\epsilon)}{\partial \epsilon}
-% \bigg)_{\epsilon = E(\vec k)}
-% \sigma_{\alpha\beta}(\vec k)
-% \\
-\lim_{T\rightarrow0}\sigma_{\alpha\beta} 
+\sigma_{ij}^{(n)}
 &=
-\frac{e^2}{V}\iiint_{\text{BZ}}\frac{d^3k}{4\pi^3}
-\delta\big(E(\vec k) - \mu\big)
-\sigma_{\alpha\beta}(\vec k)
+\int_{-\infty}^{\infty}d\epsilon
+\bigg[\Big(-\frac{\partial f(\epsilon)}{\partial \epsilon}\Big)\frac{\epsilon^{n}}{T^{n}}\bigg]
+(-e)^{2-n}\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+\frac{1}{\hbar}\frac{\partial E(\vec k)}{\partial k_i} %v_{i}(\vec k)
+\nonumber\\
+&\qquad\times
+\int_{0}^{\infty}dt
+\exp\Big[
+-\int_{0}^{t}dt'/\tau_{\vec k(t')}
+\Big]
+\frac{1}{\hbar}\frac{\partial E(\vec k)}{\partial k_j}\Big|_{\vec k(t)} %v_{j}(\vec k(t))
+\ \delta\big(\epsilon-E(\vec k)\big)
+\label{chambers}
+\end{align}
+with:
+\begin{align}
+\sigma_{ij}&=\sigma_{ij}^{(0)}\\
+\alpha_{ij}&=\sigma_{ij}^{(1)}\\
+\frac{\beta_{ij}}{T}&=\sigma_{ij}^{(2)}.
+\end{align}
+The semiclassical movement equation \eqref{semiClassicalMovement} must be used to find $\vec k(t)$. The only free paramters associated to the material under study are $E(\vec k)$ and $\tau_{\vec k}$. 
+\end{tcolorbox}
+
+
+
+
+
+
+\section{Simplifications}
+
+
+\subsection{Equi-energy surfaces}\label{sec_surfaces}
+The Dirac delta $\delta(\epsilon-E(\vec k))$ reduces the three-dimensional $\vec k$ integral to an integral over the surface where the delta's argument is zero: the surface defined by $E(\vec k)=\epsilon$ (see equation~8.57 and 8.62 of Ashcroft~\&~Mermin~\cite{ashcroft_solid_1976} for a similar statement)
+\begin{align}
+\iiint d^3 k 
+F(\vec k)\delta\big(\epsilon - E(\vec k)\big)
+&=
+\iint\limits_{E(\vec k)=\text{cst.}} d^2k_{\parallel}
+\int dk_{\perp}
+F(\vec k)\delta\big(\epsilon - E(\vec k)\big)
 \\
-&=\boxed{
-\frac{e^2}{4\pi^3V}\iint_{\text{FS}}d^2k_F
-\frac{\sigma_{\alpha\beta}(\vec k_F)}{|\vec v(\vec k_F)|}
+&=
+\iint\limits_{E(\vec k)=\text{cst.}} d^2k_{\parallel} 
+\int \frac{dE(\vec k)}{|\nabla_{\vec k}E(\vec k)|}
+F(\vec k)\delta\big(\epsilon - E(\vec k)\big)
+\\
+&=
+\iint\limits_{E(\vec k)=\epsilon} d^2k_{\epsilon} 
+\frac{F(\vec k_{\epsilon})}{|\nabla_{\vec k}E(\vec k)|_{\vec k=\vec k_{\epsilon}}}.
+% \intertext{Question: could this be written as}
+% \delta\big(\epsilon-E(\vec k)\big)
+% &=
+% \iint\limits_{E(\vec k)=\epsilon} d^2 k_{\epsilon} \frac{\delta^{3}(\vec k-\vec k_{\epsilon})}{|\vec \nabla_{\vec k} E(\vec k)|_{\vec k=\vec k_{\epsilon}}}\ ?
+\end{align}
+where $\vec k_{\epsilon}$ are the vectors belonging to this equi-energy surface $E(\vec k)=\epsilon$. The integral on the Brillouin zone therefore reduces to a surface integral for each value of $\epsilon$, and \eqref{chambers1} becomes:
+\begin{align}
+\Aboxed{
+\sigma_{ij}(\epsilon) 
+&=
+e^2
+\iint\limits_{\substack{E(\vec k)=\epsilon\\ \text{in BZ}}}
+\frac{d^2k_{\epsilon}}{(2\pi)^3}
+\frac{v_{i}(\vec k_{\epsilon})\bar{v}_{j}(\vec k_{\epsilon})}{\hbar|\vec v(\vec k_{\epsilon})|}
 }.
+\label{chambersSurfaces}
+\end{align}
+
+\subsection{Zero field}\label{sec_zeroField}
+In the limit of zero magnetic field, $\vec B\rightarrow0$, the differential equation \eqref{semiClassicalMovement} becomes trivial, and $\vec k (t)=\vec k$ at all $t$. In that case, \eqref{chambers2} simply reduces to:
+\begin{align}
+\bar{v}_{j}(\vec k)
+&=
+v_{j}(\vec k)
+\int_{0}^{\infty}dt
+e^{-t/\tau_{\vec k}}
+\\
+&=
+v_{j}(\vec k)
+\tau_{\vec k}.
+\end{align}
+However, in the case of $i\neq j$, $\sigma_{ij}(\omega)$ is zero at zero field, so we shall keep the linear term in $\vec B$ in this case (see~\cite{ziman_electrons_1960} for details). This allows to write \eqref{chambers1} as:
+\begin{empheq}[box=\fbox]{align}
+\lim_{\vec B\rightarrow0}\sigma_{ij}(\epsilon) 
+&=
+e^2\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+v_{i}(\vec k)
+\Bigg[
+\delta_{ij}
+v_{i}(\vec k)
+\tau_{\vec k}
+\nonumber\\
+&
+\phantom{=\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}}-
+\varepsilon_{ijk}(-eB_{k})
+\Big[
+v_{i}(\vec k)
+\frac{\partial v_{j}(\vec k)}{\partial k_j}
+-v_{j}(\vec k)
+\frac{\partial v_{i}(\vec k)}{\partial k_j}
+\Big]
+\tau_{\vec k}^2
+\Bigg]
+\delta\big(\epsilon-E(\vec k)\big),
+\label{chambersZeroField}
+\end{empheq}
+where $\delta_{ij}$ is the Kronecker symbol and $\varepsilon_{ijk}$ is the Levi-Cevita symbol (which is 0 if $i=j$).
+
+\subsection{Effective mass and Drude results}
+
+We can carry out explicitely the integral over energy in the all-in-one equation~\eqref{chambers} and reorganize it as: 
+\begin{align}
+\sigma_{ij}^{(n)}
+&=
+-\frac{(-e)^{2-n}}{\hbar T^n}
+% \int_{0}^{\infty}dt
+% e^{-\int_{0}^{t}dt'/\tau_{\vec k(t')}}
+\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+E(\vec k)^{n}
+\frac{\partial f(\epsilon)}{\partial E(\vec k)}
+\frac{\partial E(\vec k)}{\partial k_i}
+% \frac{\partial E(\vec k(t))}{\partial k_j}
+\bar{v}_j(\vec k)
+\\
+&=
+-\frac{(-e)^{2-n}}{\hbar T^n}
+% \int_{0}^{\infty}dt
+% e^{-\int_{0}^{t}dt'/\tau_{\vec k(t')}}
+\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+E(\vec k)^{n}
+\frac{\partial f(E(\vec k))}{\partial k_i}
+% \frac{\partial E(\vec k(t))}{\partial k_j}
+\bar{v}_j(\vec k).
+\label{checkPointMass}
+\end{align}
+This allow to integrate by parts as follows:
+\begin{align}
+\int_{-\pi/a_i}^{\pi/a_i} dk_i\ 
+E(\vec k)^{n}
+\frac{\partial
+f(E(\vec k))
+}{\partial k_i}
+% \frac{\partial E(\vec k(t))}{\partial k_j}
+\bar{v}_j(\vec k)
+&=
+\bigg[
+E(\vec k)^{n}
+f(E(\vec k))
+% \frac{\partial E(\vec k(t))}{\partial k_j}
+\bar{v}_j(\vec k)
+\bigg]_{-\pi/a_i}^{\pi/a_i}
+\nonumber\\
+&\quad-
+\int_{-\pi/a_i}^{\pi/a_i} dk_i\ 
+nE(\vec k)^{n-1}
+\frac{\partial E(\vec k)}{\partial k_i}
+f(E(\vec k))
+% \frac{\partial E(\vec k(t))}{\partial k_j}
+\bar{v}_j(\vec k)
+\nonumber\\
+&\quad-
+\int_{-\pi/a_i}^{\pi/a_i} dk_i\ 
+E(\vec k)^{n}
+f(E(\vec k))
+% \frac{\partial^2 E(\vec k(t))}{\partial k_i\partial k_j}
+\frac{\partial\bar{v}_j(\vec k)}{\partial k_i}.
+\label{integrationBy3Parts}
+\end{align}
+Since $n$ only takes the values $0,1,2$, and under the conditions $E(-\vec k)=E(\vec k)$,
+and $\bar{v}_j(-\vec k)$ = $-\bar{v}_j(\vec k)$, then the first and second terms of \eqref{integrationBy3Parts} are zero, and \eqref{checkPointMass} becomes:
+\begin{align}
+\Aboxed{
+\sigma_{ij}^{(n)}
+&=
+(-e)^{2-n}
+% \int_{0}^{\infty}dt
+% e^{-\int_{0}^{t}dt'/\tau_{\vec k(t')}}
+\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+\frac{E(\vec k)^{n}}{T^n}
+% \frac{\partial^2 E(\vec k(t))}{\partial k_i\partial k_j}
+\frac{1}{\hbar}
+\frac{\partial\bar{v}_j(\vec k)}{\partial k_i}
+f(E(\vec k))
+}.
+\end{align}
+Taking explicitely the derivative of \eqref{chambers2}:
+\begin{align}
+\frac{1}{\hbar}\frac{\partial\bar{v}_j(\vec k)}{\partial k_i}
+&=
+\int_{0}^{\infty}dt\ 
+\bigg[
+e^{-\int_{0}^{t}dt'/\tau_{\vec k(t')}}
+\frac{1}{\hbar^2}\frac{\partial^2 E(\vec k(t))}{\partial k_i\partial k_j}
+\nonumber\\
+&\qquad\qquad+
+e^{-\int_{0}^{t}dt'/\tau_{\vec k(t')}}
+\Big(
+\int_{0}^{t}\frac{dt'}{\tau_{\vec k(t')}^2}
+\frac{\partial\tau_{\vec k(t')}}{\partial k_i}
+\Big)
+\frac{1}{\hbar^2}\frac{\partial E(\vec k(t))}{\partial k_j}
+\bigg]
+\end{align}
+we find the effective mass:
+\begin{align}
+M^{-1}_{ij}(\vec k)
+\equiv
+\frac{1}{\hbar^2}\frac{\partial^2 E(\vec k)}{\partial k_i\partial k_j}.
+\label{effectiveMass}
+\end{align}
+Note that if the lifetime is independent of $\vec k$, then the second term disappear, and only the first term remains. In that case, carrying the zero magnetic field manipulations of \ref{sec_zeroField} and restituting of the integral in energy lead to:
+\begin{empheq}[box=\fbox]{align}
+\lim_{\substack{\vec B\rightarrow 0\\ \tau_{\vec k}\rightarrow\tau}}
+\sigma_{ij}^{(n)}
+&=
+\int_{-\infty}^{\infty}
+d\epsilon
+f(\epsilon)
+\frac{\epsilon^{n}}{T^n}
+(-e)^{2-n}
+% \int_{0}^{\infty}dt
+% e^{-\int_{0}^{t}dt'/\tau_{\vec k(t')}}
+\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+% \frac{\partial^2 E(\vec k(t))}{\partial k_i\partial k_j}
+\Bigg[
+\delta_{ij}M^{-1}_{ii}(\vec k)\tau
+\\
+&\qquad
++\varepsilon_{ijk}(-eB_k) \bigg(M^{-1}_{ii}(\vec k)M^{-1}_{jj}(\vec k) - M^{-2}_{ij}(\vec k) \bigg)\tau^2
+\Bigg]
+\delta(\epsilon-E(\vec k))
+,
+\end{empheq}
+Note in particular the longitudinal electric conductivity case $\sigma_{ii} = \sigma_{ii}^{(0)}$:
+\begin{align}
+\lim_{\substack{\vec B\rightarrow 0\\ \tau_{\vec k}\rightarrow\tau}}
+\sigma_{ii}
+&=
+\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+f(E(\vec k))
+e^2
+M^{-1}_{ii}(\vec k)
+\tau_{\vec k},
+\end{align}
+which is the Drude formula for $M_{ij}^{-1}(\vec k) = \delta_{i,j}\frac{1}{m^*_i}$:
+\begin{align}
+\Aboxed{
+\lim_{\substack{
+\vec B\rightarrow 0, 
+\tau_{\vec k}\rightarrow\tau\\
+M_{ij}(\vec k)\rightarrow \delta_{ij}m^*_i
+}}
+\sigma_{ij}
+&=
+\delta_{i,j}
+\frac{ne^2\tau}{m^*_i}
+}
+\end{align}
+
+
+
+\subsection{Zero temperature}
+In the zero temperature limit, the electrical conductivity tensor \eqref{sigma} becomes: 
+\begin{align}
+\lim_{T\rightarrow 0}\sigma_{ij}
+&=
+\int_{-\infty}^{\infty} d\epsilon
+\lim_{T\rightarrow 0}\Big(-\frac{\partial f(\epsilon)}{\partial\epsilon}\Big) \sigma_{ij}(\epsilon)
+\\
+&=
+\int_{-\infty}^{\infty} d\epsilon
+\delta(\epsilon-\mu) \sigma_{ij}(\epsilon)
+\\
+\Aboxed{
+\lim_{T\rightarrow 0}\sigma_{ij}&=\sigma_{ij}(\mu).
+}
+\end{align}
+Unfortunately, this simplification does not extend to $\tensor{\alpha}$ and $\tensor{\beta}$ for which one must instead turn to Sommerfeld expansions.
+Note that together with the simplification \ref{sec_surfaces} for energy surfaces, the zero-temperature simplification implies that the conductivity at $T=0$ is entirely given by the Fermi Surface:
+\begin{align}
+\lim_{T\rightarrow0}\sigma_{ij} 
+=\frac{e^2}{(2\pi)^3}\iint_{\text{FS}}d^2k_F
+\frac{v_{i}(\vec k_F)\bar{v}_{j}(\vec k_F)}{\hbar|\vec v(\vec k_F)|}.
 \label{zeroTemperature}
 \end{align}
-The last step involves the Dirac delta property:
-\begin{align}
-\delta\big(f(\vec k)\big)=\iint_{S} d^2 k_0 \frac{1}{|\vec \nabla_{\vec k} f(\vec k)|_{\vec k=\vec k_0}}.
-\end{align}
-where $\vec k_0$ are all possible zeros of $f(\vec k)$, which constitute a surface $S$ in the three dimensional $\vec k$-space. The conductivity integral on the Brillouin zone therefore reduces to an integral on the $\vec k_F$ of the Fermi surface~(FS).
 
-\paragraph*{Finite temperature} One could extend the above simplification to the finite temperature case by noting that:
-\begin{align}
--\frac{\partial f(\epsilon)}{\partial \epsilon}
-\bigg|_{E(\vec k)}
-=
--\int d\epsilon \frac{\partial f(\epsilon)}{\partial \epsilon} \delta\big(E(\vec k) - \epsilon\big)
-\end{align}
-which leads to:
-\begin{align}
-\boxed{
-\sigma_{\alpha\beta}
-=
--\frac{e^2}{4\pi^3V} 
-\int d\epsilon
-\frac{\partial f(\epsilon)}{\partial \epsilon}
-\iint_{S(\epsilon)}d^2k
-\frac{\sigma_{\alpha\beta}(\vec k)}{|\vec v(\vec k)|}
-}.
-\label{finiteTemperature}
-\end{align}
-where $S(\epsilon)$ is the equi-energy surface given by $E(\vec k)=\epsilon$. Here we only consider the zero-temperature case.
+\subsection{Sommerfeld expansions}
 
 \section{Cuprates dispersion}\label{section_disp}
+\noindent
+The two candidates we consider for $E(\vec k)$ are the bare dispersion $\epsilon_{\text{3D}}(\vec k)$ and the antiferromagnetisme approximation for the pseudogap $E^{\pm}_{\text{3D}}(\vec k)$ introduced in what follow.
 
-The two candidates we consider for $E(\vec k)$ are the bare dispersion $\epsilon_{\text{3D}}$ and the antiferromagnetisme approximation for the pseudogap $E^{\pm}_{\text{3D}}(\vec k)$ introduced in what follow.
-
-\paragraph*{Bare dispersion} To simulate overdoped cuprates, we use the one-band three-dimensional dispersion measured by ARPES~\cite{horio_three-dimensional_2018} in Eu-LSCO:
+\subsection{Bare dispersion}
+To simulate overdoped cuprates, we use the one-band three-dimensional dispersion measured by ARPES~\cite{horio_three-dimensional_2018} in Eu-LSCO:
 \begin{align}
 \epsilon_{\text{3D}}(\vec k)=\epsilon_{\vec k}+\epsilon_{\perp}(\vec k)
 \end{align}
@@ -171,7 +510,7 @@ We use parameters $a=b=3.75$ {\AA}, $c=13.20$ {\AA}, $t=190$ meV, and $(t',t'',t
 p = 1 - \iiint_{BZ} \frac{d^{3}k}{4\pi^{3}} f(\epsilon_{\text{3D}}(\vec k))
 \end{align}
 
-\paragraph*{Pseudogap} 
+\subsection{Pseudogap} 
 To fit the results for the pseudogap regime at $p<p^*$, we start from a two-dimensional antiferromagnetic (AF) reconstruction of the bare band (following recent success of such a model for the Hall number~\cite{storey_hall_2016,verret_phenomenological_2017}):
 \begin{align}
 E^{\pm}(\vec k) 
@@ -186,7 +525,8 @@ E^{\pm}_{\text{3D}}(\vec k)=E^{\pm}(\vec k)+\epsilon_{\perp}(\vec k)
 \end{align}
 This may be interpreted as antiferromagnetism uncorrelated between planes.
 
-\paragraph*{Optimization} The bottleneck when evaluating equations~\eqref{zeroTemperature} at zero temperature or~\eqref{finiteTemperature} at finite temperature is the repeated evaluation of the velocity required to solve the semiclassical equation~\eqref{semiClassicalMovement}. In practice, we can save a lot of computation time by noting that $\epsilon_{\vec k+\vec Q}$ and $\vec v(\vec k+\vec Q)$ are simply linked to $\epsilon_{\vec k}$. We first split the latter as:
+\paragraph*{Note on numerical optimization:}
+The bottleneck when evaluating equations~\eqref{zeroTemperature} at zero temperature or~\eqref{chambersSurfaces} at finite temperature is the repeated evaluation of the velocity required to solve the semiclassical equation~\eqref{semiClassicalMovement}. In practice, we can save a lot of computation time by noting that $\epsilon_{\vec k+\vec Q}$ and $\vec v(\vec k+\vec Q)$ are simply linked to $\epsilon_{\vec k}$. We first split the latter as:
 \begin{align}
 \epsilon_{\vec k} &= \zeta_{\vec k} + \xi_{\vec k}
 \\
@@ -208,25 +548,34 @@ and note that for $\vec Q=(\pi/a,\pi/a)$:
 
 \section{Lifetime}\label{section_lifetime}
 
-The lifetime $\tau_{\vec k}$ functions we consider are those of previous work on Hall and Seebeck effets~\cite{verret_phenomenological_2017}, and those of the review by Hussey~\cite{hussey_phenomenology_2008}. The lifetime is the inverse of the scattering rate:
+The lifetime $\tau_{\vec k}$ functions we consider are those of previous work on Hall and Seebeck effets~\cite{verret_phenomenological_2017}, and those of the review by Hussey~\cite{hussey_phenomenology_2008}. The lifetime is the inverse of the total scattering rate:
 \begin{align}
-\tau(\vec k)=\frac{1}{\Gamma(\vec k)},
+\tau_{\vec k}=\frac{\hbar}{2\Gamma(\vec k)},
 \end{align}
-and the scattering rate can take various forms:
+and the scattering rate can have various contributions:
 \begin{align}
 \Gamma(\vec k) 
 &=\eta_0
 + \eta_{\ell}|\vec v(\vec k)|
-+ \frac{\eta_{g}}{|\vec v(\vec k)|}
++ \eta_{N}/|\vec v(\vec k)|
+\nonumber\\&
+\phantom{=\ }
++ \eta_{\text{FLa}}(\omega^2 + \pi^2T^2)
++ \eta_{\text{PL}}T
+\nonumber\\&
+\phantom{=\ }
++ \eta_{\text{FLb}}(\omega^2 + \pi^2T^2)/|\vec v(\vec k)|
 \nonumber\\&
 \phantom{=\ }
 + \eta_{\text{an}}\big(\cos k_x - \cos k_y\big)^2.
 \end{align}
-In this expression, small numerical values might be needed to prevent divergence. Respectively taken alone, $\eta_0$ would yield constant lifetime, $\eta_\ell$ would yield constant mean-free path, $\eta_g$ would yield scattering proportional to the density of state, and $\eta_{\text{an}}$ yields a phenomenological increase of the anti-nodal scattering. There can be various reasons to consider each terms separately, or combined.
+In this expression, small numerical values might be needed to prevent divergence. Respectively taken alone, $\eta_0$ would yield constant lifetime, $\eta_\ell$ would yield constant mean-free path, $\eta_N$ would yield scattering proportional to the density of state, and $\eta_{\text{an}}$ yields a phenomenological increase of the anti-nodal scattering. There can be various reasons to consider each terms separately, or combined.
+
+\section{strongly correlated case}
 
 
 \begin{acknowledgments}
-Most of the work that lead to this note was done by Gaël Grissonanche, closely following the work of Pr. Brad Ramshaw and Yawen Fang in Cornell University.
+Most of the work that lead to this note was done with Gaël Grissonanche, closely following the work of Pr. Brad Ramshaw and Yawen Fang in Cornell University.
 \end{acknowledgments}
 
 

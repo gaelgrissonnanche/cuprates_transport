@@ -11,12 +11,12 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from skimage import measure
 from textwrap import dedent as d
-from band import BandStructure, Pocket
-from chambers import Conductivity
+from bandstructure import BandStructure, Pocket
+from conductivity import Conductivity
 
 startTime = time.time()
 print('discretizing fermi surface')
-band = BandStructure()
+band = BandStructure(mu = -1.5)
 # band.setMuToDoping(0.30)
 band.discretize_FS()
 band.densityOfState()
@@ -33,7 +33,7 @@ def computeAMROpoints(B_amp,B_phi_a,B_theta_a):
     for i in range(B_phi_a.shape[0]):
         amroListForTheta = []
         for j in range(B_theta_a.shape[0]):
-            dataPoint = Conductivity(band, B_amp, B_phi_a[i], B_theta_a[j], gamma_0=15, gamma_k=65, power=12)
+            dataPoint = Conductivity(band, B_amp, B_phi_a[i], B_theta_a[j], gamma_0=15, gamma_k=0, power=12)
             dataPoint.solveMovementFunc()
             dataPoint.chambersFunc(i = 2, j = 2)
             amroListForTheta.append(dataPoint)
@@ -71,7 +71,6 @@ fsData = go.Scatter3d(
         color='#0000ff',
         size=2
     ),
-    hoverinfo='closest'
 )
 
 xTraj = currentPoint.kft[0,0,:]

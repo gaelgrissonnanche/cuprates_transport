@@ -2,15 +2,15 @@ import time
 from copy import deepcopy
 
 from numpy import pi
-from band import BandStructure, Pocket, setMuToDoping, doping
+from bandstructure import BandStructure, Pocket, setMuToDoping, doping
 from admr import ADMR
-from chambers import Conductivity
+from conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## ONE BAND Yawen ////////////////////////////////#
 # bandObject = BandStructure(t=533.6, mu=-1.3, tp=-0.213,
 #                            tpp=0.044, tz=0.016, tz2=-0.002)
-# ## ONE BAND p=0.23 ///////////////////////////////#
+# ## ONE BAND p=0.23 /////////////////////////////#
 bandObject = BandStructure(mu = -0.891)
 
 ## Discretize ////////////////////////////////////#
@@ -18,10 +18,13 @@ bandObject = BandStructure(mu = -0.891)
 bandObject.discretize_FS()
 bandObject.densityOfState()
 bandObject.doping()
+
+bandObject.discretize_FS()
+bandObject.figDiscretizeFS2D()
 # bandObject.figMultipleFS2D()
 
 
-condObject = Conductivity(bandObject, Bamp=45, gamma_0=15, gamma_dos=0, gamma_k=67.9, power=12)
+condObject = Conductivity(bandObject, Bamp=45, gamma_0=2, gamma_dos=0, gamma_k=0, power=12)
 start_total_time = time.time()
 amro1band = ADMR([condObject], muteWarnings=True)
 amro1band.runADMR()

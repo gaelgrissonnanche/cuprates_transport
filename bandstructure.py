@@ -348,6 +348,13 @@ class BandStructure:
         #//////////////////////////////////////////////////////////////////////////////#
 
 
+
+
+
+
+
+
+
 # ABOUT JUST IN TIME (JIT) COMPILATION
 # jitclass do not work, the best option is to call a jit otimized function from inside the class.
 @jit(nopython=True, cache=True)
@@ -418,6 +425,12 @@ def rotation(x, y, angle):
 
 
 
+
+
+
+
+
+## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 class Pocket(BandStructure):
     def __init__(self, M=0.2, electronPocket=False, **kwargs):
         super().__init__(**kwargs)
@@ -473,7 +486,7 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPo
     depsilon_k_dkx = dxi_k_dkx      + dzeta_k_dkx
     depsilon_k_dky = dxi_k_dky      + dzeta_k_dky
 
-    epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2
+    epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2 -2 * tz2 * cos(kz * d)
 
     # kz dispersion and its derivatives (won't be affected by Q)
     # Full simplified with mathematica

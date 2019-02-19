@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lmfit import minimize, Parameters, fit_report
 
-from band import BandStructure
-from chambers import Conductivity
+from bandstructure import BandStructure
+from conductivity import Conductivity
 from admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 

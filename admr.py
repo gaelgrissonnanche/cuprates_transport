@@ -4,35 +4,35 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 
-from chambers import Conductivity
+from conductivity import Conductivity
 from copy import deepcopy
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
     def __init__(self, condObjectTemplatesList, Btheta_min=0, Btheta_max=110, Btheta_step=5, Bphi_array=[0, 15, 30, 45],muteWarnings=False):
-        
+
         ### FOR RETROCOMPATIBILITY ######
         self.muteWrn = muteWarnings
         if not isinstance(condObjectTemplatesList,list):
             if not self.muteWrn: print("passing a single condObject to ADMR is deprecated, pass a list'")
             condObjectTemplatesList = [condObjectTemplatesList]
         #################################
-        
+
         self.templateList = condObjectTemplatesList
-        
+
         self.Btheta_min   = 0           # in degrees
         self.Btheta_max   = 110         # in degrees
         self.Btheta_step  = 5           # in degress
         self.Btheta_array = np.arange(self.Btheta_min, self.Btheta_max + self.Btheta_step, self.Btheta_step)
         self.Bphi_array   = np.array(Bphi_array)
-       
+
         self.condObjectDict = {}        # will implicitely contain all results of runADMR
         self.buildCondObjectDict()
-        
-        self.rzz_array = None 
+
+        self.rzz_array = None
 
 
-    ### FOR RETROCOMPATIBILITY ######        
+    ### FOR RETROCOMPATIBILITY ######
     @property
     def bandObject(self):
         if not self.muteWrn: print("ADMR.bandObject is deprecated, replace it by 'ADMR.condObjectDict[0,0,0].bandObject'")
@@ -42,7 +42,7 @@ class ADMR:
     def condObject(self):
         if not self.muteWrn: print("ADMR.condObject is deprecated, replace it by 'ADMR.condObjectDict[0,0,0]'")
         return self.condObjectDict[0,0,0]
-    
+
     @property
     def condObject_dict(self):
         if not self.muteWrn: print("ADMR.condObject_dict[phi,theta] is deprecated, replace it by 'ADMR.condObjectDict[0,phi,theta]'")
@@ -52,7 +52,7 @@ class ADMR:
                 condObject_dict[phi,theta] = self.condObjectDict[0,phi,theta]
         return condObject_dict
 
-    @property       
+    @property
     def vproduct_dict(self):
         if not self.muteWrn: print("ADMR.vproduct_dict[phi,theta] is deprecated, replace it by 'ADMR.condObjectDict[0,phi,theta].VelocitiesProduct(i = 2, j = 2)'")
         vproduct_dict = {}
@@ -88,7 +88,7 @@ class ADMR:
                 for bandKey, condTemplate in enumerate(self.templateList):
                     sigma += self.condObjectDict[bandKey, phi, theta].sigma[2,2]
                 rho_zz_array[l, m] = 1 / sigma
-        
+
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rzz_array = rho_zz_array / rho_zz_0_array
 
