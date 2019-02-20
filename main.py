@@ -25,11 +25,11 @@ bandObject.doping()
 
 condObject = Conductivity(bandObject, Bamp=45, gamma_0=3, gamma_dos=0, gamma_k=0, power=12)
 start_total_time = time.time()
-amro1band = ADMR([condObject], muteWarnings=True)
+amro1band = ADMR([condObject])
 amro1band.runADMR()
 print("amro1band time : %.6s seconds" % (time.time() - start_total_time))
-amro1band.fileADMR()
-amro1band.figADMR()
+# amro1band.fileADMR()
+amro1band.figADMR(fig_save=False)
 
 
 

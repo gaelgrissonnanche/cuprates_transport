@@ -9,162 +9,83 @@ from copy import deepcopy
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
-    def __init__(self, condObjectTemplatesList, Btheta_min=0, Btheta_max=110, Btheta_step=5, Bphi_array=[0, 15, 30, 45],muteWarnings=False):
+    def __init__(self, initialcondObjectList, Btheta_min=0, Btheta_max=110, Btheta_step=5, Bphi_array=[0, 15, 30, 45], muteWarnings=False):
 
-        ### FOR RETROCOMPATIBILITY ######
-        self.muteWrn = muteWarnings
-        if not isinstance(condObjectTemplatesList,list):
-            if not self.muteWrn: print("passing a single condObject to ADMR is deprecated, pass a list'")
-            condObjectTemplatesList = [condObjectTemplatesList]
-        #################################
+        # Band dictionary
+        self.initialCondObjectDict = {} # will contain the condObject for each band, with key their bandname
+        for condObject in initialcondObjectList:
+            self.initialCondObjectDict[condObject.bandObject.bandname] = condObject
 
-        self.templateList = condObjectTemplatesList
-
+        # Magnetic field
         self.Btheta_min   = 0           # in degrees
         self.Btheta_max   = 110         # in degrees
-        self.Btheta_step  = 5           # in degress
+        self.Btheta_step  = 5           # in degrees
         self.Btheta_array = np.arange(self.Btheta_min, self.Btheta_max + self.Btheta_step, self.Btheta_step)
-
         self.Bphi_array = np.array(Bphi_array)
 
+        # Conductivity dictionaries
         self.condObjectDict = {}        # will implicitely contain all results of runADMR
-        self.buildCondObjectDict()
+        self.kftDict = {}
+        self.vftDict = {}
 
+        # Resistivity rray rho_zz / rho_zz(0)
         self.rzz_array = None
 
 
-    ### FOR RETROCOMPATIBILITY ######
-    @property
-    def bandObject(self):
-        if not self.muteWrn: print("ADMR.bandObject is deprecated, replace it by 'ADMR.condObjectDict[0,0,0].bandObject'")
-        return self.condObjectDict[0,0,0].bandObject
-
-    @property
-    def condObject(self):
-        if not self.muteWrn: print("ADMR.condObject is deprecated, replace it by 'ADMR.condObjectDict[0,0,0]'")
-        return self.condObjectDict[0,0,0]
-
-    @property
-    def condObject_dict(self):
-        if not self.muteWrn: print("ADMR.condObject_dict[phi,theta] is deprecated, replace it by 'ADMR.condObjectDict[0,phi,theta]'")
-        condObject_dict = {}
-        for phi in self.Bphi_array:
-            for theta in self.Btheta_array:
-                condObject_dict[phi,theta] = self.condObjectDict[0,phi,theta]
-        return condObject_dict
-
-    @property
-    def vproduct_dict(self):
-        if not self.muteWrn: print("ADMR.vproduct_dict[phi,theta] is deprecated, replace it by 'ADMR.condObjectDict[0,phi,theta].VelocitiesProduct(i = 2, j = 2)'")
-        vproduct_dict = {}
-        for phi in self.Bphi_array:
-            for theta in self.Btheta_array:
-                vproduct_dict[phi,theta] = self.condObjectDict[0,phi,theta].VelocitiesProduct(i = 2, j = 2)
-        return vproduct_dict
-    ##################################
-
-    def buildCondObjectDict(self):
-        for bandKey, condTemplate in enumerate(self.templateList):
-            for phi in self.Bphi_array:
-                for theta in self.Btheta_array:
-                    conductivity = deepcopy(condTemplate)
-                    conductivity.Bphi = phi
-                    conductivity.Btheta = theta
-                    self.condObjectDict[bandKey, phi, theta] = conductivity
-
-    def solveAllConductivity(self):
-         for bandKey, condTemplate in enumerate(self.templateList):
-            for phi in self.Bphi_array:
-                for theta in self.Btheta_array:
-                    self.condObjectDict[bandKey, phi, theta].solveMovementFunc()
-                    self.condObjectDict[bandKey, phi, theta].chambersFunc(i = 2, j = 2)
-
-
-
-
-
-
-    # def runADMR(self):
-    #     rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype= np.float64)
-
-    #     for l, phi in enumerate(self.Bphi_array):
-    #         for m, theta in enumerate(self.Btheta_array):
-
-    #             condObject = Conductivity(self.bandObject, self.Bamp, phi, theta,
-    #                                       self.gamma_0, self.gamma_k, self.power, self.a0)
-    #             condObject.tau_0 = self.tau_0
-    #             condObject.tmax = self.tmax
-    #             condObject.Ntime = self.Ntime
-    #             condObject.dt = self.dt
-    #             condObject.t = self.t
-
-    #             condObject.solveMovementFunc()
-    #             condObject.chambersFunc(i=2, j=2)
-
-    #             rho_zz_array[l, m] = 1 / condObject.sigma[2, 2]
-    #             self.condObject_dict[phi, theta] = condObject
-    #             self.kft_dict[phi, theta] = condObject.kft
-    #             self.vft_dict[phi, theta] = condObject.vft
-    #             # self.vproduct_dict[phi, theta] = condObject.VelocitiesProduct(i=2, j=2)
-
-    #     rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
-    #     self.rzz_array = rho_zz_array / rho_zz_0_array
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def runADMR(self):
-        self.solveAllConductivity()
+        rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype= np.float64)
 
-        rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype = np.float64)
-        for l,phi in enumerate(self.Bphi_array):
-            for m,theta in enumerate(self.Btheta_array):
-                sigma = 0
-                for bandKey, condTemplate in enumerate(self.templateList):
-                    sigma += self.condObjectDict[bandKey, phi, theta].sigma[2,2]
-                rho_zz_array[l, m] = 1 / sigma
+        for l, phi in enumerate(self.Bphi_array):
+            for m, theta in enumerate(self.Btheta_array):
+
+                sigma_zz = 0
+                for (bandname, iniCondObject) in list(self.initialCondObjectDict.items()):
+
+                    iniCondObject.Bphi = phi
+                    iniCondObject.Btheta = theta
+
+                    iniCondObject.solveMovementFunc()
+                    iniCondObject.chambersFunc(i=2, j=2)
+
+                    sigma_zz += iniCondObject.sigma[2, 2]
+
+                    # Store in dictionaries
+                    self.condObjectDict[bandname, phi, theta] = iniCondObject
+                    self.kftDict[bandname, phi, theta] = iniCondObject.kft
+                    self.vftDict[bandname, phi, theta] = iniCondObject.vft
+                    # self.vproduct_dict[phi, theta] = condObject.VelocitiesProduct(i=2, j=2)
+
+                rho_zz_array[l, m] = 1 / sigma_zz
 
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rzz_array = rho_zz_array / rho_zz_0_array
 
-        self.condObject_dict[phi, theta] = self.condObject
-        self.vproduct_dict[phi, theta] = self.condObject.VelocitiesProduct(i = 2, j = 2)
 
-    def fileNameFunc(self):
-        file_parameters_list  = [r"p_"   + "{0:.3f}".format(self.bandObject.p),
-                                 r"B_"   + "{0:.0f}".format(self.condObject.Bamp),
-                                 r"g0_"  + "{0:.1f}".format(self.condObject.gamma_0),
-                                 r"gk_"  + "{0:.1f}".format(self.condObject.gamma_k),
-                                 r"pwr_" + "{0:.0f}".format(self.condObject.power),
-                                 r"t_"   + "{0:.1f}".format(self.bandObject.t),
-                                 r"mu_"  + "{0:.3f}".format(self.bandObject.mu),
-                                 r"tp_"  + "{0:.3f}".format(self.bandObject.tp),
-                                 r"tpp_" + "{0:.3f}".format(self.bandObject.tpp),
-                                 r"tz_"  + "{0:.3f}".format(self.bandObject.tz),
-                                 r"tz2_" + "{0:.3f}".format(self.bandObject.tz2)]
-        file_name =  "Rzz"
-        for string in file_parameters_list:
-            file_name += "_" + string
-        return file_name
+    # def fileNameFunc(self):
+    #     file_parameters_list  = [r"p_"   + "{0:.3f}".format(self.bandObject.p),
+    #                              r"B_"   + "{0:.0f}".format(self.condObject.Bamp),
+    #                              r"g0_"  + "{0:.1f}".format(self.condObject.gamma_0),
+    #                              r"gk_"  + "{0:.1f}".format(self.condObject.gamma_k),
+    #                              r"pwr_" + "{0:.0f}".format(self.condObject.power),
+    #                              r"t_"   + "{0:.1f}".format(self.bandObject.t),
+    #                              r"mu_"  + "{0:.3f}".format(self.bandObject.mu),
+    #                              r"tp_"  + "{0:.3f}".format(self.bandObject.tp),
+    #                              r"tpp_" + "{0:.3f}".format(self.bandObject.tpp),
+    #                              r"tz_"  + "{0:.3f}".format(self.bandObject.tz),
+    #                              r"tz2_" + "{0:.3f}".format(self.bandObject.tz2)]
+    #     file_name =  "Rzz"
+    #     for string in file_parameters_list:
+    #         file_name += "_" + string
+    #     return file_name
 
-    def fileADMR(self, file_folder = "results_sim"):
-        array_1 = np.ones(self.rzz_array.shape[1])
-        Data = np.vstack((self.Btheta_array, self.rzz_array[0,:], self.rzz_array[1,:], self.rzz_array[2,:], self.rzz_array[3,:],
-                          self.condObject.Bamp*array_1, self.condObject.gamma_0*array_1, self.condObject.gamma_k*array_1, self.condObject.power*array_1, self.bandObject.t*array_1, self.bandObject.tp*array_1, self.bandObject.tpp*array_1, self.bandObject.tz*array_1, self.bandObject.tz2*array_1, self.bandObject.mu*array_1, self.bandObject.mesh_ds*array_1, self.bandObject.numberOfKz*array_1))
-        Data = Data.transpose()
+    # def fileADMR(self, file_folder = "results_sim"):
+    #     array_1 = np.ones(self.rzz_array.shape[1])
+    #     Data = np.vstack((self.Btheta_array, self.rzz_array[0,:], self.rzz_array[1,:], self.rzz_array[2,:], self.rzz_array[3,:],
+    #                       self.condObject.Bamp*array_1, self.condObject.gamma_0*array_1, self.condObject.gamma_k*array_1, self.condObject.power*array_1, self.bandObject.t*array_1, self.bandObject.tp*array_1, self.bandObject.tpp*array_1, self.bandObject.tz*array_1, self.bandObject.tz2*array_1, self.bandObject.mu*array_1, self.bandObject.mesh_ds*array_1, self.bandObject.numberOfKz*array_1))
+    #     Data = Data.transpose()
 
-        np.savetxt(file_folder + "/" + self.fileNameFunc() + ".dat", Data, fmt='%.7e',
-        header = "theta[deg]\trzz(phi=0)\trzz(phi=15)\trzz(phi=30)\trzz(phi=45)\tB[T]\tgamma_0[THz]\tgamma_k[THz]\tpower\tt[meV]\ttp\ttpp\ttz\ttz2\tmu\tmesh_ds\tmesh_z", comments = "#")
+    #     np.savetxt(file_folder + "/" + self.fileNameFunc() + ".dat", Data, fmt='%.7e',
+    #     header = "theta[deg]\trzz(phi=0)\trzz(phi=15)\trzz(phi=30)\trzz(phi=45)\tB[T]\tgamma_0[THz]\tgamma_k[THz]\tpower\tt[meV]\ttp\ttpp\ttz\ttz2\tmu\tmesh_ds\tmesh_z", comments = "#")
 
 
     def figADMR(self, fig_show = True, fig_save = True, fig_folder = "results_sim"):
@@ -197,24 +118,24 @@ class ADMR:
             tick.set_pad(8)
 
         ## Labels
-        label_parameters = [r"$p$ = " + "{0:.3f}".format(self.bandObject.p),
-                            r"$B$ = " + "{0:.0f}".format(self.condObject.Bamp) + " T",
-                            "",
-                            r"$\Gamma_{\rm 0}$ = " + "{0:.1f}".format(self.condObject.gamma_0) + " THz",
-                            r"$\Gamma_{\rm k}$ = " + "{0:.1f}".format(self.condObject.gamma_k) + " THz",
-                            r"power = " + "{0:.0f}".format(self.condObject.power),
-                            "",
-                            r"$t$ = " + "{0:.1f}".format(self.bandObject.t) + " meV",
-                            r"$\mu$ = " + "{0:.3f}".format(self.bandObject.mu) + r" $t$",
-                            r"$t^\prime$ = " + "{0:.3f}".format(self.bandObject.tp) + r" $t$",
-                            r"$t^{\prime\prime}$ = " + "{0:.3f}".format(self.bandObject.tpp) + r" $t$",
-                            r"$t_{\rm z}$ = " + "{0:.3f}".format(self.bandObject.tz) + r" $t$",
-                            r"$t_{\rm z}^{\prime}$ = " + "{0:.3f}".format(self.bandObject.tz2) + r" $t$"]
+        # label_parameters = [r"$p$ = " + "{0:.3f}".format(self.bandObject.p),
+        #                     r"$B$ = " + "{0:.0f}".format(self.condObject.Bamp) + " T",
+        #                     "",
+        #                     r"$\Gamma_{\rm 0}$ = " + "{0:.1f}".format(self.condObject.gamma_0) + " THz",
+        #                     r"$\Gamma_{\rm k}$ = " + "{0:.1f}".format(self.condObject.gamma_k) + " THz",
+        #                     r"power = " + "{0:.0f}".format(self.condObject.power),
+        #                     "",
+        #                     r"$t$ = " + "{0:.1f}".format(self.bandObject.t) + " meV",
+        #                     r"$\mu$ = " + "{0:.3f}".format(self.bandObject.mu) + r" $t$",
+        #                     r"$t^\prime$ = " + "{0:.3f}".format(self.bandObject.tp) + r" $t$",
+        #                     r"$t^{\prime\prime}$ = " + "{0:.3f}".format(self.bandObject.tpp) + r" $t$",
+        #                     r"$t_{\rm z}$ = " + "{0:.3f}".format(self.bandObject.tz) + r" $t$",
+        #                     r"$t_{\rm z}^{\prime}$ = " + "{0:.3f}".format(self.bandObject.tz2) + r" $t$"]
 
-        h_label = 0.92
-        for label in label_parameters:
-            fig.text(0.78, h_label, label, fontsize = 14)
-            h_label -= 0.04
+        # h_label = 0.92
+        # for label in label_parameters:
+        #     fig.text(0.78, h_label, label, fontsize = 14)
+        #     h_label -= 0.04
 
         ## Colors
         if self.Bphi_array.shape[0] > 4:
@@ -244,67 +165,67 @@ class ADMR:
         axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
         axes.locator_params(axis = 'y', nbins = 6)
 
-        ## Inset FS ///////////////////////////////////////////////////////////#
-        a = self.bandObject.a
-        b = self.bandObject.b
-        c = self.bandObject.c
+        # ## Inset FS ///////////////////////////////////////////////////////////#
+        # a = self.bandObject.a
+        # b = self.bandObject.b
+        # c = self.bandObject.c
 
-        mesh_graph = 201
-        kx = np.linspace(-pi/a, pi/a, mesh_graph)
-        ky = np.linspace(-pi/b, pi/b, mesh_graph)
-        kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
+        # mesh_graph = 201
+        # kx = np.linspace(-pi/a, pi/a, mesh_graph)
+        # ky = np.linspace(-pi/b, pi/b, mesh_graph)
+        # kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-        axes_inset_FS = plt.axes([0.74, 0.18, .18, .18])
-        axes_inset_FS.set_aspect(aspect=1)
-        axes_inset_FS.contour(kxx, kyy, self.bandObject.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 1)
-        axes_inset_FS.annotate(r"0", xy = (- pi/a * 0.9, pi/b * 0.75), color = 'r', fontsize = 8)
-        axes_inset_FS.contour(kxx, kyy, self.bandObject.e_3D_func(kxx, kyy, pi / c), 0, colors = '#00DC39', linewidths = 1)
-        axes_inset_FS.annotate(r"$\pi$/c", xy = (- pi/a * 0.9, - pi/b * 0.9), color = '#00DC39', fontsize = 8)
-        axes_inset_FS.contour(kxx, kyy, self.bandObject.e_3D_func(kxx, kyy, 2 * pi / c), 0, colors = '#6577FF', linewidths = 1)
-        axes_inset_FS.annotate(r"$2\pi$/c", xy = (pi/a * 0.5, - pi/b * 0.9), color = '#6577FF', fontsize = 8)
-        axes_inset_FS.set_xlim(-pi/a,pi/a)
-        axes_inset_FS.set_ylim(-pi/b,pi/b)
-        axes_inset_FS.set_xticks([])
-        axes_inset_FS.set_yticks([])
-        axes_inset_FS.axis(**{'linewidth' : 0.2})
+        # axes_inset_FS = plt.axes([0.74, 0.18, .18, .18])
+        # axes_inset_FS.set_aspect(aspect=1)
+        # axes_inset_FS.contour(kxx, kyy, self.bandObject.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 1)
+        # axes_inset_FS.annotate(r"0", xy = (- pi/a * 0.9, pi/b * 0.75), color = 'r', fontsize = 8)
+        # axes_inset_FS.contour(kxx, kyy, self.bandObject.e_3D_func(kxx, kyy, pi / c), 0, colors = '#00DC39', linewidths = 1)
+        # axes_inset_FS.annotate(r"$\pi$/c", xy = (- pi/a * 0.9, - pi/b * 0.9), color = '#00DC39', fontsize = 8)
+        # axes_inset_FS.contour(kxx, kyy, self.bandObject.e_3D_func(kxx, kyy, 2 * pi / c), 0, colors = '#6577FF', linewidths = 1)
+        # axes_inset_FS.annotate(r"$2\pi$/c", xy = (pi/a * 0.5, - pi/b * 0.9), color = '#6577FF', fontsize = 8)
+        # axes_inset_FS.set_xlim(-pi/a,pi/a)
+        # axes_inset_FS.set_ylim(-pi/b,pi/b)
+        # axes_inset_FS.set_xticks([])
+        # axes_inset_FS.set_yticks([])
+        # axes_inset_FS.axis(**{'linewidth' : 0.2})
 
 
-        ## Inset Life Time ////////////////////////////////////////////////////#
-        tau_0 = self.condObject.tau_0
-        gamma_0 = self.condObject.gamma_0
-        gamma_k = self.condObject.gamma_k
-        power = self.condObject.power
+        # ## Inset Life Time ////////////////////////////////////////////////////#
+        # tau_0 = self.condObject.tau_0
+        # gamma_0 = self.condObject.gamma_0
+        # gamma_k = self.condObject.gamma_k
+        # power = self.condObject.power
 
-        axes_inset_tau = plt.axes([0.85, 0.18, .18, .18])
-        axes_inset_tau.set_aspect(aspect=1)
+        # axes_inset_tau = plt.axes([0.85, 0.18, .18, .18])
+        # axes_inset_tau.set_aspect(aspect=1)
 
-        phi = np.linspace(0, 2*pi, 1000)
-        ## tau_0
-        tau_0_x = tau_0 * cos(phi)
-        tau_0_y = tau_0 * sin(phi)
-        line = axes_inset_tau.plot(tau_0_x / tau_0, tau_0_y / tau_0, clip_on = False)
-        plt.setp(line, ls ="-", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-        axes_inset_tau.annotate(r"$\tau_{\rm 0}$", xy = (0.65, 0.75), color = 'k', fontsize = 10)
-        ## tau_k
-        tau_k_x = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * cos(phi)
-        tau_k_y = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * sin(phi)
-        line = axes_inset_tau.plot(tau_k_x / tau_0, tau_k_y / tau_0, clip_on = False)
-        plt.setp(line, ls ="-", c = '#FF9C54', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-        axes_inset_tau.annotate(r"$\tau_{\rm k}$", xy = (0.4, 0.45), color = '#FF9C54', fontsize = 10)
-        ## tau_k_min
-        phi_min = 3 * pi / 2
-        tau_k_x_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * cos(phi_min)
-        tau_k_y_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * sin(phi_min)
-        line = axes_inset_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0, clip_on = False)
-        plt.setp(line, ls ="", c = '#FF9C54', lw = 3, marker = "o", mfc = '#FF9C54', ms = 4, mec = "#7E2320", mew= 0)
-        fraction = np.abs(np.round(tau_k_y_min / tau_0, 2))
-        axes_inset_tau.annotate(r"{0:.2f}".format(fraction) + r"$\tau_{\rm 0}$", xy = (-0.35, tau_k_y_min / tau_0 * 0.8), color = '#FF9C54', fontsize = 8)
+        # phi = np.linspace(0, 2*pi, 1000)
+        # ## tau_0
+        # tau_0_x = tau_0 * cos(phi)
+        # tau_0_y = tau_0 * sin(phi)
+        # line = axes_inset_tau.plot(tau_0_x / tau_0, tau_0_y / tau_0, clip_on = False)
+        # plt.setp(line, ls ="-", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
+        # axes_inset_tau.annotate(r"$\tau_{\rm 0}$", xy = (0.65, 0.75), color = 'k', fontsize = 10)
+        # ## tau_k
+        # tau_k_x = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * cos(phi)
+        # tau_k_y = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * sin(phi)
+        # line = axes_inset_tau.plot(tau_k_x / tau_0, tau_k_y / tau_0, clip_on = False)
+        # plt.setp(line, ls ="-", c = '#FF9C54', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
+        # axes_inset_tau.annotate(r"$\tau_{\rm k}$", xy = (0.4, 0.45), color = '#FF9C54', fontsize = 10)
+        # ## tau_k_min
+        # phi_min = 3 * pi / 2
+        # tau_k_x_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * cos(phi_min)
+        # tau_k_y_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * sin(phi_min)
+        # line = axes_inset_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0, clip_on = False)
+        # plt.setp(line, ls ="", c = '#FF9C54', lw = 3, marker = "o", mfc = '#FF9C54', ms = 4, mec = "#7E2320", mew= 0)
+        # fraction = np.abs(np.round(tau_k_y_min / tau_0, 2))
+        # axes_inset_tau.annotate(r"{0:.2f}".format(fraction) + r"$\tau_{\rm 0}$", xy = (-0.35, tau_k_y_min / tau_0 * 0.8), color = '#FF9C54', fontsize = 8)
 
-        axes_inset_tau.set_xlim(-1,1)
-        axes_inset_tau.set_ylim(-1,1)
-        axes_inset_tau.set_xticks([])
-        axes_inset_tau.set_yticks([])
-        axes_inset_tau.axis(**{'linewidth' : 0.2})
+        # axes_inset_tau.set_xlim(-1,1)
+        # axes_inset_tau.set_ylim(-1,1)
+        # axes_inset_tau.set_xticks([])
+        # axes_inset_tau.set_yticks([])
+        # axes_inset_tau.axis(**{'linewidth' : 0.2})
 
         ## Save figure
         if fig_save == True:
