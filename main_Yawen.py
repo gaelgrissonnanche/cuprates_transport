@@ -50,7 +50,7 @@ ADMRObject = ADMR(condObject, muteWarnings=True)
 ADMRObject.runADMR()
 print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 
-ADMRObject.fileADMR()
+ADMRObject.fileADMR(folder="results_sim")
 ADMRObject.figADMR()
 
 
@@ -61,7 +61,7 @@ ADMRObject.figADMR()
 # ADMRObject.runADMR()
 # print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 
-# # ADMRObject.fileADMR()
+# # ADMRObject.fileADMR(folder="results_sim")
 # # ADMRObject.figADMR()
 
 

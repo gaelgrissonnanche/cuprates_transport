@@ -22,10 +22,10 @@ from conductivity import Conductivity
 # h_condObject = Conductivity(h_bandObject, Bamp=45, gamma_0=15, gamma_k=0, power=12)
 # ## ADMR >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # start_total_time = time.time()
-# ADMRObject = ADMR([h_condObject], muteWarnings=True)
+# ADMRObject = ADMR([h_condObject])
 # ADMRObject.runADMR()
 # print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
-# ADMRObject.fileADMR()
+# ADMRObject.fileADMR(folder="results_sim")
 # ADMRObject.figADMR()
 
 # ## ONE Band AF Yawen Parameters ///////////////////////////////////////////////#
@@ -46,11 +46,12 @@ from conductivity import Conductivity
 # h_condObject = Conductivity(h_bandObject, Bamp=45, gamma_0=14.28, gamma_k=0, power=12)
 # ## ADMR >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # start_total_time = time.time()
-# ADMRObject = ADMR([h_condObject], muteWarnings=True)
+# ADMRObject = ADMR([h_condObject])
 # ADMRObject.runADMR()
 # print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
-# ADMRObject.fileADMR()
+# ADMRObject.fileADMR(folder="results_sim")
 # ADMRObject.figADMR()
+
 
 ## TWO BAND p=0.19 //////////////////////////////////////////////////////////#
 hPocket = Pocket(bandname="hPocket", mu = -0.825, M = 0.05, mesh_ds = pi/15, numberOfKz = 7)
@@ -79,8 +80,9 @@ hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=20, gamma_k=0, power=
 ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=10, gamma_k=0, power=12, gamma_dos=0)
 start_total_time = time.time()
 amro2band = ADMR([hPocketCondObject,ePocketCondObject])
-# amro2band = ADMR([hPocketCondObject], muteWarnings=True)
-# amro2band = ADMR([ePocketCondObject], muteWarnings=True)
+# amro2band = ADMR([hPocketCondObject])
+# amro2band = ADMR([ePocketCondObject])
 amro2band.runADMR()
 print("amro2bands time : %.6s seconds" % (time.time() - start_total_time))
-amro2band.figADMR(fig_save=False)
+amro2band.fileADMR(folder="results_sim")
+amro2band.figADMR(folder="results_sim", fig_save=True)

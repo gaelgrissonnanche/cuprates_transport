@@ -28,8 +28,8 @@ start_total_time = time.time()
 amro1band = ADMR([condObject])
 amro1band.runADMR()
 print("amro1band time : %.6s seconds" % (time.time() - start_total_time))
-# amro1band.fileADMR()
-amro1band.figADMR(fig_save=False)
+amro1band.fileADMR(folder="results_sim")
+amro1band.figADMR(folder="results_sim", fig_save=True)
 
 
 

@@ -253,11 +253,6 @@ class BandStructure:
         fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6))
         fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91)
 
-        for tick in axes.xaxis.get_major_ticks():
-            tick.set_pad(7)
-        for tick in axes.yaxis.get_major_ticks():
-            tick.set_pad(8)
-
         fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
         axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
@@ -272,6 +267,8 @@ class BandStructure:
 
         axes.set_xlim(-pi, pi)
         axes.set_ylim(-pi, pi)
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
         axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
@@ -303,11 +300,6 @@ class BandStructure:
         fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6))
         fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91)
 
-        for tick in axes.xaxis.get_major_ticks():
-            tick.set_pad(7)
-        for tick in axes.yaxis.get_major_ticks():
-            tick.set_pad(8)
-
         fig.text(0.27,0.86, r"$k_{\rm z}$ =", fontsize = 14)
         fig.text(0.34,0.86, r"0", fontsize = 14, color = "#FF0000")
         fig.text(0.34,0.83, r"$\pi/c$", fontsize = 14, color = "#00DC39")
@@ -319,6 +311,8 @@ class BandStructure:
 
         axes.set_xlim(-pi, pi)
         axes.set_ylim(-pi, pi)
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
         axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
@@ -350,9 +344,9 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     # Kz dispersion
     d = c / 2.
     e_z = -2 * tz * cos(kz * d)
-    e_z *= cos(kx * a / 2) * cos(ky * b / 2)
-    e_z *= (cos(kx * a) - cos(ky * b))**2
-    e_z += -2 * tz2 * cos(kz * d) # mind the '+='
+    e_z = e_z * cos(kx * a / 2) * cos(ky * b / 2)
+    e_z = e_z * (cos(kx * a) - cos(ky * b))**2
+    e_z = e_z -2 * tz2 * cos(kz * d) # mind the '+='
 
     return e_2D + e_z
 

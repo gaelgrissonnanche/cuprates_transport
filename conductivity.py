@@ -229,11 +229,6 @@ class Conductivity:
         fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6))
         fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91)
 
-        for tick in axes.xaxis.get_major_ticks():
-            tick.set_pad(7)
-        for tick in axes.yaxis.get_major_ticks():
-            tick.set_pad(8)
-
         fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
         line = axes.contour(kxx*self.bandObject.a, kyy*self.bandObject.b, self.bandObject.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
@@ -246,6 +241,8 @@ class Conductivity:
 
         axes.set_xlim(-pi, pi)
         axes.set_ylim(-pi, pi)
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
         axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
@@ -262,15 +259,11 @@ class Conductivity:
 
         axes.axhline(y = 0, ls ="--", c ="k", linewidth = 0.6)
 
-        #///// Allow to shift the label ticks up or down with set_pad /////#
-        for tick in axes.xaxis.get_major_ticks():
-            tick.set_pad(7)
-        for tick in axes.yaxis.get_major_ticks():
-            tick.set_pad(8)
-
         line = axes.plot(self.t, self.vft[2, index_kf,:])
         plt.setp(line, ls ="-", c = '#6AFF98', lw = 3, marker = "", mfc = '#6AFF98', ms = 5, mec = "#7E2320", mew= 0)
 
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$t$", labelpad = 8)
         axes.set_ylabel(r"$v_{\rm z}$", labelpad = 8)
         axes.locator_params(axis = 'y', nbins = 6)
@@ -281,15 +274,11 @@ class Conductivity:
         fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
         fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
 
-        #///// Allow to shift the label ticks up or down with set_pad /////#
-        for tick in axes.xaxis.get_major_ticks():
-            tick.set_pad(7)
-        for tick in axes.yaxis.get_major_ticks():
-            tick.set_pad(8)
-
         line = axes.plot(self.t, np.cumsum( self.vft[2, index_kf, :] * exp ( - self.tOverTauFunc(self.kft[:,index_kf,:]) ) ))
         plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$t$", labelpad = 8)
         axes.set_ylabel(r"$\sum_{\rm t}$ $v_{\rm z}(t)$$e^{\rm \dfrac{-t}{\tau}}$", labelpad = 8)
 
