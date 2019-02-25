@@ -61,6 +61,7 @@ class ADMR:
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rzz_array = rho_zz_array / rho_zz_0_array
 
+    #---------------------------------------------------------------------------
     def fileNameFunc(self):
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
@@ -104,8 +105,7 @@ class ADMR:
             file_name += "_" + string
         return file_name
 
-
-
+    #---------------------------------------------------------------------------
     def fileADMR(self, folder=""):
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
@@ -161,7 +161,7 @@ class ADMR:
         header = DataHeader, comments = "#")
 
 
-
+    #---------------------------------------------------------------------------
     def figADMR(self, fig_show=True, fig_save=True, folder=""):
         #///// RC Parameters //////#
         mpl.rcdefaults()
@@ -186,26 +186,80 @@ class ADMR:
         ## Bands figures //////////////////////////////////////////////////////#
         for (bandname, iniCondObject) in self.initialCondObjectDict.items():
             fig, axes = plt.subplots(1, 1, figsize = (10.5, 5.8)) # (1,1) means one plot, and figsize is w x h in inch of figure
-            fig.subplots_adjust(left = 0.15, right = 0.75, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
+            fig.subplots_adjust(left = 0.15, right = 0.25, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
+            axes.remove()
 
-            # Labels
-            label_parameters = [r"$p$ = " + "{0:.3f}".format(iniCondObject.bandObject.p),
-                                r"$B$ = " + "{0:.0f}".format(iniCondObject.Bamp) + " T",
-                                "",
-                                r"$\Gamma_{\rm 0}$ = " + "{0:.1f}".format(iniCondObject.gamma_0) + " THz",
-                                r"$\Gamma_{\rm k}$ = " + "{0:.1f}".format(iniCondObject.gamma_k) + " THz",
-                                r"power = " + "{0:.0f}".format(iniCondObject.power),
-                                "",
-                                r"$t$ = " + "{0:.1f}".format(iniCondObject.bandObject.t) + " meV",
-                                r"$\mu$ = " + "{0:.3f}".format(iniCondObject.bandObject.mu) + r" $t$",
-                                r"$t^\prime$ = " + "{0:.3f}".format(iniCondObject.bandObject.tp) + r" $t$",
-                                r"$t^{\prime\prime}$ = " + "{0:.3f}".format(iniCondObject.bandObject.tpp) + r" $t$",
-                                r"$t_{\rm z}$ = " + "{0:.3f}".format(iniCondObject.bandObject.tz) + r" $t$",
-                                r"$t_{\rm z}^{\prime}$ = " + "{0:.3f}".format(iniCondObject.bandObject.tz2) + r" $t$"]
+            # Band name
+            fig.text(0.45, 0.92, "Band #: " + iniCondObject.bandObject.bandname, fontsize=20, color='#2E00A4', style="italic")
+            try:
+                iniCondObject.bandObject.M
+                fig.text(0.41, 0.92, "AF", fontsize=20, color="#FF0000", style="italic")
+            except:
+                None
+            # Band Formulas
+            fig.text(0.45, 0.47, "Band formula", fontsize=16, color='#A9A9A9', style="italic")
+            bandFormulaE2D = r"$\epsilon_{\rm k}^{\rm 2D}$ = - $\mu$" +\
+            r" - 2$t$ (cos($k_{\rm x}a$) + cos($k_{\rm y}b$))" +\
+            r" - 4$t^{'}$ (cos($k_{\rm x}a$) cos($k_{\rm y}b$))" + "\n" +\
+            r"          - 2$t^{''}$ (cos(2$k_{\rm x}a$) + cos(2$k_{\rm y}b$))" + "\n"
+            fig.text(0.45, 0.34, bandFormulaE2D, fontsize=12)
 
-            h_label = 0.92
+            bandFormulaEz = r"$\epsilon_{\rm k}^{\rm z}$   =" +\
+            r" - 2$t_{\rm z}$ cos($k_{\rm z}c/2$) cos($k_{\rm x}a/2$) cos(2$k_{\rm y}b/2$) (cos($k_{\rm x}a$) - cos($k_{\rm y}b$))$^2$" + "\n" +\
+            r"          - 2$t_{\rm z}^{'}$ cos($k_{\rm z}c/2$)"
+            fig.text(0.45, 0.27, bandFormulaEz, fontsize=12)
+
+            bandFormulaE3D = r"$\epsilon_{\rm k}^{\rm 3D}$   = $\epsilon_{\rm k}^{\rm 2D}$ + $\epsilon_{\rm k}^{\rm z}$"
+            fig.text(0.45, 0.21, bandFormulaE3D, fontsize=12)
+
+            # AF Band Formula
+            try:
+                iniCondObject.bandObject.M
+                if iniCondObject.bandObject.electronPocket == True:
+                    sign_symbol = "+"
+                else:
+                    sign_symbol = "-"
+                AFBandFormula = r"$E_{\rm k}^{" + sign_symbol + r"}$ = 1/2 ($\epsilon_{\rm k}$ + $\epsilon_{\rm k+Q}$) " +\
+                sign_symbol + r" $\sqrt{1/4(\epsilon_{\rm k} - \epsilon_{\rm k+Q})^2 + \Delta_{\rm AF}^2}$"
+                fig.text(0.45, 0.15, AFBandFormula, fontsize = 12, color="#FF0000")
+            except:
+                None
+
+            # Scattering Formula
+            fig.text(0.45, 0.08, "Scattering formula", fontsize=16, color='#A9A9A9', style="italic")
+            scatteringFormula = r"$1 / \tau_{\rm tot}$ = $\Gamma_{\rm 0}$ + $\Gamma_{\rm k}$ cos(2$\phi$)$^{\rm n}$"
+            fig.text(0.45, 0.03, scatteringFormula, fontsize=12)
+
+
+            # Parameters Bandstructure
+            fig.text(0.45, 0.85, "Band Parameters", fontsize=16, color='#A9A9A9', style="italic")
+            label_parameters = [r"$t$     =  " + "{0:.1f}".format(iniCondObject.bandObject.t) + "    meV",
+                                r"$\mu$    =  " + "{0:+.3f}".format(iniCondObject.bandObject.mu) + r"   $t$",
+                                r"$t^\prime$    =  " + "{0:+.3f}".format(iniCondObject.bandObject.tp) + r"   $t$",
+                                r"$t^{\prime\prime}$   =  " + "{0:+.3f}".format(iniCondObject.bandObject.tpp) + r"   $t$",
+                                r"$t_{\rm z}$    =  " + "{0:+.3f}".format(iniCondObject.bandObject.tz) + r"   $t$",
+                                r"$t_{\rm z}^{\prime}$    =  " + "{0:+.3f}".format(iniCondObject.bandObject.tz2) + r"   $t$"
+                                ]
+            try: # if it is a AF band
+                iniCondObject.bandObject.M
+                label_parameters.append(r"$\Delta_{\rm AF}$ =  " + "{0:+.3f}".format(iniCondObject.bandObject.M) + r"   $t$")
+            except:
+                None
+
+            h_label = 0.80
             for label in label_parameters:
-                fig.text(0.78, h_label, label, fontsize = 14)
+                fig.text(0.45, h_label, label, fontsize = 14)
+                h_label -= 0.04
+
+            # Scattering parameters
+            fig.text(0.72, 0.85, "Scattering Parameters", fontsize=16, color='#A9A9A9', style="italic")
+            label_parameters = [r"$\Gamma_{\rm 0}$   = " + "{0:.1f}".format(iniCondObject.gamma_0) + "   THz",
+                                r"$\Gamma_{\rm k}$   = " + "{0:.1f}".format(iniCondObject.gamma_k) + "   THz",
+                                r"$n$    = " + "{0:.0f}".format(iniCondObject.power)
+                                ]
+            h_label = 0.80
+            for label in label_parameters:
+                fig.text(0.72, h_label, label, fontsize = 14)
                 h_label -= 0.04
 
             ## Inset FS ///////////////////////////////////////////////////////////#
@@ -218,19 +272,25 @@ class ADMR:
             ky = np.linspace(-pi/b, pi/b, mesh_graph)
             kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-            axes_inset_FS = plt.axes([0.74, 0.18, .18, .18])
-            axes_inset_FS.set_aspect(aspect=1)
-            axes_inset_FS.contour(kxx, kyy, iniCondObject.bandObject.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 1)
-            axes_inset_FS.annotate(r"0", xy = (- pi/a * 0.9, pi/b * 0.75), color = 'r', fontsize = 8)
-            axes_inset_FS.contour(kxx, kyy, iniCondObject.bandObject.e_3D_func(kxx, kyy, pi / c), 0, colors = '#00DC39', linewidths = 1)
-            axes_inset_FS.annotate(r"$\pi$/c", xy = (- pi/a * 0.9, - pi/b * 0.9), color = '#00DC39', fontsize = 8)
-            axes_inset_FS.contour(kxx, kyy, iniCondObject.bandObject.e_3D_func(kxx, kyy, 2 * pi / c), 0, colors = '#6577FF', linewidths = 1)
-            axes_inset_FS.annotate(r"$2\pi$/c", xy = (pi/a * 0.5, - pi/b * 0.9), color = '#6577FF', fontsize = 8)
-            axes_inset_FS.set_xlim(-pi/a,pi/a)
-            axes_inset_FS.set_ylim(-pi/b,pi/b)
-            axes_inset_FS.set_xticks([])
-            axes_inset_FS.set_yticks([])
-            axes_inset_FS.axis(**{'linewidth' : 0.2})
+            axes_FS = plt.axes([-0.02, 0.56, .4, .4])
+            axes_FS.set_aspect(aspect=1)
+            axes_FS.contour(kxx, kyy, iniCondObject.bandObject.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 1)
+            axes_FS.contour(kxx, kyy, iniCondObject.bandObject.e_3D_func(kxx, kyy, pi / c), 0, colors = '#00DC39', linewidths = 1)
+            axes_FS.contour(kxx, kyy, iniCondObject.bandObject.e_3D_func(kxx, kyy, 2 * pi / c), 0, colors = '#6577FF', linewidths = 1)
+            fig.text(0.30, 0.67, r"$k_{\rm z}$", fontsize = 14)
+            fig.text(0.30, 0.63, r"0", color = '#FF0000', fontsize = 14)
+            fig.text(0.30, 0.60, r"$\pi$/c", color = '#00DC39', fontsize = 14)
+            fig.text(0.30, 0.57, r"$2\pi$/c", color = '#6577FF', fontsize = 14)
+
+            axes_FS.set_xlabel(r"$k_{\rm x}$", labelpad=0, fontsize=14)
+            axes_FS.set_ylabel(r"$k_{\rm y}$", labelpad=-5, fontsize=14)
+
+            axes_FS.set_xticks([-pi/a, 0., pi/a])
+            axes_FS.set_xticklabels([r"$-\pi$", "0", r"$\pi$"], fontsize=14)
+            axes_FS.set_yticks([-pi/b, 0., pi/b])
+            axes_FS.set_yticklabels([r"$-\pi$", "0", r"$\pi$"], fontsize=14)
+            # axes_FS.tick_params(axis='x', which='major', pad=7)
+            # axes_FS.tick_params(axis='y', which='major', pad=8)
 
             ## Inset Life Time ////////////////////////////////////////////////////#
             tau_0 = iniCondObject.tau_0
@@ -238,36 +298,46 @@ class ADMR:
             gamma_k = iniCondObject.gamma_k
             power = iniCondObject.power
 
-            axes_inset_tau = plt.axes([0.85, 0.18, .18, .18])
-            axes_inset_tau.set_aspect(aspect=1)
+            axes_tau = plt.axes([-0.02, 0.04, .4, .4])
+            axes_tau.set_aspect(aspect=1)
 
             phi = np.linspace(0, 2*pi, 1000)
             ## tau_0
             tau_0_x = tau_0 * cos(phi)
             tau_0_y = tau_0 * sin(phi)
-            line = axes_inset_tau.plot(tau_0_x / tau_0, tau_0_y / tau_0, clip_on = False)
-            plt.setp(line, ls ="-", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-            axes_inset_tau.annotate(r"$\tau_{\rm 0}$", xy = (0.65, 0.75), color = 'k', fontsize = 10)
+            line = axes_tau.plot(tau_0_x / tau_0, tau_0_y / tau_0, clip_on = False, label=r"$\tau_{\rm 0}$", zorder=10)
+            plt.setp(line, ls ="--", c = '#000000', lw = 2, marker = "", mfc = '#000000', ms = 5, mec = "#7E2320", mew= 0)
             ## tau_k
             tau_k_x = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * cos(phi)
             tau_k_y = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * sin(phi)
-            line = axes_inset_tau.plot(tau_k_x / tau_0, tau_k_y / tau_0, clip_on = False)
-            plt.setp(line, ls ="-", c = '#FF9C54', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-            axes_inset_tau.annotate(r"$\tau_{\rm k}$", xy = (0.4, 0.45), color = '#FF9C54', fontsize = 10)
+            line = axes_tau.plot(tau_k_x / tau_0, tau_k_y / tau_0, clip_on = False, zorder=20, label=r"$\tau_{\rm tot}$")
+            plt.setp(line, ls ="-", c = '#00FF9C', lw = 2, marker = "", mfc = '#000000', ms = 5, mec = "#7E2320", mew= 0)
             ## tau_k_min
             phi_min = 3 * pi / 2
             tau_k_x_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * cos(phi_min)
             tau_k_y_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * sin(phi_min)
-            line = axes_inset_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0, clip_on = False)
-            plt.setp(line, ls ="", c = '#FF9C54', lw = 3, marker = "o", mfc = '#FF9C54', ms = 4, mec = "#7E2320", mew= 0)
-            fraction = np.abs(np.round(tau_k_y_min / tau_0, 2))
-            axes_inset_tau.annotate(r"{0:.2f}".format(fraction) + r"$\tau_{\rm 0}$", xy = (-0.35, tau_k_y_min / tau_0 * 0.8), color = '#FF9C54', fontsize = 8)
+            line = axes_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0, clip_on=False, label=r"$\tau_{\rm min}$", zorder = 25)
+            plt.setp(line, ls ="", c = '#2400FE', lw = 3, marker = "o", mfc = '#2400FE', ms = 9, mec = "#2400FE", mew= 0)
+            ## tau_k_max
+            phi_max = 5 * pi / 4
+            tau_k_x_max = 1 / (gamma_0 + gamma_k * (sin(phi_max)**2 - cos(phi_max)**2)**power) * cos(phi_max)
+            tau_k_y_max = 1 / (gamma_0 + gamma_k * (sin(phi_max)**2 - cos(phi_max)**2)**power) * sin(phi_max)
+            line = axes_tau.plot(tau_k_x_max / tau_0, tau_k_y_max / tau_0, clip_on=False, label=r"$\tau_{\rm max}$", zorder = 25)
+            plt.setp(line, ls ="", c = '#FF0000', lw = 3, marker = "o", mfc = '#FF0000', ms = 9, mec = "#FF0000", mew= 0)
 
-            axes_inset_tau.set_xlim(-1,1)
-            axes_inset_tau.set_ylim(-1,1)
-            axes_inset_tau.set_xticks([])
-            axes_inset_tau.set_yticks([])
-            axes_inset_tau.axis(**{'linewidth' : 0.2})
+            fraction = np.abs(np.round(tau_0 / tau_k_y_min, 2))
+            fig.text(0.30, 0.12, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
+                    "\n" + r"= {0:.1f}".format(fraction), fontsize = 14)
+
+            axes_tau.set_xlim(-1,1)
+            axes_tau.set_ylim(-1,1)
+            axes_tau.set_xticks([])
+            axes_tau.set_yticks([])
+
+            plt.legend(bbox_to_anchor=[1.49, 1.05], loc = 1,
+                       fontsize = 14, frameon = False,
+                       numpoints = 1, markerscale = 1, handletextpad = 0.2)
+
 
             fig_list.append(fig)
 
@@ -276,6 +346,15 @@ class ADMR:
         fig.subplots_adjust(left = 0.15, right = 0.75, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
         axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
+
+        # To point to bandstructure parameters, we use just one band
+        # as they should share the same parameters
+        CondObject0 = self.initialCondObjectDict[self.bandNamesList[0]]
+        bandObject0 = CondObject0.bandObject
+
+        # Labels
+        fig.text(0.8, 0.9, r"$B$ = " + "{0:.0f}".format(CondObject0.Bamp) + " T")
+        fig.text(0.8, 0.84, r"$p$ = " + "{0:.3f}".format(bandObject0.p))
 
         ## Colors
         if self.Bphi_array.shape[0] > 4:

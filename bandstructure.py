@@ -346,7 +346,7 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     e_z = -2 * tz * cos(kz * d)
     e_z = e_z * cos(kx * a / 2) * cos(ky * b / 2)
     e_z = e_z * (cos(kx * a) - cos(ky * b))**2
-    e_z = e_z -2 * tz2 * cos(kz * d) # mind the '+='
+    e_z = e_z -2 * tz2 * cos(kz * d)
 
     return e_2D + e_z
 
