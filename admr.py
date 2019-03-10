@@ -92,6 +92,7 @@ class ADMR:
         for (bandname, iniCondObject) in self.initialCondObjectDict.items():
             file_parameters_list.extend([bandname,
                                          r"gzero" + "{0:.1f}".format(iniCondObject.gamma_0),
+                                         r"gdos" + "{0:.1f}".format(iniCondObject.gamma_dos),
                                          r"gk"  + "{0:.1f}".format(iniCondObject.gamma_k),
                                          r"pwr" + "{0:.0f}".format(iniCondObject.power)
                                         ])
@@ -123,7 +124,7 @@ class ADMR:
         Ones = np.ones_like(self.Btheta_array) # column of 1 with same size of Btheta_array
         rzzMatrix = self.rzz_array[0,:] # initialize with first phi value
         rzzHeader = "rzz(phi=" + str(self.Bphi_array[0])+ ")\t"
-        for l, phi in enumerate(self.Bphi_array):
+        for l in range(self.Bphi_array.shape[0]):
             if l==0:
                 pass # because we already have rzz_array for the inital value of phi
             else:
@@ -144,9 +145,11 @@ class ADMR:
         for (bandname, iniCondObject) in self.initialCondObjectDict.items():
             Data = np.vstack((Data,
                               iniCondObject.gamma_0 * Ones,
+                              iniCondObject.gamma_dos * Ones,
                               iniCondObject.gamma_k * Ones,
                               iniCondObject.power   * Ones))
             condHeader += bandname + "_g_0[THz]\t" + \
+                          bandname + "_g_dos[THz]\t" + \
                           bandname + "_g_k[THz]\t" + \
                           bandname + "_power\t"
 
@@ -184,7 +187,7 @@ class ADMR:
         fig_list = []
 
         ## Bands figures //////////////////////////////////////////////////////#
-        for (bandname, iniCondObject) in self.initialCondObjectDict.items():
+        for iniCondObject in self.initialCondObjectDict.values():
             fig, axes = plt.subplots(1, 1, figsize = (10.5, 5.8)) # (1,1) means one plot, and figsize is w x h in inch of figure
             fig.subplots_adjust(left = 0.15, right = 0.25, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
             axes.remove()
@@ -220,14 +223,15 @@ class ADMR:
                 else:
                     sign_symbol = "-"
                 AFBandFormula = r"$E_{\rm k}^{" + sign_symbol + r"}$ = 1/2 ($\epsilon_{\rm k}$ + $\epsilon_{\rm k+Q}$) " +\
-                sign_symbol + r" $\sqrt{1/4(\epsilon_{\rm k} - \epsilon_{\rm k+Q})^2 + \Delta_{\rm AF}^2}$"
+                sign_symbol + r" $\sqrt{1/4(\epsilon_{\rm k} - \epsilon_{\rm k+Q})^2 + \Delta_{\rm AF}^2}$ + $\epsilon_{\rm k}^{\rm z}$"
                 fig.text(0.45, 0.15, AFBandFormula, fontsize = 12, color="#FF0000")
             except:
                 None
 
             # Scattering Formula
             fig.text(0.45, 0.08, "Scattering formula", fontsize=16, color='#A9A9A9', style="italic")
-            scatteringFormula = r"$1 / \tau_{\rm tot}$ = $\Gamma_{\rm 0}$ + $\Gamma_{\rm k}$ cos(2$\phi$)$^{\rm n}$"
+            scatteringFormula = r"$1 / \tau_{\rm tot}$ = $\Gamma_{\rm 0}$ + " + \
+                r"$\Gamma_{\rm k}$ cos$^{\rm n}$(2$\phi$) + $\Gamma_{\rm DOS}$ / |$v_{\rm k}$|"
             fig.text(0.45, 0.03, scatteringFormula, fontsize=12)
 
 
@@ -254,6 +258,7 @@ class ADMR:
             # Scattering parameters
             fig.text(0.72, 0.85, "Scattering Parameters", fontsize=16, color='#A9A9A9', style="italic")
             label_parameters = [r"$\Gamma_{\rm 0}$   = " + "{0:.1f}".format(iniCondObject.gamma_0) + "   THz",
+                                r"$\Gamma_{\rm DOS}$   = " + "{0:.1f}".format(iniCondObject.gamma_dos) + "   THz",
                                 r"$\Gamma_{\rm k}$   = " + "{0:.1f}".format(iniCondObject.gamma_k) + "   THz",
                                 r"$n$    = " + "{0:.0f}".format(iniCondObject.power)
                                 ]
@@ -306,27 +311,27 @@ class ADMR:
             tau_0_x = tau_0 * cos(phi)
             tau_0_y = tau_0 * sin(phi)
             line = axes_tau.plot(tau_0_x / tau_0, tau_0_y / tau_0, clip_on = False, label=r"$\tau_{\rm 0}$", zorder=10)
-            plt.setp(line, ls ="--", c = '#000000', lw = 2, marker = "", mfc = '#000000', ms = 5, mec = "#7E2320", mew= 0)
+            plt.setp(line, ls ="--", c = '#000000', lw = 1, marker = "", mfc = '#000000', ms = 5, mec = "#7E2320", mew= 0)
             ## tau_k
             tau_k_x = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * cos(phi)
             tau_k_y = 1 / (gamma_0 + gamma_k * (sin(phi)**2 - cos(phi)**2)**power) * sin(phi)
             line = axes_tau.plot(tau_k_x / tau_0, tau_k_y / tau_0, clip_on = False, zorder=20, label=r"$\tau_{\rm tot}$")
-            plt.setp(line, ls ="-", c = '#00FF9C', lw = 2, marker = "", mfc = '#000000', ms = 5, mec = "#7E2320", mew= 0)
+            plt.setp(line, ls ="-", c = '#00FF9C', lw = 1, marker = "", mfc = '#000000', ms = 5, mec = "#7E2320", mew= 0)
             ## tau_k_min
             phi_min = 3 * pi / 2
             tau_k_x_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * cos(phi_min)
             tau_k_y_min = 1 / (gamma_0 + gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**power) * sin(phi_min)
             line = axes_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0, clip_on=False, label=r"$\tau_{\rm min}$", zorder = 25)
-            plt.setp(line, ls ="", c = '#2400FE', lw = 3, marker = "o", mfc = '#2400FE', ms = 9, mec = "#2400FE", mew= 0)
+            plt.setp(line, ls ="", c = '#1CB7FF', lw = 3, marker = "o", mfc = '#1CB7FF', ms = 8, mec = "#1CB7FF", mew= 0)
             ## tau_k_max
             phi_max = 5 * pi / 4
             tau_k_x_max = 1 / (gamma_0 + gamma_k * (sin(phi_max)**2 - cos(phi_max)**2)**power) * cos(phi_max)
             tau_k_y_max = 1 / (gamma_0 + gamma_k * (sin(phi_max)**2 - cos(phi_max)**2)**power) * sin(phi_max)
             line = axes_tau.plot(tau_k_x_max / tau_0, tau_k_y_max / tau_0, clip_on=False, label=r"$\tau_{\rm max}$", zorder = 25)
-            plt.setp(line, ls ="", c = '#FF0000', lw = 3, marker = "o", mfc = '#FF0000', ms = 9, mec = "#FF0000", mew= 0)
+            plt.setp(line, ls ="", c = '#FF8181', lw = 3, marker = "o", mfc = '#FF8181', ms = 8, mec = "#FF8181", mew= 0)
 
             fraction = np.abs(np.round(tau_0 / tau_k_y_min, 2))
-            fig.text(0.30, 0.12, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
+            fig.text(0.30, 0.05, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
                     "\n" + r"= {0:.1f}".format(fraction), fontsize = 14)
 
             axes_tau.set_xlim(-1,1)
@@ -384,7 +389,7 @@ class ADMR:
         axes.xaxis.set_major_formatter(majorFormatter)
         axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
         axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
-        axes.locator_params(axis = 'y', nbins = 6)
+        axes.locator_params(axis='y', nbins=6)
 
         fig_list.append(fig)
 

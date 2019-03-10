@@ -111,9 +111,11 @@ class BandStructure:
         self.p = 1 - self.n
         return self.n
 
-    def doping(self, resX=500, resY=500, resZ=10):
+    def doping(self, resX=500, resY=500, resZ=10, printDoping=True):
         self.updateFilling(resX,resY,resZ)
-        # print("p = " + "{0:.3f}".format(self.p))
+        if printDoping==True:
+            print(self.bandname + ": p = " + "{0:.3f}".format(self.p))
+
         return self.p
 
     def filling(self, resX=500, resY=500, resZ=10):
@@ -139,8 +141,11 @@ class BandStructure:
         solObject = optimize.root(self.dopingCondition, np.array([muStart]), args=(pTarget,), options={'xtol': xtol})
         self._mu = solObject.x[0]
 
-    def discretize_FS(self, endmessage=True):
-        mesh_xy_rough = 501  # make denser rough meshgrid to interpolate after
+    def discretize_FS(self, mesh_xy_rough=501, endmessage=True):
+        """
+        mesh_xy_rough: make denser rough meshgrid to interpolate after
+        """
+
         kx_a = np.linspace(0, pi / self.a, mesh_xy_rough)
         ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
         kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
@@ -214,7 +219,7 @@ class BandStructure:
 
         ## Output message
         if endmessage == True:
-            print("  " + self.bandname + " discretized")
+            print(self.bandname + ": discretized")
 
 
     def densityOfState(self):
@@ -297,13 +302,13 @@ class BandStructure:
         ky = np.linspace(-4*pi / self.b, 4*pi / self.b, mesh_graph)
         kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-        fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6))
-        fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91)
+        fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
+        fig.subplots_adjust(left=0.15, right=0.75, bottom=0.20, top=0.9)
 
-        fig.text(0.27,0.86, r"$k_{\rm z}$ =", fontsize = 14)
-        fig.text(0.34,0.86, r"0", fontsize = 14, color = "#FF0000")
-        fig.text(0.34,0.83, r"$\pi/c$", fontsize = 14, color = "#00DC39")
-        fig.text(0.34,0.80, r"2$\pi/c$", fontsize = 14, color = "#6577FF")
+        fig.text(0.77,0.84, r"$k_{\rm z}$ =")
+        fig.text(0.88,0.84, r"0", color = "#FF0000")
+        fig.text(0.88,0.78, r"$\pi/c$", color = "#00DC39")
+        fig.text(0.88,0.72, r"2$\pi/c$", color = "#6577FF")
 
         axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
         axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, pi/self.c), 0, colors = '#00DC39', linewidths = 3)
@@ -314,7 +319,7 @@ class BandStructure:
         axes.tick_params(axis='x', which='major', pad=7)
         axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-        axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+        axes.set_ylabel(r"$k_{\rm y}$", labelpad = -6)
 
         axes.set_xticks([-pi, 0., pi])
         axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
@@ -526,7 +531,7 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPo
 ## Functions to compute the doping of a two bands system and more >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 def doping(bandIterable):
         totalFilling=0
-        for i,band in enumerate(bandIterable):
+        for band in bandIterable:
             band.updateFilling()
             totalFilling += band.n
             print("  filling "+ band.bandname + " = " + "{0:.3f}".format(band.n))
@@ -536,7 +541,6 @@ def doping(bandIterable):
 
 def dopingCondition(mu,ptarget,bandIterable):
         print("mu = " + "{0:.3f}".format(mu[0]))
-        totalFilling=0
         for band in bandIterable:
             band.mu = mu
         return doping(bandIterable) - ptarget

@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import cos, sin, pi, exp, sqrt, arctan2
 from scipy.integrate import odeint
+from numba import jit, prange
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -137,10 +138,13 @@ class Conductivity:
     def tOverTauFunc(self, k, v):
         phi = arctan2(k[1,:], k[0,:])
         dos = 1 / sqrt(v[0,:]**2 + v[1,:]**2 + v[2,:]**2)
-        dos_max = np.max(dos)
+        dos_norm = 0.006 # value to normalize the DOS to a quantity without units
         # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
-        t_over_tau = np.cumsum( self.dt_array * ( self.gamma_0 + self.gamma_dos * dos / dos_max + self.gamma_k * cos(2*phi)**self.power ) )
+        t_over_tau = np.cumsum( self.dt_array * ( self.gamma_0 + self.gamma_dos * dos / dos_norm + self.gamma_k * cos(2*phi)**self.power ) )
         return t_over_tau
+
+    # def tOverTauFunc(self, k, v):
+    #     return optimized_tOverTauFunc(k, v, self.dt_array, self.gamma_0, self.gamma_dos, self.gamma_k, self.power)
 
     def solveMovementForPoint(self, kpoint):
         len_t = self.t.shape[0]
@@ -159,6 +163,9 @@ class Conductivity:
             vj_sum_over_t = np.sum( vjft[i0,:] * exp( - self.tOverTauFunc(self.kft[:,i0,:], self.vft[:,i0,:]) ) * self.dt ) # integral over t
             v_product[i0] = vif[i0] * vj_sum_over_t
         return v_product
+
+    # def VelocitiesProduct(self, i, j):
+    #     return optimized_VelocitiesProduct(self.kft, self.bandObject.vf, self.vft, self.dt, self.dt_array, self.gamma_0, self.gamma_dos, self.gamma_k, self.power, i, j)
 
     def chambersFunc(self, i = 2, j = 2):
         """ Index i and j represent x, y, z = 0, 1, 2
@@ -185,38 +192,63 @@ class Conductivity:
                                         # editing the text in illustrator
 
     def figLifeTime(self, mesh_phi = 1000):
-        fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6))
-        fig.subplots_adjust(left = 0.15, right = 0.85, bottom = 0.15, top = 0.85)
+        fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
+        fig.subplots_adjust(left=0.10, right=0.70, bottom=0.20, top=0.9)
 
-        phi = np.linspace(0, 2*pi, mesh_phi)
-
+        phi = np.linspace(0, 2*pi, 1000)
         ## tau_0
         tau_0_x = self.tau_0 * cos(phi)
         tau_0_y = self.tau_0 * sin(phi)
-        line = axes.plot(tau_0_x / self.tau_0, tau_0_y / self.tau_0, clip_on = False)
-        plt.setp(line, ls ="--", c = 'k', lw = 2, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-        axes.annotate(r"$\tau_{\rm 0}$", xy = (0.75, 0.75), color = 'k')
-
+        line = axes.plot(tau_0_x / self.tau_0, tau_0_y / self.tau_0,
+                             clip_on=False, label=r"$\tau_{\rm 0}$", zorder=10)
+        plt.setp(line, ls="--", c='#000000', lw=3, marker="",
+                 mfc='#000000', ms=5, mec="#7E2320", mew=0)
         ## tau_k
-        tau_k_x = 1 / (self.gamma_0 + self.gamma_k * (sin(phi)**2 - cos(phi)**2)**self.power) * cos(phi)
-        tau_k_y = 1 / (self.gamma_0 + self.gamma_k * (sin(phi)**2 - cos(phi)**2)**self.power) * sin(phi)
-        line = axes.plot(tau_k_x / self.tau_0, tau_k_y / self.tau_0, clip_on = False)
-        plt.setp(line, ls ="-", c = '#FF9C54', lw = 3, marker = "", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-        axes.annotate(r"$\tau_{\rm k}$", xy = (0.5, 0.5), color = '#FF9C54')
-
+        tau_k_x = 1 / (self.gamma_0 + self.gamma_k * (sin(phi) **
+                                            2 - cos(phi)**2)**self.power) * cos(phi)
+        tau_k_y = 1 / (self.gamma_0 + self.gamma_k * (sin(phi) **
+                                            2 - cos(phi)**2)**self.power) * sin(phi)
+        line = axes.plot(tau_k_x / self.tau_0, tau_k_y / self.tau_0,
+                             clip_on=False, zorder=20, label=r"$\tau_{\rm tot}$")
+        plt.setp(line, ls="-", c='#00FF9C', lw=3, marker="",
+                 mfc='#000000', ms=5, mec="#7E2320", mew=0)
         ## tau_k_min
         phi_min = 3 * pi / 2
-        tau_k_x_min = 1 / (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**self.power) * cos(phi_min)
-        tau_k_y_min = 1 / (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 - cos(phi_min)**2)**self.power) * sin(phi_min)
-        line = axes.plot(tau_k_x_min / self.tau_0, tau_k_y_min / self.tau_0, clip_on = False)
-        plt.setp(line, ls ="", c = '#FF9C54', lw = 3, marker = "o", mfc = '#FF9C54', ms = 9, mec = "#7E2320", mew= 0)
-        fraction = np.abs(np.round(tau_k_y_min / self.tau_0, 2))
-        axes.annotate(r"{0:.2f}".format(fraction) + r"$\tau_{\rm 0}$", xy = (-0.3, tau_k_y_min / self.tau_0 * 0.85), color = '#FF9C54')
+        tau_k_x_min = 1 / \
+            (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 -
+                                  cos(phi_min)**2)**self.power) * cos(phi_min)
+        tau_k_y_min = 1 / \
+            (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 -
+                                  cos(phi_min)**2)**self.power) * sin(phi_min)
+        line = axes.plot(tau_k_x_min / self.tau_0, tau_k_y_min / self.tau_0,
+                             clip_on=False, label=r"$\tau_{\rm min}$", zorder=25)
+        plt.setp(line, ls="", c='#1CB7FF', lw=3, marker="o",
+                 mfc='#1CB7FF', ms=8, mec="#1CB7FF", mew=2)
+        ## tau_k_max
+        phi_max = 5 * pi / 4
+        tau_k_x_max = 1 / \
+            (self.gamma_0 + self.gamma_k * (sin(phi_max)**2 -
+                                  cos(phi_max)**2)**self.power) * cos(phi_max)
+        tau_k_y_max = 1 / \
+            (self.gamma_0 + self.gamma_k * (sin(phi_max)**2 -
+                                  cos(phi_max)**2)**self.power) * sin(phi_max)
+        line = axes.plot(tau_k_x_max / self.tau_0, tau_k_y_max / self.tau_0,
+                             clip_on=False, label=r"$\tau_{\rm max}$", zorder=25)
+        plt.setp(line, ls="", c='#FF8181', lw=3, marker="o",
+                 mfc='#FF8181', ms=8, mec="#FF8181", mew=2)
+
+        fraction = np.abs(np.round(self.tau_0 / tau_k_y_min, 2))
+        fig.text(0.74, 0.21, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
+                 "\n" + r"= {0:.1f}".format(fraction))
 
         axes.set_xlim(-1, 1)
         axes.set_ylim(-1, 1)
-        axes.set_xticklabels([])
-        axes.set_yticklabels([])
+        axes.set_xticks([])
+        axes.set_yticks([])
+
+        plt.legend(bbox_to_anchor=[1.51, 1.01], loc=1,
+                   frameon=False,
+                   numpoints=1, markerscale=1, handletextpad=0.2)
 
         plt.show()
 
@@ -274,7 +306,7 @@ class Conductivity:
         fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
         fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
 
-        line = axes.plot(self.t, np.cumsum( self.vft[2, index_kf, :] * exp ( - self.tOverTauFunc(self.kft[:,index_kf,:]) ) ))
+        line = axes.plot(self.t, np.cumsum( self.vft[2, index_kf, :] * exp( - self.tOverTauFunc(self.kft[:, index_kf,:], self.vft[:, index_kf,:]) ) ))
         plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
         axes.tick_params(axis='x', which='major', pad=7)
@@ -286,3 +318,30 @@ class Conductivity:
 
         plt.show()
         #//////////////////////////////////////////////////////////////////////////////#
+
+
+# @jit(nopython=True)
+# def optimized_tOverTauFunc(k, v, dt_array, gamma_0, gamma_dos, gamma_k, power):
+#     phi = arctan2(k[1, :], k[0,:])
+#     dos = 1 / sqrt(v[0, :]**2 + v[1,:]**2 + v[2,:]**2)
+#     dos_norm = 0.006  # value to normalize the DOS to a quantity without units
+#     # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
+#     t_over_tau = np.cumsum(dt_array * (gamma_0 + gamma_dos *
+#                                             dos / dos_norm + gamma_k * cos(2*phi)**power))
+#     return t_over_tau
+
+
+# @jit(nopython=True, parallel=True)
+# def optimized_VelocitiesProduct(kft, vf, vft, dt, dt_array, gamma_0, gamma_dos, gamma_k, power, i, j):
+#     """ Index i and j represent x, y, z = 0, 1, 2
+#         for example, if i = 0: vif = vxf
+#     """
+#     ## Velocity components
+#     vif  = vf[i,:]
+#     vjft = vft[j,:,:]
+#     v_product = np.empty(vif.shape[0], dtype = np.float64)
+#     for i0 in prange(vif.shape[0]):
+#         vj_sum_over_t = np.sum(vjft[i0, :] * \
+#                         exp(- optimized_tOverTauFunc(kft[:, i0, :], vft[:, i0, :], dt_array, gamma_0, gamma_dos, gamma_k, power)) * dt)  # integral over t
+#         v_product[i0] = vif[i0] * vj_sum_over_t
+#     return v_product

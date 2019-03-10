@@ -8,20 +8,24 @@ from lmfit import minimize, Parameters, fit_report
 from bandstructure import BandStructure
 from conductivity import Conductivity
 from admr import ADMR
-##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
+##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 sample_name = r"Nd-LSCO $p$ = 0.25"
 
 ## Initial parameters
 gamma_0_ini  = 15 # in THZ
-gamma_0_vary = True
-gamma_dos_ini = 1 # in THz
-gamma_dos_vary = True
-gamma_k_ini  = 0 # in THz
+gamma_0_vary = False
+
+gamma_dos_ini = 0 # in THz
+gamma_dos_vary = False
+
+gamma_k_ini  = 70 # in THz
 gamma_k_vary = False
+
 power_ini    = 12
 power_vary   = False
-mu_ini       = -0.825
+
+mu_ini       = -0.854
 mu_vary      = False
 
 ## Graph values
@@ -78,7 +82,7 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
     bandObject.densityOfState()
     bandObject.doping()
     condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
-    ADMRObject = ADMR([condObject], muteWarnings=True)
+    ADMRObject = ADMR([condObject])
     ADMRObject.Btheta_array = Btheta_array
     ADMRObject.runADMR()
     print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
@@ -92,7 +96,7 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
 
 ## Initialize
 pars = Parameters()
-pars.add("gamma_0", value = gamma_0_ini, vary = gamma_0_vary, min = 0)
+pars.add("gamma_0", value = gamma_0_ini, vary = gamma_0_vary, min = 1)
 pars.add("gamma_dos",      value = gamma_dos_ini, vary = gamma_dos_vary, min = 0)
 pars.add("gamma_k", value = gamma_k_ini, vary = gamma_k_vary, min = 0)
 pars.add("power",   value = power_ini, vary = power_vary, min = 2)
@@ -117,10 +121,10 @@ bandObject.discretize_FS()
 bandObject.densityOfState()
 bandObject.doping()
 condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
-ADMRObject = ADMR([condObject], muteWarnings=True)
+ADMRObject = ADMR([condObject])
 ADMRObject.Btheta_array = Btheta_array
 ADMRObject.runADMR()
-
+ADMRObject.fileADMR(folder="data_NdLSCO_0p25")
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 ## Figures ////////////////////////////////////////////////////////////////#
