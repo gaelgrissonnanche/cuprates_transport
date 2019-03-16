@@ -4,7 +4,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator, FormatStrFormatter
 
-from bandstructure import BandStructure
+from bandstructure import BandStructure, Pocket
 from conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
@@ -13,16 +13,17 @@ a = 3.74e-10 #m
 c = 13.3e-10 # m
 
 Bmin = 2
-Bmax = 150
-Bstep = 4
+Bmax = 200
+Bstep = 5
 B_array = np.arange(Bmin, Bmax, Bstep)
 
 
-bandObject = BandStructure(bandname="LargePocket",
-                           a=3.74767, b=3.74767, c=13.2,
-                           t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-                           mu=-1.854,
-                           numberOfKz=7, mesh_ds=np.pi/40)
+bandObject = Pocket(bandname="hPocket",
+                 a=3.74767, b=3.74767, c=13.2,
+                 t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
+                 M=0.21,
+                 mu=-0.77,
+                 numberOfKz=7, mesh_ds=np.pi/80)
 
 bandObject.discretize_FS()
 bandObject.densityOfState()
@@ -31,15 +32,16 @@ bandObject.doping()
 # # bandObject.figMultipleFS2D()
 # # bandObject.figDiscretizeFS2D()
 
+
 ## Conductivity Object
 condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0,
                           Btheta=0, gamma_0=1, gamma_k=0, power=0)
-condObject.Ntime = 1000
+condObject.Ntime = 2000
 
 ## Empty arrays
-rhoxx_array = np.empty_like(B_array, dtype=np.float64)
-rhoxy_array = np.empty_like(B_array, dtype=np.float64)
-RH_array = np.empty_like(B_array, dtype=np.float64)
+rhoxx_array = np.empty_like(B_array, dtype = np.float64)
+rhoxy_array = np.empty_like(B_array, dtype = np.float64)
+RH_array = np.empty_like(B_array, dtype = np.float64)
 
 for i, B in enumerate(B_array):
 
@@ -47,8 +49,8 @@ for i, B in enumerate(B_array):
     condObject.solveMovementFunc()
     condObject.chambersFunc(0, 0)
     condObject.chambersFunc(0, 1)
-    sigma_xx = condObject.sigma[0, 0]
-    sigma_xy = condObject.sigma[0, 1]
+    sigma_xx = condObject.sigma[0,0]
+    sigma_xy = condObject.sigma[0,1]
 
     rhoxx = sigma_xx / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
     rhoxy = sigma_xy / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
@@ -69,8 +71,8 @@ nH = 1 / ( RH_array[-1] * e )
 d = c / 2
 V = a**2 * d
 n = V * np.abs(nH)
-p = 1 - n
-print("1 - n = ", np.round(p, 3) )
+p = n
+print("n = ", np.round(p, 3) )
 
 
 
@@ -79,11 +81,11 @@ print("1 - n = ", np.round(p, 3) )
 fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
 fig.subplots_adjust(left = 0.18, right = 0.82, bottom = 0.18, top = 0.95)
 
-axes.axhline(y=0, ls ="--", c ="k", linewidth=0.6)
+# axes.axhline(y=0, ls ="--", c ="k", linewidth=0.6)
 
 #############################################
-fig.text(0.79,0.86, r"$p$ = " + "{0:.3f}".format(bandObject.p), ha = "right")
-fig.text(0.79,0.80, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
+fig.text(0.79,0.28, r"$p$ = " + "{0:.3f}".format(bandObject.p), ha = "right")
+fig.text(0.79,0.22, r"$n$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
 #############################################
@@ -137,7 +139,7 @@ fig.subplots_adjust(left = 0.18, right = 0.82, bottom = 0.18, top = 0.95)
 
 #############################################
 fig.text(0.79,0.28, r"$p$ = " + "{0:.3f}".format(bandObject.p), ha = "right")
-fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
+fig.text(0.79,0.22, r"$n$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
 ## Allow to shift the label ticks up or down with set_pad

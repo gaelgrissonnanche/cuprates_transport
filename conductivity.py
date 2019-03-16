@@ -45,7 +45,7 @@ class Conductivity:
         # Time parameters
         self.tau_0 = 1 / self.gamma_0 # in picoseconds
         self.tmax = 8 * self.tau_0 # in picoseconds
-        self.Ntime = 500 # number of steps in time
+        self._Ntime = 500 # number of steps in time
         self.dt = self.tmax / self.Ntime
         self.t = np.arange(0, self.tmax, self.dt)
         self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1] # integrand for tau_function
@@ -84,6 +84,15 @@ class Conductivity:
         self._Btheta = Btheta
         self._B_vector = self.BFunc()
     Btheta = property(_get_Btheta, _set_Btheta)
+
+    def _get_Ntime(self):
+        return self._Ntime
+    def _set_Ntime(self, Ntime):
+        self._Ntime = Ntime
+        self.dt = self.tmax / self._Ntime
+        self.t = np.arange(0, self.tmax, self.dt) # integrand for tau_function
+        self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1]
+    Ntime = property(_get_Ntime, _set_Ntime)
 
     ## Special Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def __eq__(self, other):
@@ -170,7 +179,8 @@ class Conductivity:
     def chambersFunc(self, i = 2, j = 2):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
-        self.sigma[i,j] = units_chambers * np.sum( self.bandObject.dos * self.bandObject.dkf * self.VelocitiesProduct(i = i, j = j))
+        self.sigma[i, j] = units_chambers * np.sum(self.bandObject.dos * self.bandObject.dkf * self.VelocitiesProduct(i=i, j=j)) * \
+                           (self.bandObject.particlesPerkVolume / 2) # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
 
     ## Figures ////////////////////////////////////////////////////////////////#
 
