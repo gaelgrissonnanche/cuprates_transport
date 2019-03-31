@@ -14,8 +14,11 @@ from admr import ADMR
 sample_name = r"Nd-LSCO $p$ = 0.21"
 
 ## Initial parameters
-gamma_0_ini = 22  # in THZ
-gamma_0_vary = True
+h_gamma_0_ini = 22  # in THZ
+h_gamma_0_vary = True
+
+e_gamma_0_ini = 22  # in THZ
+e_gamma_0_vary = True
 
 gamma_dos_ini = 0  # in THz
 gamma_dos_vary = False
@@ -78,14 +81,16 @@ rzz_45 = np.interp(Btheta_array, x, y)
 ## Function residual ########
 def residualFunc(pars, hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45):
 
-    gamma_0 = pars["gamma_0"].value
+    h_gamma_0 = pars["h_gamma_0"].value
+    e_gamma_0 = pars["e_gamma_0"].value
     gamma_dos = pars["gamma_dos"].value
     gamma_k = pars["gamma_k"].value
     power = pars["power"].value
     mu = pars["mu"].value
     M = pars["M"].value
 
-    print("gamma_0 = ", gamma_0)
+    print("h_gamma_0 = ", h_gamma_0)
+    print("e_gamma_0 = ", e_gamma_0)
     print("gamma_dos = ", gamma_dos)
     print("gamma_k = ", gamma_k)
     print("power = ", power)
@@ -100,19 +105,19 @@ def residualFunc(pars, hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45):
     # hPocket
     hPocket.mu = mu
     hPocket.M = M
-    hPocket.discretize_FS()
+    hPocket.discretize_FS(mesh_xy_rough=501)
     hPocket.densityOfState()
     hPocket.doping()
-    hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=gamma_0,
+    hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=h_gamma_0,
                               gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
 
     # ePocket
     ePocket.mu = mu
     ePocket.M = M
-    ePocket.discretize_FS()
+    ePocket.discretize_FS(mesh_xy_rough=501)
     ePocket.densityOfState()
     ePocket.doping()
-    ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=gamma_0,
+    ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=e_gamma_0,
                               gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
 
     ADMRObject = ADMR([hPocketCondObject, ePocketCondObject])
@@ -130,22 +135,24 @@ def residualFunc(pars, hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45):
 
 ## Initialize
 pars = Parameters()
-pars.add("gamma_0", value=gamma_0_ini, vary=gamma_0_vary, min=0)
-pars.add("gamma_dos",      value=gamma_dos_ini, vary=gamma_dos_vary, min=0)
-pars.add("gamma_k", value=gamma_k_ini, vary=gamma_k_vary, min=0)
-pars.add("power",   value=power_ini, vary=power_vary, min=2)
-pars.add("mu",      value=mu_ini, vary=mu_vary)
-pars.add("M",      value=M_ini, vary=M_vary, min=0.001)
+pars.add("h_gamma_0", value=h_gamma_0_ini, vary=h_gamma_0_vary, min=0)
+pars.add("e_gamma_0", value=e_gamma_0_ini, vary=e_gamma_0_vary, min=0)
+pars.add("gamma_dos", value=gamma_dos_ini, vary=gamma_dos_vary, min=0)
+pars.add("gamma_k",   value=gamma_k_ini, vary=gamma_k_vary, min=0)
+pars.add("power",     value=power_ini, vary=power_vary, min=2)
+pars.add("mu",        value=mu_ini, vary=mu_vary)
+pars.add("M",         value=M_ini, vary=M_vary, min=0.001)
 
 ## Run fit algorithm
 out = minimize(residualFunc, pars, args=(
-    hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45))
+    hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45), method='least_squares')
 
 ## Display fit report
 print(fit_report(out.params))
 
 ## Export final parameters from the fit
-gamma_0 = out.params["gamma_0"].value
+h_gamma_0 = out.params["h_gamma_0"].value
+e_gamma_0 = out.params["e_gamma_0"].value
 gamma_dos = out.params["gamma_dos"].value
 gamma_k = out.params["gamma_k"].value
 power = out.params["power"].value
@@ -159,7 +166,7 @@ hPocket.M = M
 hPocket.discretize_FS()
 hPocket.densityOfState()
 hPocket.doping()
-hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=gamma_0,
+hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=h_gamma_0,
                                  gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
 
 # ePocket
@@ -168,7 +175,7 @@ ePocket.M = M
 ePocket.discretize_FS()
 ePocket.densityOfState()
 ePocket.doping()
-ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=gamma_0,
+ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=e_gamma_0,
                                  gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
 
 ADMRObject = ADMR([hPocketCondObject, ePocketCondObject])

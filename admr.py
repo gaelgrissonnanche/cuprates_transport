@@ -12,9 +12,13 @@ class ADMR:
 
         # Band dictionary
         self.initialCondObjectDict = {} # will contain the condObject for each band, with key their bandname
+        self.totalFilling = 0 # total bands filling (of electron) over all bands
         for condObject in initialcondObjectList:
+            self.totalFilling += condObject.bandObject.n
             self.initialCondObjectDict[condObject.bandObject.bandname] = condObject
         self.bandNamesList = list(self.initialCondObjectDict.keys())
+        self.totalHoleDoping = 1 - self.totalFilling # total bands hole doping over all bands
+
 
         # Magnetic field
         self.Btheta_min   = 0           # in degrees
@@ -34,6 +38,10 @@ class ADMR:
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
+
+        print("------------------------------------------------")
+        print("Start ADMR computation")
+
         rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype= np.float64)
 
         for l, phi in enumerate(self.Bphi_array):
@@ -61,6 +69,9 @@ class ADMR:
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rzz_array = rho_zz_array / rho_zz_0_array
 
+        print("End ADMR computation")
+        print("------------------------------------------------")
+
     #---------------------------------------------------------------------------
     def fileNameFunc(self):
         # To point to bandstructure parameters, we use just one band
@@ -76,7 +87,7 @@ class ADMR:
             bandAF = False
 
         # Create the list of parameters for the filename
-        file_parameters_list  = [r"p"   + "{0:.3f}".format(bandObject0.p),
+        file_parameters_list  = [r"p"   + "{0:.3f}".format(self.totalHoleDoping),
                                  r"B"   + "{0:.0f}".format(CondObject0.Bamp),
                                  r"t"   + "{0:.1f}".format(bandObject0.t),
                                  r"mu"  + "{0:.3f}".format(bandObject0.mu),
@@ -193,7 +204,8 @@ class ADMR:
             axes.remove()
 
             # Band name
-            fig.text(0.45, 0.92, "Band #: " + iniCondObject.bandObject.bandname, fontsize=20, color='#2E00A4', style="italic")
+            fig.text(0.45, 0.92, "Band #: " + \
+            iniCondObject.bandObject.bandname, fontsize=20, color='#2E00A4', style="italic")
             try:
                 iniCondObject.bandObject.M
                 fig.text(0.41, 0.92, "AF", fontsize=20, color="#FF0000", style="italic")
@@ -255,14 +267,20 @@ class ADMR:
                 fig.text(0.45, h_label, label, fontsize = 14)
                 h_label -= 0.04
 
+            # Band filling
+            fig.text(0.72, 0.85, "Band Filling =", fontsize=16,
+                     color='#A9A9A9', style="italic")
+            fig.text(0.855, 0.85, "{0:.3f}".format(
+                     iniCondObject.bandObject.n), fontsize=16, color='#73ea2b')
+
             # Scattering parameters
-            fig.text(0.72, 0.85, "Scattering Parameters", fontsize=16, color='#A9A9A9', style="italic")
+            fig.text(0.72, 0.77, "Scattering Parameters", fontsize=16, color='#A9A9A9', style="italic")
             label_parameters = [r"$\Gamma_{\rm 0}$   = " + "{0:.1f}".format(iniCondObject.gamma_0) + "   THz",
                                 r"$\Gamma_{\rm DOS}$   = " + "{0:.1f}".format(iniCondObject.gamma_dos) + "   THz",
                                 r"$\Gamma_{\rm k}$   = " + "{0:.1f}".format(iniCondObject.gamma_k) + "   THz",
                                 r"$n$    = " + "{0:.0f}".format(iniCondObject.power)
                                 ]
-            h_label = 0.80
+            h_label = 0.72
             for label in label_parameters:
                 fig.text(0.72, h_label, label, fontsize = 14)
                 h_label -= 0.04
@@ -359,7 +377,7 @@ class ADMR:
 
         # Labels
         fig.text(0.8, 0.9, r"$B$ = " + "{0:.0f}".format(CondObject0.Bamp) + " T")
-        fig.text(0.8, 0.84, r"$p$ = " + "{0:.3f}".format(bandObject0.p))
+        fig.text(0.8, 0.84, r"$p$ = " + "{0:.3f}".format(self.totalHoleDoping))
 
         ## Colors
         if self.Bphi_array.shape[0] > 4:

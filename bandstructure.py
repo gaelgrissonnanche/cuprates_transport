@@ -25,6 +25,7 @@ class BandStructure:
         self._tz2 = tz2 * t
         self._mu  = mu  * t
         self.p    = None # hole doping, unknown at first
+        self.n    = None # band filling (of electron), unknown at first
         self.dos  = None
         self.particlesPerkVolume = 2
         self.bandname = bandname # a string to designate the band
@@ -111,11 +112,10 @@ class BandStructure:
         self.p = 1 - self.n
         return self.n
 
-    def doping(self, resX=500, resY=500, resZ=10, printDoping=True):
+    def doping(self, resX=500, resY=500, resZ=10, printDoping=False):
         self.updateFilling(resX,resY,resZ)
         if printDoping==True:
             print(self.bandname + ": p = " + "{0:.3f}".format(self.p))
-
         return self.p
 
     def filling(self, resX=500, resY=500, resZ=10):
@@ -529,14 +529,19 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPo
 
 
 ## Functions to compute the doping of a two bands system and more >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-def doping(bandIterable):
+def doping(bandIterable, printDoping=False):
         totalFilling=0
+        if printDoping == True:
+            print("------------------------------------------------")
         for band in bandIterable:
             band.updateFilling()
             totalFilling += band.n
-            print("  filling "+ band.bandname + " = " + "{0:.3f}".format(band.n))
+            if printDoping == True:
+                print(band.bandname + ": band filling = " + "{0:.3f}".format(band.n))
         doping = 1-totalFilling
-        print("  doping = " + "{0:.3f}".format(doping))
+        if printDoping == True:
+            print("total hole doping = " + "{0:.3f}".format(doping))
+            print("------------------------------------------------")
         return doping
 
 def dopingCondition(mu,ptarget,bandIterable):

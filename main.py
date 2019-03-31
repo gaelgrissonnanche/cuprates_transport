@@ -17,7 +17,7 @@ bandObject = BandStructure(bandname="LargePocket",
 # bandObject.setMuToDoping(0.27)
 bandObject.discretize_FS()
 bandObject.densityOfState()
-bandObject.doping()
+bandObject.doping(printDoping=True)
 
 # bandObject.figDiscretizeFS2D()
 # bandObject.figMultipleFS2D()
@@ -31,7 +31,7 @@ condObject = Conductivity(bandObject, Bamp=45,
 
 ## ADMR
 start_total_time = time.time()
-amro1band = ADMR([condObject], Bphi_array=[0,15,30,45])
+amro1band = ADMR([condObject], Bphi_array=[0, 15, 30, 45])
 amro1band.runADMR()
 print("amro1band time : %.6s seconds" % (time.time() - start_total_time))
 amro1band.fileADMR(folder="results_sim")
