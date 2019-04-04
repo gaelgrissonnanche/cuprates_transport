@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import cos, sin, pi, exp, sqrt, arctan2
 from scipy.integrate import odeint
+from skimage import measure
 from numba import jit, prange
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -23,7 +24,8 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meVolt * picosecond / Angstrom / hbar**2
 
 
 class Conductivity:
-    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, gamma_0=15, gamma_dos=0, gamma_k=0, power=2):
+    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0,
+                 gamma_0=15, gamma_dos=0, gamma_k=0, power=2, factor_arcs=1):
 
         # Band object
         self.bandObject = bandObject ## WARNING do not modify within this object
@@ -41,6 +43,7 @@ class Conductivity:
         self.power   = int(power)
         if self.power % 2 == 1:
             self.power += 1
+        self.factor_arcs = factor_arcs # factor * gamma_0 outsite AF FBZ
 
         # Time parameters
         self.tau_0 = 1 / self.gamma_0 # in picoseconds
@@ -51,11 +54,15 @@ class Conductivity:
         self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1] # integrand for tau_function
 
         # Time-dependent kf, vf
-        self.kft = None
-        self.vft = None
+        self.kft = np.empty(1)
+        self.vft = np.empty(1)
+        self.t_over_tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
+                                      # i_t index of the time from the starting position
 
         # Conductivity Tensor: x, y, z = 0, 1, 2
         self.sigma = np.empty((3,3), dtype= np.float64)
+
+
 
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def _get_B_vector(self):
@@ -94,6 +101,8 @@ class Conductivity:
         self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1]
     Ntime = property(_get_Ntime, _set_Ntime)
 
+
+
     ## Special Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def __eq__(self, other):
         return (
@@ -105,6 +114,9 @@ class Conductivity:
 
     def __ne__(self, other):
         return not self == other
+
+
+
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def BFunc(self):
@@ -135,6 +147,8 @@ class Conductivity:
         # Velocity function of time
         self.vft = np.empty_like(self.kft, dtype = np.float64)
         self.vft[0, :, :], self.vft[1, :, :], self.vft[2, :, :] = self.bandObject.v_3D_func(self.kft[0, :, :], self.kft[1, :, :], self.kft[2, :, :])
+        # Compute right away the t_over_tau array
+        self.tOverTauFunc()
 
     def diffEqFunc(self, k, t):
         len_k = int(k.shape[0]/3)
@@ -144,16 +158,36 @@ class Conductivity:
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
 
-    def tOverTauFunc(self, k, v):
-        phi = arctan2(k[1,:], k[0,:])
-        dos = 1 / sqrt(v[0,:]**2 + v[1,:]**2 + v[2,:]**2)
-        dos_norm = 0.006 # value to normalize the DOS to a quantity without units
-        # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
-        t_over_tau = np.cumsum( self.dt_array * ( self.gamma_0 + self.gamma_dos * dos / dos_norm + self.gamma_k * cos(2*phi)**self.power ) )
-        return t_over_tau
+    def factor_arcs_Func(self):
+        # line ky = kx + pi
+        d1 = self.kft[1, :, :] * self.bandObject.b - self.kft[0, :, :] * self.bandObject.a - pi  # line ky = kx + pi
+        d2 = self.kft[1, :, :] * self.bandObject.b - self.kft[0, :, :] * self.bandObject.a + pi  # line ky = kx - pi
+        d3 = self.kft[1, :, :] * self.bandObject.b + self.kft[0, :, :] * self.bandObject.a - pi  # line ky = -kx + pi
+        d4 = self.kft[1, :, :] * self.bandObject.b + self.kft[0, :, :] * self.bandObject.a + pi  # line ky = -kx - pi
 
-    # def tOverTauFunc(self, k, v):
-    #     return optimized_tOverTauFunc(k, v, self.dt_array, self.gamma_0, self.gamma_dos, self.gamma_k, self.power)
+        is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
+        is_out_FBZ_AF = np.logical_not(is_in_FBZ_AF)
+        factor_out_of_FBZ_AF = np.ones_like(self.kft[0, :, :])
+        factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
+        return factor_out_of_FBZ_AF
+
+    def gamma_DOS_Func(self):
+        dos = 1 / sqrt( self.vft[0, :, :]**2 +
+                        self.vft[1, :, :]**2 +
+                        self.vft[2, :, :]**2 )
+        dos_norm = 0.006  # value to normalize the DOS to a quantity without units
+        return self.gamma_dos * dos / dos_norm
+
+    def gamma_k_Func(self):
+        phi = arctan2(self.kft[1, :, :], self.kft[0, :, :])
+        return self.gamma_k * cos(2*phi)**self.power
+
+    def tOverTauFunc(self):
+        # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
+        self.t_over_tau = np.cumsum( self.dt_array * (
+                                     self.gamma_0 * self.factor_arcs_Func() +
+                                     self.gamma_DOS_Func()             +
+                                     self.gamma_k_Func() ) , axis = 1)
 
     def solveMovementForPoint(self, kpoint):
         len_t = self.t.shape[0]
@@ -164,23 +198,26 @@ class Conductivity:
     def VelocitiesProduct(self, i, j):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0: vif = vxf """
-        ## Velocity components
+        # Velocity components
         vif  = self.bandObject.vf[i,:]
         vjft = self.vft[j,:,:]
-        v_product = np.empty(vif.shape[0], dtype = np.float64)
-        for i0 in range(vif.shape[0]):
-            vj_sum_over_t = np.sum( vjft[i0,:] * exp( - self.tOverTauFunc(self.kft[:,i0,:], self.vft[:,i0,:]) ) * self.dt ) # integral over t
-            v_product[i0] = vif[i0] * vj_sum_over_t
+        # Integral over t
+        vj_sum_over_t = np.sum(vjft * exp(-self.t_over_tau) * self.dt, axis=1)
+        # Product of velocities
+        v_product = vif * vj_sum_over_t
         return v_product
-
-    # def VelocitiesProduct(self, i, j):
-    #     return optimized_VelocitiesProduct(self.kft, self.bandObject.vf, self.vft, self.dt, self.dt_array, self.gamma_0, self.gamma_dos, self.gamma_k, self.power, i, j)
 
     def chambersFunc(self, i = 2, j = 2):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
-        self.sigma[i, j] = units_chambers * np.sum(self.bandObject.dos * self.bandObject.dkf * self.VelocitiesProduct(i=i, j=j)) * \
-                           (self.bandObject.particlesPerkVolume / 2) # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
+        # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
+        self.sigma[i, j] = self.bandObject.particlesPerkVolume / 2  * \
+                           units_chambers * \
+                           np.sum( self.bandObject.dos *
+                                   self.bandObject.dkf *
+                                   self.VelocitiesProduct(i=i, j=j) )
+
+
 
     ## Figures ////////////////////////////////////////////////////////////////#
 
@@ -262,6 +299,80 @@ class Conductivity:
 
         plt.show()
 
+    def figArcs(self, index_kf = 0, meshXY = 1001):
+        fig, axes = plt.subplots(1, 1, figsize=(5.6, 5.6))
+        fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91)
+
+        fig.text(0.39,0.86, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
+        fig.text(0.85, 0.86, r"$\Gamma_{\rm 0}$", ha="right", fontsize=16, color = "#1CB7FF")
+        fig.text(0.85, 0.81, str(self.factor_arcs) + r" $\Gamma_{\rm 0}$", ha="right", fontsize=16, color="#FF8181")
+
+        kx = np.linspace(-pi, pi, meshXY)
+        ky = np.linspace(-pi, pi, meshXY)
+
+        # line ky = kx + pi
+        d1 = ky - kx - pi  # line ky = kx + pi
+        d2 = ky - kx + pi  # line ky = kx - pi
+        d3 = ky + kx - pi  # line ky = -kx + pi
+        d4 = ky + kx + pi  # line ky = -kx - pi
+
+        # Draw FBZ AF
+        line = axes.plot(kx, d1-ky)
+        plt.setp(line, ls ="--", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "k", mew= 0, zorder = -1)  # end point
+        line = axes.plot(kx, d2-ky)
+        plt.setp(line, ls ="--", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "k", mew= 0, zorder = -1)  # end point
+        line = axes.plot(kx, d3-ky)
+        plt.setp(line, ls ="--", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "k", mew= 0, zorder = -1)  # end point
+        line = axes.plot(kx, d4-ky)
+        plt.setp(line, ls ="--", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "k", mew= 0, zorder = -1)  # end point
+
+        # Draw FS
+        a = self.bandObject.a
+        b = self.bandObject.b
+        kxx, kyy = np.meshgrid(kx/a, ky/b, indexing='ij')
+        bands = self.bandObject.e_3D_func(kxx, kyy, 0)
+        contours = measure.find_contours(bands, 0)
+
+        for contour in contours:
+
+            # Contour come in units proportionnal to size of meshgrid
+            # one want to scale to units of kx and ky
+            kx_f = (contour[:, 0] / (meshXY - 1) -0.5) * 2*pi
+            ky_f = (contour[:, 1] / (meshXY - 1) -0.5) * 2*pi / (b/a)
+
+            d1 = ky_f - kx_f - pi  # line ky = kx + pi
+            d2 = ky_f - kx_f + pi  # line ky = kx - pi
+            d3 = ky_f + kx_f - pi  # line ky = -kx + pi
+            d4 = ky_f + kx_f + pi  # line ky = -kx - pi
+
+            is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
+            kx_arcs = kx_f[is_in_FBZ_AF]
+            ky_arcs = ky_f[is_in_FBZ_AF]
+            kx_out_arcs = kx_f[np.logical_not(is_in_FBZ_AF)]
+            ky_out_arcs = ky_f[np.logical_not(is_in_FBZ_AF)]
+
+            line = axes.plot(kx_arcs, ky_arcs)
+            plt.setp(line, ls="", c='#1CB7FF', lw=2, marker="o", mfc='#1CB7FF',
+                 ms=2, mec='#1CB7FF', mew=0)
+            line = axes.plot(kx_out_arcs, ky_out_arcs)
+            plt.setp(line, ls="", c='#FF8181', lw=2, marker="o", mfc='#FF8181',
+                 ms=2, mec='#FF8181', mew=0)
+
+        axes.set_xlim(-pi, pi)
+        axes.set_ylim(-pi, pi)
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
+        axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
+        axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
+
+        axes.set_xticks([-pi, 0., pi])
+        axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+        axes.set_yticks([-pi, 0., pi])
+        axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+
+        plt.show()
+
+
     def figOnekft(self, index_kf = 0, meshXY = 1001):
         mesh_graph = meshXY
         kx = np.linspace(-pi / self.bandObject.a, pi / self.bandObject.a, mesh_graph)
@@ -295,6 +406,7 @@ class Conductivity:
 
         plt.show()
 
+
     def figOnevft(self, index_kf = 0):
         fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
         fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
@@ -316,7 +428,7 @@ class Conductivity:
         fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
         fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
 
-        line = axes.plot(self.t, np.cumsum( self.vft[2, index_kf, :] * exp( - self.tOverTauFunc(self.kft[:, index_kf,:], self.vft[:, index_kf,:]) ) ))
+        line = axes.plot(self.t, np.cumsum(self.vft[2, index_kf, :] * exp(-self.t_over_tau[index_kf, :])))
         plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
         axes.tick_params(axis='x', which='major', pad=7)
@@ -330,28 +442,4 @@ class Conductivity:
         #//////////////////////////////////////////////////////////////////////////////#
 
 
-# @jit(nopython=True)
-# def optimized_tOverTauFunc(k, v, dt_array, gamma_0, gamma_dos, gamma_k, power):
-#     phi = arctan2(k[1, :], k[0,:])
-#     dos = 1 / sqrt(v[0, :]**2 + v[1,:]**2 + v[2,:]**2)
-#     dos_norm = 0.006  # value to normalize the DOS to a quantity without units
-#     # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
-#     t_over_tau = np.cumsum(dt_array * (gamma_0 + gamma_dos *
-#                                             dos / dos_norm + gamma_k * cos(2*phi)**power))
-#     return t_over_tau
 
-
-# @jit(nopython=True, parallel=True)
-# def optimized_VelocitiesProduct(kft, vf, vft, dt, dt_array, gamma_0, gamma_dos, gamma_k, power, i, j):
-#     """ Index i and j represent x, y, z = 0, 1, 2
-#         for example, if i = 0: vif = vxf
-#     """
-#     ## Velocity components
-#     vif  = vf[i,:]
-#     vjft = vft[j,:,:]
-#     v_product = np.empty(vif.shape[0], dtype = np.float64)
-#     for i0 in prange(vif.shape[0]):
-#         vj_sum_over_t = np.sum(vjft[i0, :] * \
-#                         exp(- optimized_tOverTauFunc(kft[:, i0, :], vft[:, i0, :], dt_array, gamma_0, gamma_dos, gamma_k, power)) * dt)  # integral over t
-#         v_product[i0] = vif[i0] * vj_sum_over_t
-#     return v_product
