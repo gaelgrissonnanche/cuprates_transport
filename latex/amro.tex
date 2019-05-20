@@ -11,13 +11,11 @@
 
 %	PACKAGES
 \usepackage[utf8]{inputenc}
-\usepackage{amssymb,amsmath,esint,amsfonts,dsfont}
+\usepackage{amssymb,amsmath,esint,amsfonts,mathtools,dsfont,bm}
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage[pdftex]{graphicx}
 \usepackage[pdftex,plainpages=false,colorlinks=true,linkcolor=Red, citecolor=blue, urlcolor=blue]{hyperref}
-\usepackage{bm}
 \usepackage[most]{tcolorbox}
-\usepackage{mathtools} % for Aboxed
 \usepackage{empheq}
 
 
@@ -32,10 +30,23 @@
 
 \renewcommand{\vec}[1]{\bm{\mathrm{#1}}}
 
+%% tensor
+
+\usepackage{stackengine}\stackMath
+\def\lvec{{\rotatebox{180}{$\mkern+0mu\mathchar"017E$}}}
+\def\tensign{\smash{\stackon[-1.99pt]{\mkern-4mu\mathchar"017E}{\rotatebox{180}{$\mkern+0mu\mathchar"017E$}}}}
+\def\tensor#1{\def\useanchorwidth{T}\stackon[-4.3pt]{#1}{\,\tensign}}
+
+
+
+
+
+
+
 %	DOCUMENT
 \begin{document}
 
-\title{Insights on Electronic Transport in Cuprates}
+\title{Quick Guide on Electronic DC Transport on Cuprates}
 \author{S. \surname{Verret}}
 \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
 \date{\today}
@@ -52,12 +63,12 @@ I will write the abstract once the document has fully take form.
 Three conductivity tensors $\tensor{\sigma}$, $\tensor{\alpha}$, and $\tensor{\beta}$ suffice to determine all transport coefficients. They are defined by the relations between the $x$,$y$,$z$ components of the electric current, $\vec j_e$, the heat current $\vec j_Q$, the electric field $\vec E$, and the Temperature gradient $\vec \nabla T$~\cite{ashcroft_solid_1976,arsenault_transport_2013}:
 \begin{align}
 \vec j_e &= \tensor{\sigma}\ \vec E + \tensor{\alpha}\ (-\vec \nabla T)\\
-\vec j_Q &= \tensor{\alpha'}\ \vec E + \tensor{\beta}\ (-\vec \nabla T).
+\vec j_Q &= \tensor{\alpha}'\ \vec E + \tensor{\beta}\ (-\vec \nabla T).
 \end{align}
 Note: these conductivity tensors are also often noted $\tensor{\sigma}=L_{11}$, $\tensor{\alpha}=L_{12}$, $\tensor{\beta}=L_{22}$. They depend on temperature $T$ and magnetic field $\vec B$, satisfying the Onsager relations:
 \begin{align}
 \tensor{\sigma}(\vec B) &= \tensor{\sigma}^{\intercal}(-\vec B)\\
-\tensor{\alpha}(\vec B) &= -T\tensor{\alpha'}^{\intercal}(-\vec B)\\
+\tensor{\alpha}(\vec B) &= -T\tensor{\alpha}'^{\intercal}(-\vec B)\\
 \tensor{\beta}(\vec B) &= \tensor{\beta}^{\intercal}(-\vec B).
 \end{align}
 The second Onsager relation explains why we do not need to worry about $\tensor{\alpha'}=L_{21}$.
@@ -115,7 +126,7 @@ For example, in the 2D case, $\tensor{\rho}$ is a $2\times2$ inverse:
 \begin{pmatrix}
 \sigma_{yy} & -\sigma_{xy}\\
 -\sigma_{yx} & \sigma_{xx}
-\end{pmatrix}^{-1}
+\end{pmatrix}
 \end{align}
 The longitudinal resistivity is then given as:
 \begin{align}
@@ -140,13 +151,45 @@ R_H = \frac{-\rho_{xy}}{B}
 n_H = \frac{1}{-eR_H}.
 \end{align}
 
+
+
 \subsection{Thermoelectricity: Seebeck, Pelletier \& Nernst effects}
 
-The Seebeck effect is 
+The thermoelectricity tensor $\tensor{Q}$ is defined as:
+\begin{align}
+\tensor{Q} &\equiv \tensor{\sigma}^{-1}\tensor{\alpha}
+\end{align}
+For example, in the 2D case, the $2\times2$ matrix for $\tensor{Q}$ is:
+\begin{align}
+\tensor{Q}
+&=
+\begin{pmatrix}
+\sigma_{xx} & \sigma_{xy}\\
+\sigma_{yx} & \sigma_{yy}
+\end{pmatrix}^{-1}
+\begin{pmatrix}
+\alpha_{xx} & \alpha_{xy}\\
+\alpha_{yx} & \alpha_{yy}
+\end{pmatrix}
+=
+\begin{pmatrix}
+  \frac{\sigma_{yy}\alpha_{xx}-\sigma_{xy}\alpha_{yx}}
+  {\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}} 
+& \frac{\sigma_{yy}\alpha_{xy}-\sigma_{xy}\alpha_{yy}}
+  {\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}\\
+  \frac{\sigma_{xx}\alpha_{yx}-\sigma_{yx}\alpha_{xx}}
+  {\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}
+& \frac{\sigma_{xx}\alpha_{xy}-\sigma_{yx}\alpha_{yy}}
+  {\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}
+\end{pmatrix}
+\end{align}
 
 
 \subsection{Thermal conductivity \& Righi-Leduc effect}
-
+In the same way, the thermal conductivity $\tensor{\kappa}$ can be obtained from:
+\begin{align}
+\tensor{\kappa} &\equiv -\tensor{\beta} + T\tensor{\alpha}\tensor{\sigma}^{-1}\tensor{\alpha}
+\end{align}
 
 \section{Semi-classical case}
 \noindent
@@ -573,6 +616,7 @@ In this expression, small numerical values might be needed to prevent divergence
 
 \section{strongly correlated case}
 
+Please refer to Arsenault \emph{et al.}~\cite{arsenault_transport_2013}  for the strongly correlated case. Note that the analysis for equation 
 
 \begin{acknowledgments}
 Most of the work that lead to this note was done with Gaël Grissonanche, closely following the work of Pr. Brad Ramshaw and Yawen Fang in Cornell University.
