@@ -57,6 +57,7 @@ This document describes how transport coefficients are related to one another. I
 \end{abstract}
 
 \maketitle
+\tableofcontents
 
 \section{Conductivity tensors}
 \noindent
@@ -104,9 +105,8 @@ f(\epsilon) = \frac{1}{e^{(\epsilon-\mu)/k_{B}T}+1}.
 \end{align}
 Here, the chemical potential~$\mu$ controls the expected number of particles $\langle n\rangle$, and the temperature $T$ controls the expected energy $\langle H\rangle$. The derivative of the Fermi function yields non-zero values only in a narrow window surrounding the Fermi level.
 
-Although the remaining sections of this document will explain how to compute $\sigma_{ij}(\epsilon)$ in the semi-classical approximation,
-one should note that the above formulation of transport coefficients is valid in the strongly correlated case, with $\sigma_{ij}(\epsilon)$ corresponding to the current-current correlation function.
-Before going further, however, we will define the usual measurable transport coefficients (resistivity, Hall coefficient, Seebeck coefficient, etc.) in 2D, and give an example of how one can use the above formulation to think about transport coefficients in cuprates.
+The remaining sections of this document will explain how to compute $\sigma_{ij}(\epsilon)$ in various limit of the semi-classical approximation. One should note, however, that the above formulation of transport coefficients is valid in the strongly correlated case, with $\sigma_{ij}(\epsilon)$ corresponding to the current-current correlation function.
+First, however, let us define the usual measurable transport coefficients (resistivity, Hall coefficient, Seebeck coefficient, etc.) in 2D, and give an example of how one can use the above formulation to think about those coefficients in cuprates.
 
 
 \subsection{Resistivity \& Hall effect}
@@ -260,7 +260,7 @@ T\Big[ \frac{
 \Big] - \beta_{xy}
 \end{align}
 
-\subsection{Exemple: implication of the Seebeck effect for the density of conductivity}
+\subsection{Example: Interpretation of the Seebeck effect}
 When substituting the expressions the resistivity \eqref{eq_resistivity} for $\rho_{xx}$ and \eqref{alpha} for $\alpha_{xx}$ in the reduced expression for the Seebeck coefficient~\eqref{eq_seebeck}, one gets a particularily revealing expression regarding the density of conductivity $\sigma_{xx}(\epsilon)$:
 \begin{align}
 S_x 
@@ -276,9 +276,34 @@ S_x
 \end{align}
 In this expression, we can see that if $\sigma_{xx}(\epsilon)$ is even with respect to the Fermi-level, \emph{i.e.} $\sigma_{xx}(-\epsilon) = \sigma_{xx}(\epsilon)$ within the narrow energy window determined by $-\frac{\partial f(\epsilon)}{\partial \epsilon}$, then, because of the extra $\epsilon$ in the integral, the integrand is perfectly odd and the Seebeck coefficient should be zero. Thus, any non-zero Seebeck effect must come from an assymetry in the density of conductivity $\sigma_{xx}(\epsilon)$ with respect to the Fermi level.
 
-This is particularily relevant to cuprates, at the pseudogap transition occuring at doping~$p^*$. At low temperature, the $p^*$ transition is accompanied by an abrupt augmentation of the resistivity $\rho_{xx}$. Since resistivity explicitely enters expression~\eqref{eq_seebeck_explicit}, an equivalent augmentation is expected in the Seebeck effect, given the latter is non-zero. However, the relative rate of augmentation for both coefficient will reveal how the density of conductivity affected by the transition is distributed around the Fermi level. Namely, during the $p^*$ transition, if the density of conductivity changes symetrically with respect to the Fermi level, the only effect will come from $\rho_xx$ the Seebeck augmentation should track exactly the resistivity augmentation. Otherwise, the relative augmentation in the Seebeck coefficient will be different due to odd contribution to the integral in~\eqref{eq_seebeck_explicit}.
+Equation~\ref{eq_seebeck_explicit} is particularily relevant to cuprates, regarding the pseudogap transition occuring at doping~$p^*$. At low temperature, an abrupt augmentation of the resistivity~$\rho_{xx}$ is observed at~$p^*$. Since resistivity explicitely enters expression~\eqref{eq_seebeck_explicit}, an equivalent augmentation is expected in the Seebeck effect, given the latter is non-zero. However, a comparison between the augmentation in $\rho_{xx}$ and the augmentation in $S_x$ might reveal a lot more. Namely, if the $p^*$ transition causes $\sigma_{xx}(\epsilon)$ to change symetrically with respect to the Fermi level, then the only effect in $S_x$ will come from $\rho_{xx}$, because the $\epsilon$ would make the symmetric changes of the transition an odd contribution in the integral of~\eqref{eq_seebeck_explicit}, which would cancel out. In that case, the Seebeck augmentation should track the resistivity augmentation exactly. On the other hand, if the change in $\sigma_{xx}(\epsilon)$ is assymetric with respect to the Fermi level, then there will be a difference between the augmentations in $S_x$ and that in $\rho_{xx}$. Note that in either cases, the Seebeck effect can remain nonzero at all times, given a sufficiently assymetric $\sigma_{xx}(\epsilon)$; only the eveness or oddness of \emph{the changes} brought by the transition are relevant.
 
+Note that not only is this analysis valid in the non-interacting case, for which, as we we will see, the zero-field $\sigma_{xx}(\epsilon)$ is:
+\begin{align}
+\sigma_{xx}(\epsilon) = 
+&=
+e^2\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+v_{x}(\vec k)^2
+\tau_{\vec k}\delta\big(\epsilon-E(\vec k)\big),
+\label{eq_will_return}
+\end{align}
+but it is also valid in the strongly correlated case, for which $\sigma_{xx}(\epsilon)$ would simply be the current-current correlation function. In the first approximation, the latter would be:
+\begin{align}
+\sigma_{xx}(\epsilon) = 
+&=
+e^2\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+v_{x}(\vec k)^2
+\pi\hbar A(\vec k,\epsilon)^2,
+\end{align}
+where $A(\vec k,\epsilon)$ is the spectral weight.
 
+Finally, let us add that above correspondence for the longitudinal conductivity has an analogous one for the transverse conductivity (not shown here). Together, these suggest the following heuristic:
+\begin{align}
+\tau_{\vec k}\delta\big(\epsilon-E(\vec k)\big) &\longleftrightarrow \pi\hbar A(\vec k,\epsilon)^2
+\\
+\tau_{\vec k}^2\delta\big(\epsilon-E(\vec k)\big) &\longleftrightarrow \frac{\pi^2\hbar^2}{3} A(\vec k,\epsilon)^3
+\end{align}
+to go from the non-interacting case to the weakly interacting case. The validity of this heuristic has not been verified thoroughly for all the versions of $\sigma_{xx}(\epsilon)$ derived in the following sections, but it may serve as a guide to derive their strongly correlated versions.
 
 \section{Semi-classical formulas}
 \noindent
@@ -316,7 +341,7 @@ where we find the lifetime $\tau_{\vec k}$ (which is not only $\vec k$-dependent
 where $\vec B$ is the magnetic field. To compute conductivity tensors, one must thus solve the equation of motion \eqref{semiClassicalMovement} for each starting point $\vec k$ contained the integral of \eqref{chambers1}. Some simplifications are helpful.
 
 \begin{tcolorbox}[colback=black!2!white,colframe=white!10!black,title=All-in-one equation]
-At this point, we can reduce all the tensors into a single expression. We substitute \eqref{chambers2} and \eqref{velocity} in \eqref{chambers1}, and then substitute the result in \eqref{sigma}, \eqref{alpha}, and \eqref{beta}, unifying them in the following monster:
+At this point, we can reduce all the tensors into a single expression. We substitute \eqref{chambers2} and \eqref{velocity} in \eqref{chambers1}, and then substitute the result in \eqref{sigma}, \eqref{alpha}, and \eqref{beta}, unifying them in the following expression:
 \begin{align}
 \sigma_{ij}^{(n)}
 &=
@@ -352,7 +377,7 @@ The semiclassical movement equation \eqref{semiClassicalMovement} must be used t
 
 
 \subsection{Equi-energy surfaces}\label{sec_surfaces}
-The Dirac delta $\delta(\epsilon-E(\vec k))$ reduces the three-dimensional $\vec k$ integral to an integral over the surface where the delta's argument is zero: the surface defined by $E(\vec k)=\epsilon$ (see equation~8.57 and 8.62 of Ashcroft~\&~Mermin~\cite{ashcroft_solid_1976} for a similar statement)
+The Dirac delta $\delta(\epsilon-E(\vec k))$ allow to change the three-dimensional $\vec k$ integral to a two-dimensional integral over the surface where the delta's argument is zero; the surface defined by $E(\vec k)=\epsilon$ (see equation~8.57 and 8.62 of Ashcroft~\&~Mermin~\cite{ashcroft_solid_1976} for a similar statement). Take an arbitrary function $F(\vec k)$, for example:
 \begin{align}
 \iiint d^3 k 
 F(\vec k)\delta\big(\epsilon - E(\vec k)\big)
@@ -425,7 +450,7 @@ v_{i}(\vec k)
 \delta\big(\epsilon-E(\vec k)\big),
 \label{chambersZeroField}
 \end{empheq}
-where $\delta_{ij}$ is the Kronecker symbol and $\varepsilon_{ijk}$ is the Levi-Cevita symbol (which is 0 if $i=j$).
+where $\delta_{ij}$ is the Kronecker symbol and $\varepsilon_{ijk}$ is the Levi-Cevita symbol (which is 0 if $i=j$). This is the case mentionned at the beginning, with the first term of this equation corresponding to~\eqref{eq_will_return}.
 
 \subsection{Effective mass and Drude results}
 
@@ -546,13 +571,14 @@ f(\epsilon)
 % \frac{\partial^2 E(\vec k(t))}{\partial k_i\partial k_j}
 \Bigg[
 \delta_{ij}M^{-1}_{ii}(\vec k)\tau
-\\
+\nonumber\\
 &\qquad
 +\varepsilon_{ijk}(-eB_k) \bigg(M^{-1}_{ii}(\vec k)M^{-1}_{jj}(\vec k) - M^{-2}_{ij}(\vec k) \bigg)\tau^2
 \Bigg]
 \delta(\epsilon-E(\vec k))
 ,
 \end{empheq}
+The above is an all-in-one equation expressed with the mass instead of the velocities.
 Note in particular the longitudinal electric conductivity case $\sigma_{ii} = \sigma_{ii}^{(0)}$:
 \begin{align}
 \lim_{\substack{\vec B\rightarrow 0\\ \tau_{\vec k}\rightarrow\tau}}
@@ -597,7 +623,7 @@ In the zero temperature limit, the electrical conductivity tensor \eqref{sigma} 
 \lim_{T\rightarrow 0}\sigma_{ij}&=\sigma_{ij}(\mu).
 }
 \end{align}
-Unfortunately, this simplification does not extend to $\tensor{\alpha}$ and $\tensor{\beta}$ for which one must instead turn to Sommerfeld expansions.
+Unfortunately, this simplification does not extend to $\tensor{\alpha}$ and $\tensor{\beta}$ for which one must instead turn to Sommerfeld expansions (see Appendix~C of Ashcroft~\&~Mermin~\cite{ashcroft_solid_1976}).
 Note that together with the simplification \ref{sec_surfaces} for energy surfaces, the zero-temperature simplification implies that the conductivity at $T=0$ is entirely given by the Fermi Surface:
 \begin{align}
 \lim_{T\rightarrow0}\sigma_{ij} 
@@ -606,7 +632,7 @@ Note that together with the simplification \ref{sec_surfaces} for energy surface
 \label{zeroTemperature}
 \end{align}
 
-% \subsection{Sommerfeld expansions}
+
 
 \section{Cuprates dispersion}\label{section_disp}
 \noindent
