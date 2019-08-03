@@ -14,18 +14,18 @@ sample_name = r"Nd-LSCO $p$ = 0.25"
 
 ## Initial parameters
 gamma_0_ini  = 15 # in THZ
-gamma_0_vary = False
+gamma_0_vary = True
 
 gamma_dos_ini = 0 # in THz
 gamma_dos_vary = False
 
 gamma_k_ini  = 70 # in THz
-gamma_k_vary = False
+gamma_k_vary = True
 
 power_ini    = 12
 power_vary   = False
 
-mu_ini       = -0.854
+mu_ini       = -0.825
 mu_vary      = False
 
 ## Graph values
@@ -41,22 +41,22 @@ bandObject = BandStructure(bandname="hPocket",
                            a=3.74767, b=3.74767, c=13.2,
                            t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                            mu=mu_ini,
-                           numberOfKz=7, mesh_ds=pi/20)
+                           numberOfKz=7, mesh_ds=np.pi/20)
 
 ## Interpolate data over theta of simulation
-data = np.loadtxt("data_NdLSCO_0p25/0p25_0degr_45T_25K.dat", dtype = "float", comments = "#")
+data = np.loadtxt("data_NdLSCO_0p25/0p25_0degr_45T_20K.dat", dtype = "float", comments = "#")
 x = data[:,0]
 y = data[:,1]
 rzz_0 = np.interp(Btheta_array, x, y)
-data = np.loadtxt("data_NdLSCO_0p25/0p25_15degr_45T_25K.dat", dtype = "float", comments = "#")
+data = np.loadtxt("data_NdLSCO_0p25/0p25_15degr_45T_20K.dat", dtype = "float", comments = "#")
 x = data[:,0]
 y = data[:,1]
 rzz_15 = np.interp(Btheta_array, x, y)
-data = np.loadtxt("data_NdLSCO_0p25/0p25_30degr_45T_25K.dat", dtype = "float", comments = "#")
+data = np.loadtxt("data_NdLSCO_0p25/0p25_30degr_45T_20K.dat", dtype = "float", comments = "#")
 x = data[:,0]
 y = data[:,1]
 rzz_30 = np.interp(Btheta_array, x, y)
-data = np.loadtxt("data_NdLSCO_0p25/0p25_45degr_45T_25K.dat", dtype = "float", comments = "#")
+data = np.loadtxt("data_NdLSCO_0p25/0p25_45degr_45T_20K.dat", dtype = "float", comments = "#")
 x = data[:,0]
 y = data[:,1]
 rzz_45 = np.interp(Btheta_array, x, y)
