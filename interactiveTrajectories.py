@@ -16,7 +16,7 @@ from conductivity import Conductivity
 
 startTime = time.time()
 print('discretizing fermi surface')
-band = BandStructure(mu = -1.5)
+band = BandStructure(mu = -0.83)
 # band.setMuToDoping(0.30)
 band.discretize_FS()
 band.densityOfState()

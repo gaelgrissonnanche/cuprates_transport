@@ -6,18 +6,16 @@
 %\documentclass[aps,prl,preprint,linenumbers]{revtex4-1}
 %\documentclass[aps,prl,reprint]{revtex4-1}
 
-\documentclass[aps,preprint,notitlepage,nofootinbib]{revtex4-1}
+\documentclass[notitlepage,11pt,nofootinbib]{revtex4-1}
 %\documentclass[aps, preprint, prb, linenumbers, showpacs]{revtex4-1}
 
 %	PACKAGES
 \usepackage[utf8]{inputenc}
-\usepackage{amssymb,amsmath,esint,amsfonts,dsfont}
+\usepackage{amssymb,amsmath,esint,amsfonts,mathtools,dsfont,bm}
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage[pdftex]{graphicx}
 \usepackage[pdftex,plainpages=false,colorlinks=true,linkcolor=Red, citecolor=blue, urlcolor=blue]{hyperref}
-\usepackage{bm}
 \usepackage[most]{tcolorbox}
-\usepackage{mathtools} % for Aboxed
 \usepackage{empheq}
 
 
@@ -32,37 +30,51 @@
 
 \renewcommand{\vec}[1]{\bm{\mathrm{#1}}}
 
+%% tensor
+
+% \usepackage{stackengine}\stackMath
+% \def\lvec{{\rotatebox{180}{$\mkern+0mu\mathchar"017E$}}}
+% \def\tensign{\smash{\stackon[-1.99pt]{\mkern-4mu\mathchar"017E}{\rotatebox{180}{$\mkern+0mu\mathchar"017E$}}}}
+% \def\tensor#1{\def\useanchorwidth{T}\stackon[-4.3pt]{#1}{\,\tensign}}
+
+
+
+
+
+
+
 %	DOCUMENT
 \begin{document}
 
-\title{Insights on Electronic Transport in Cuprates}
+\title{Notes on DC Electronic Transport in Cuprates}
 \author{S. \surname{Verret}}
 \affiliation{D\'epartement de physique, Universit\'e de Sherbrooke, Qu\'ebec, Canada  J1K 2R1}
 \date{\today}
-\keywords{}
+% \keywords{}
+
 \begin{abstract}
-I will write the abstract once the document has fully take form.
+This document describes how transport coefficients are related to one another. It then shows how to compute them in the semi-classical approximation, starting from Chamber's formula. From there, the more usual Boltzmann and Drude formulas are derived. The last section gives the dispersion and velocity one can use in the latter transport formulas to simulate transport in cuprates.
 \end{abstract}
 
 \maketitle
-
+\tableofcontents
 
 \section{Conductivity tensors}
 \noindent
 Three conductivity tensors $\tensor{\sigma}$, $\tensor{\alpha}$, and $\tensor{\beta}$ suffice to determine all transport coefficients. They are defined by the relations between the $x$,$y$,$z$ components of the electric current, $\vec j_e$, the heat current $\vec j_Q$, the electric field $\vec E$, and the Temperature gradient $\vec \nabla T$~\cite{ashcroft_solid_1976,arsenault_transport_2013}:
 \begin{align}
 \vec j_e &= \tensor{\sigma}\ \vec E + \tensor{\alpha}\ (-\vec \nabla T)\\
-\vec j_Q &= \tensor{\alpha'}\ \vec E + \tensor{\beta}\ (-\vec \nabla T).
+\vec j_Q &= \tensor{\alpha}'\ \vec E + \tensor{\beta}\ (-\vec \nabla T).
 \end{align}
-Note: these conductivity tensors are also often noted $\tensor{\sigma}=L_{11}$, $\tensor{\alpha}=L_{12}$, $\tensor{\beta}=L_{22}$. They depend on temperature $T$ and magnetic field $\vec B$, satisfying the Onsager relations:
+These tensors depend on temperature $T$ and magnetic field $\vec B$, satisfying the Onsager relations:
 \begin{align}
-\tensor{\sigma}(\vec B) &= \tensor{\sigma}^{\intercal}(-\vec B)\\
-\tensor{\alpha}(\vec B) &= -T\tensor{\alpha'}^{\intercal}(-\vec B)\\
-\tensor{\beta}(\vec B) &= \tensor{\beta}^{\intercal}(-\vec B).
+\tensor{\sigma}(\vec B) &= \tensor{\sigma}^{\top}(-\vec B)\\
+\tensor{\alpha}(\vec B) &= -T\tensor{\alpha}'^{\top}(-\vec B)\\
+\tensor{\beta}(\vec B) &= \tensor{\beta}^{\top}(-\vec B).
 \end{align}
-The second Onsager relation explains why we do not need to worry about $\tensor{\alpha'}=L_{21}$.
+The second relation above is such that we do not need to worry about $\tensor{\alpha}'$\footnote{The conductivity tensors are also often noted $\tensor{\sigma}=L_{11}$, $\tensor{\alpha}=L_{12}$, $\tensor{\beta}=L_{22}$, $\tensor{\alpha}'=L_{21}$.}.
 
-In almost all cases, these tensors can be computed as energy integrals of the same kernel $\sigma_{ij}(\epsilon)$, which can be viewed as a \emph{density of conductivity}. The specific heat $C_V$ can also be computed with such an integral, but of the density of states $N(\epsilon)$ in the place of $\sigma_{ij}(\epsilon)$. With $i,j$ denoting $x$,$y$,$z$ components of the tensors, these integrals are:
+In almost all cases, these tensors can be computed as energy integrals of the same kernel $\sigma_{ij}(\epsilon)$, which we will view here as a \emph{density of conductivity}. This name is choosen because the specific heat $C_V$ can also be computed with such an integral, but with the density of states $N(\epsilon)$ taking the place of this $\sigma_{ij}(\epsilon)$. With $i,j$ denoting $x$,$y$,$z$ components of the tensors, these integrals are:
 \begin{align}
 \sigma_{ij}
 &=
@@ -87,25 +99,22 @@ C_V
 \int_{-\infty}^{\infty}d\epsilon
 \bigg[\Big(-\frac{\partial f(\epsilon)}{\partial \epsilon}\Big)\frac{\epsilon^2}{T}\bigg]N(\epsilon).
 \end{align}
-where the electron charge is $-e$. Thus, $\sigma_{ij}(\epsilon)$ act as a density of conductivity, which is ``sampled'', in these integrals, by derivatives of the Fermi-Dirac distribution~$f(\epsilon)$:
+where the electron charge is $-e$. Thus, $\sigma_{ij}(\epsilon)$ act as a density of conductivity., weighted by the derivative of the Fermi-Dirac distribution~$f(\epsilon)$:
 \begin{align}
 f(\epsilon) = \frac{1}{e^{(\epsilon-\mu)/k_{B}T}+1}.
 \end{align}
-where~$\mu$ is the chemical potential.
+Here, the chemical potential~$\mu$ controls the expected number of particles $\langle n\rangle$, and the temperature $T$ controls the expected energy $\langle H\rangle$. The derivative of the Fermi function yields non-zero values only in a narrow window surrounding the Fermi level.
 
-The remaining sections of this document explain how to compute $\sigma_{ij}(\epsilon)$ in various approximations.
-Before to do so, however, let us define the usual measurable transport quantities, and give some examples of how ``to think'' about the above integrals.
+The remaining sections of this document will explain how to compute $\sigma_{ij}(\epsilon)$ in various limit of the semi-classical approximation. One should note, however, that the above formulation of transport coefficients is valid in the strongly correlated case, with $\sigma_{ij}(\epsilon)$ corresponding to the current-current correlation function.
+First, however, let us define the usual measurable transport coefficients (resistivity, Hall coefficient, Seebeck coefficient, etc.) in 2D, and give an example of how one can use the above formulation to think about those coefficients in cuprates.
+
 
 \subsection{Resistivity \& Hall effect}
 
 The resistivity tensor $\tensor{\rho}$ is defined as $\tensor{\sigma}^{-1}$.
 \begin{align}
 \tensor{\rho} &\equiv \tensor{\sigma}^{-1}
-\end{align}
-For example, in the 2D case, $\tensor{\rho}$ is a $2\times2$ inverse:
-\begin{align}
-\tensor{\rho}
-&=
+=
 \begin{pmatrix}
 \sigma_{xx} & \sigma_{xy}\\
 \sigma_{yx} & \sigma_{yy}
@@ -115,15 +124,18 @@ For example, in the 2D case, $\tensor{\rho}$ is a $2\times2$ inverse:
 \begin{pmatrix}
 \sigma_{yy} & -\sigma_{xy}\\
 -\sigma_{yx} & \sigma_{xx}
-\end{pmatrix}^{-1}
+\end{pmatrix}
 \end{align}
-The longitudinal resistivity is then given as:
+with longitudinal resistivity is then given as:
 \begin{align}
 \rho_{xx} 
 &= 
 \frac{\sigma_{yy}}{\sigma_{xx}\sigma_{yy} - \sigma_{xy}\sigma_{yx}}
 \approx
-\frac{1}{\sigma_{xx}},
+\boxed{
+\frac{1}{\sigma_{xx}}
+},
+\label{eq_resistivity}
 \end{align}
 where $\sigma_{xy}$ and $\sigma_{yx}$ are usually only non-zero under magnetic field $\vec B$, are usually very small, and give rise to the transverse resistivity:
 \begin{align}
@@ -131,7 +143,9 @@ where $\sigma_{xy}$ and $\sigma_{yx}$ are usually only non-zero under magnetic f
 &= 
 \frac{-\sigma_{xy}}{\sigma_{xx}\sigma_{yy} - \sigma_{xy}\sigma_{yx}},
 \approx
-\frac{-\sigma_{xy}}{\sigma_{xx}\sigma_{yy}}.
+\boxed{
+\frac{-\sigma_{xy}}{\sigma_{xx}\sigma_{yy}}
+}.
 \end{align}
 From the latter, the Hall coefficient, $R_H$ and the Hall number, $n_H$, are defined as:
 \begin{align}
@@ -140,15 +154,158 @@ R_H = \frac{-\rho_{xy}}{B}
 n_H = \frac{1}{-eR_H}.
 \end{align}
 
+
+
 \subsection{Thermoelectricity: Seebeck, Pelletier \& Nernst effects}
 
-The Seebeck effect is 
-
+The thermoelectricity tensor $\tensor{Q}$ is defined as:
+\begin{align}
+\tensor{Q} &\equiv \tensor{\sigma}^{-1}\tensor{\alpha}
+=
+\begin{pmatrix}
+\sigma_{xx} & \sigma_{xy}\\
+\sigma_{yx} & \sigma_{yy}
+\end{pmatrix}^{-1}
+\begin{pmatrix}
+\alpha_{xx} & \alpha_{xy}\\
+\alpha_{yx} & \alpha_{yy}
+\end{pmatrix}
+=
+\begin{pmatrix}
+  \frac{\sigma_{yy}\alpha_{xx}-\sigma_{xy}\alpha_{yx}}
+  {\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}} 
+& \frac{\sigma_{yy}\alpha_{xy}-\sigma_{xy}\alpha_{yy}}
+  {\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}\\
+  \frac{\sigma_{xx}\alpha_{yx}-\sigma_{yx}\alpha_{xx}}
+  {\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}
+& \frac{\sigma_{xx}\alpha_{xy}-\sigma_{yx}\alpha_{yy}}
+  {\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}
+\end{pmatrix}
+\end{align}
+Therefore, the Seebeck coefficient corresponds to:
+\begin{align}
+S_x
+\equiv 
+Q_{xx} 
+=
+\frac{\sigma_{yy}\alpha_{xx}-\sigma_{xy}\alpha_{yx}}{\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}} 
+\approx 
+\boxed{
+\frac{\alpha_{xx}}{\sigma_{xx}}
+}
+\label{eq_seebeck}
+\end{align}
+And the Nernst coefficient is givent by:
+\begin{align}
+N 
+\equiv
+Q_{xy}
+&= 
+\frac{\sigma_{yy}\alpha_{xy}-\sigma_{xy}\alpha_{yy}}
+{\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}
+\approx 
+\boxed{
+\frac{\alpha_{xy}}{\sigma_{xx}}
+- S_{y}\frac{\sigma_{xy}}{\sigma_{xx}}
+}
+\end{align}
 
 \subsection{Thermal conductivity \& Righi-Leduc effect}
+In the same way, the thermal conductivity $\tensor{\kappa}$ can be obtained from:
+\begin{align}
+\tensor{\kappa} &\equiv -\tensor{\beta} + T\tensor{\alpha}\tensor{\sigma}^{-1}\tensor{\alpha}
+\end{align}
+which yields thermal conductivity:
+\begin{align}
+\kappa_{xx} 
+&=
+T\Big[\frac{
+\alpha_{xx}\sigma_{yy}\alpha_{xx} -
+\alpha_{xx}\sigma_{xy}\alpha_{yx} -
+\alpha_{xy}\sigma_{yx}\alpha_{xx} +
+\alpha_{xy}\sigma_{xx}\alpha_{yx}
+}{\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}
+\Big] - \beta_{xx}
+\\ &
+\approx
+T\Big[ \frac{
+\alpha_{xx}^2
+}{\sigma_{xx}}
++
+\frac{
+\alpha_{xy}\alpha_{yx}
+}{\sigma_{yy}}
+\Big] - \beta_{xx}
+\end{align}
+and the Rigi-Leduc (or thermal Hall) coefficient:
+\begin{align}
+\kappa_{xy} 
+&=
+T\Big[\frac{
+\alpha_{xx}\sigma_{yy}\alpha_{xy} -
+\alpha_{xx}\sigma_{xy}\alpha_{yy} -
+\alpha_{xy}\sigma_{yx}\alpha_{xy} +
+\alpha_{xy}\sigma_{xx}\alpha_{yy}
+}{\sigma_{xx}\sigma_{yy}-\sigma_{xy}\sigma_{yx}}
+\Big] - \beta_{xx}
+\\ &
+\approx
+T\Big[ \frac{
+\alpha_{xx}\alpha_{xy}
+}{\sigma_{xx}}
++
+\frac{
+\alpha_{xy}\alpha_{yy}
+}{\sigma_{yy}}
+\Big] - \beta_{xy}
+\end{align}
 
+\subsection{Example: Interpretation of the Seebeck effect}
+When substituting the expressions the resistivity \eqref{eq_resistivity} for $\rho_{xx}$ and \eqref{alpha} for $\alpha_{xx}$ in the reduced expression for the Seebeck coefficient~\eqref{eq_seebeck}, one gets a particularily revealing expression regarding the density of conductivity $\sigma_{xx}(\epsilon)$:
+\begin{align}
+S_x 
+&=
+\frac{\alpha_{xx}}{\sigma_{xx}}
+=
+\frac{\rho_{xx}}{-eT}
+\int_{-\infty}^{\infty}d\epsilon
+\Big(-\frac{\partial f(\epsilon)}{\partial \epsilon}\Big)
+\ \epsilon\ 
+\sigma_{xx}(\epsilon).
+\label{eq_seebeck_explicit}
+\end{align}
+In this expression, we can see that if $\sigma_{xx}(\epsilon)$ is even with respect to the Fermi-level, \emph{i.e.} $\sigma_{xx}(-\epsilon) = \sigma_{xx}(\epsilon)$ within the narrow energy window determined by $-\frac{\partial f(\epsilon)}{\partial \epsilon}$, then, because of the extra $\epsilon$ in the integral, the integrand is perfectly odd and the Seebeck coefficient should be zero. Thus, any non-zero Seebeck effect must come from an assymetry in the density of conductivity $\sigma_{xx}(\epsilon)$ with respect to the Fermi level.
 
-\section{Semi-classical case}
+Equation~\ref{eq_seebeck_explicit} is particularily relevant to cuprates, regarding the pseudogap transition occuring at doping~$p^*$. At low temperature, an abrupt augmentation of the resistivity~$\rho_{xx}$ is observed at~$p^*$. Since resistivity explicitely enters expression~\eqref{eq_seebeck_explicit}, an equivalent augmentation is expected in the Seebeck effect, given the latter is non-zero. However, a comparison between the augmentation in $\rho_{xx}$ and the augmentation in $S_x$ might reveal a lot more. Namely, if the $p^*$ transition causes $\sigma_{xx}(\epsilon)$ to change symetrically with respect to the Fermi level, then the only effect in $S_x$ will come from $\rho_{xx}$, because the $\epsilon$ would make the symmetric changes of the transition an odd contribution in the integral of~\eqref{eq_seebeck_explicit}, which would cancel out. In that case, the Seebeck augmentation should track the resistivity augmentation exactly. On the other hand, if the change in $\sigma_{xx}(\epsilon)$ is assymetric with respect to the Fermi level, then there will be a difference between the augmentations in $S_x$ and that in $\rho_{xx}$. Note that in either cases, the Seebeck effect can remain nonzero at all times, given a sufficiently assymetric $\sigma_{xx}(\epsilon)$; only the eveness or oddness of \emph{the changes} brought by the transition are relevant.
+
+Note that not only is this analysis valid in the non-interacting case, for which, as we we will see, the zero-field $\sigma_{xx}(\epsilon)$ is:
+\begin{align}
+\sigma_{xx}(\epsilon) = 
+&=
+e^2\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+v_{x}(\vec k)^2
+\tau_{\vec k}\delta\big(\epsilon-E(\vec k)\big),
+\label{eq_will_return}
+\end{align}
+but it is also valid in the strongly correlated case, for which $\sigma_{xx}(\epsilon)$ would simply be the current-current correlation function. In the first approximation, the latter would be:
+\begin{align}
+\sigma_{xx}(\epsilon) = 
+&=
+e^2\iiint_{\text{BZ}}\frac{d^3k}{(2\pi)^3}
+v_{x}(\vec k)^2
+\pi\hbar A(\vec k,\epsilon)^2,
+\end{align}
+where $A(\vec k,\epsilon)$ is the spectral weight.
+
+Finally, let us add that above correspondence for the longitudinal conductivity has an analogous one for the transverse conductivity (not shown here). Together, these suggest the following heuristic:
+\begin{align}
+\tau_{\vec k}\delta\big(\epsilon-E(\vec k)\big) &\longleftrightarrow \pi\hbar A(\vec k,\epsilon)^2
+\\
+\tau_{\vec k}^2\delta\big(\epsilon-E(\vec k)\big) &\longleftrightarrow \frac{\pi^2\hbar^2}{3} A(\vec k,\epsilon)^3
+\end{align}
+to go from the non-interacting case to the weakly interacting case. The validity of this heuristic has not been verified thoroughly for all the versions of $\sigma_{xx}(\epsilon)$ derived in the following sections, but it may serve as a guide to derive their strongly correlated versions.
+
+\section{Semi-classical formulas}
 \noindent
 To get full magnetic field dependence in $\sigma_{ij}(\epsilon)$, one must use the Chambers Formula~\cite{ashcroft_solid_1976}:
 \begin{align}
@@ -184,7 +341,7 @@ where we find the lifetime $\tau_{\vec k}$ (which is not only $\vec k$-dependent
 where $\vec B$ is the magnetic field. To compute conductivity tensors, one must thus solve the equation of motion \eqref{semiClassicalMovement} for each starting point $\vec k$ contained the integral of \eqref{chambers1}. Some simplifications are helpful.
 
 \begin{tcolorbox}[colback=black!2!white,colframe=white!10!black,title=All-in-one equation]
-At this point, we can reduce all the tensors into a single expression. We substitute \eqref{chambers2} and \eqref{velocity} in \eqref{chambers1}, and then substitute the result in \eqref{sigma}, \eqref{alpha}, and \eqref{beta}, unifying them in the following monster:
+At this point, we can reduce all the tensors into a single expression. We substitute \eqref{chambers2} and \eqref{velocity} in \eqref{chambers1}, and then substitute the result in \eqref{sigma}, \eqref{alpha}, and \eqref{beta}, unifying them in the following expression:
 \begin{align}
 \sigma_{ij}^{(n)}
 &=
@@ -220,7 +377,7 @@ The semiclassical movement equation \eqref{semiClassicalMovement} must be used t
 
 
 \subsection{Equi-energy surfaces}\label{sec_surfaces}
-The Dirac delta $\delta(\epsilon-E(\vec k))$ reduces the three-dimensional $\vec k$ integral to an integral over the surface where the delta's argument is zero: the surface defined by $E(\vec k)=\epsilon$ (see equation~8.57 and 8.62 of Ashcroft~\&~Mermin~\cite{ashcroft_solid_1976} for a similar statement)
+The Dirac delta $\delta(\epsilon-E(\vec k))$ allow to change the three-dimensional $\vec k$ integral to a two-dimensional integral over the surface where the delta's argument is zero; the surface defined by $E(\vec k)=\epsilon$ (see equation~8.57 and 8.62 of Ashcroft~\&~Mermin~\cite{ashcroft_solid_1976} for a similar statement). Take an arbitrary function $F(\vec k)$, for example:
 \begin{align}
 \iiint d^3 k 
 F(\vec k)\delta\big(\epsilon - E(\vec k)\big)
@@ -242,7 +399,7 @@ F(\vec k)\delta\big(\epsilon - E(\vec k)\big)
 % &=
 % \iint\limits_{E(\vec k)=\epsilon} d^2 k_{\epsilon} \frac{\delta^{3}(\vec k-\vec k_{\epsilon})}{|\vec \nabla_{\vec k} E(\vec k)|_{\vec k=\vec k_{\epsilon}}}\ ?
 \end{align}
-where $\vec k_{\epsilon}$ are the vectors belonging to this equi-energy surface $E(\vec k)=\epsilon$. The integral on the Brillouin zone therefore reduces to a surface integral for each value of $\epsilon$, and \eqref{chambers1} becomes:
+where $\vec k_{\epsilon}$ are the wave vectors belonging to this equi-energy surface $E(\vec k)=\epsilon$. The integral on the Brillouin zone therefore reduces to a surface integral for each value of $\epsilon$, and \eqref{chambers1} becomes:
 \begin{align}
 \Aboxed{
 \sigma_{ij}(\epsilon) 
@@ -293,7 +450,7 @@ v_{i}(\vec k)
 \delta\big(\epsilon-E(\vec k)\big),
 \label{chambersZeroField}
 \end{empheq}
-where $\delta_{ij}$ is the Kronecker symbol and $\varepsilon_{ijk}$ is the Levi-Cevita symbol (which is 0 if $i=j$).
+where $\delta_{ij}$ is the Kronecker symbol and $\varepsilon_{ijk}$ is the Levi-Cevita symbol (which is 0 if $i=j$). This is the case mentionned at the beginning, with the first term of this equation corresponding to~\eqref{eq_will_return}.
 
 \subsection{Effective mass and Drude results}
 
@@ -389,6 +546,7 @@ e^{-\int_{0}^{t}dt'/\tau_{\vec k(t')}}
 \Big)
 \frac{1}{\hbar^2}\frac{\partial E(\vec k(t))}{\partial k_j}
 \bigg]
+\label{eq_velocity_derivative}
 \end{align}
 we find the effective mass:
 \begin{align}
@@ -397,7 +555,7 @@ M^{-1}_{ij}(\vec k)
 \frac{1}{\hbar^2}\frac{\partial^2 E(\vec k)}{\partial k_i\partial k_j}.
 \label{effectiveMass}
 \end{align}
-Note that if the lifetime is independent of $\vec k$, then the second term disappear, and only the first term remains. In that case, carrying the zero magnetic field manipulations of \ref{sec_zeroField} and restituting of the integral in energy lead to:
+Note that if the lifetime is independent of $\vec k$, then the second term of~\eqref{eq_velocity_derivative} disappears, and only the first term remains. In that case, carrying the zero magnetic field manipulations of \ref{sec_zeroField} and restituting of the integral in energy lead to:
 \begin{empheq}[box=\fbox]{align}
 \lim_{\substack{\vec B\rightarrow 0\\ \tau_{\vec k}\rightarrow\tau}}
 \sigma_{ij}^{(n)}
@@ -413,13 +571,14 @@ f(\epsilon)
 % \frac{\partial^2 E(\vec k(t))}{\partial k_i\partial k_j}
 \Bigg[
 \delta_{ij}M^{-1}_{ii}(\vec k)\tau
-\\
+\nonumber\\
 &\qquad
 +\varepsilon_{ijk}(-eB_k) \bigg(M^{-1}_{ii}(\vec k)M^{-1}_{jj}(\vec k) - M^{-2}_{ij}(\vec k) \bigg)\tau^2
 \Bigg]
 \delta(\epsilon-E(\vec k))
 ,
 \end{empheq}
+The above is an all-in-one equation expressed with the mass instead of the velocities.
 Note in particular the longitudinal electric conductivity case $\sigma_{ii} = \sigma_{ii}^{(0)}$:
 \begin{align}
 \lim_{\substack{\vec B\rightarrow 0\\ \tau_{\vec k}\rightarrow\tau}}
@@ -431,7 +590,7 @@ e^2
 M^{-1}_{ii}(\vec k)
 \tau_{\vec k},
 \end{align}
-which is the Drude formula for $M_{ij}^{-1}(\vec k) = \delta_{i,j}\frac{1}{m^*_i}$:
+which reduces to the Drude formula when $M_{ij}^{-1}(\vec k) = \delta_{i,j}\frac{1}{m^*_i}$:
 \begin{align}
 \Aboxed{
 \lim_{\substack{
@@ -464,7 +623,7 @@ In the zero temperature limit, the electrical conductivity tensor \eqref{sigma} 
 \lim_{T\rightarrow 0}\sigma_{ij}&=\sigma_{ij}(\mu).
 }
 \end{align}
-Unfortunately, this simplification does not extend to $\tensor{\alpha}$ and $\tensor{\beta}$ for which one must instead turn to Sommerfeld expansions.
+Unfortunately, this simplification does not extend to $\tensor{\alpha}$ and $\tensor{\beta}$ for which one must instead turn to Sommerfeld expansions (see Appendix~C of Ashcroft~\&~Mermin~\cite{ashcroft_solid_1976}).
 Note that together with the simplification \ref{sec_surfaces} for energy surfaces, the zero-temperature simplification implies that the conductivity at $T=0$ is entirely given by the Fermi Surface:
 \begin{align}
 \lim_{T\rightarrow0}\sigma_{ij} 
@@ -473,11 +632,11 @@ Note that together with the simplification \ref{sec_surfaces} for energy surface
 \label{zeroTemperature}
 \end{align}
 
-\subsection{Sommerfeld expansions}
+
 
 \section{Cuprates dispersion}\label{section_disp}
 \noindent
-The two candidates we consider for $E(\vec k)$ are the bare dispersion $\epsilon_{\text{3D}}(\vec k)$ and the antiferromagnetisme approximation for the pseudogap $E^{\pm}_{\text{3D}}(\vec k)$ introduced in what follow.
+When working with cuprates, we consider two candidates for $E(\vec k)$: (i) the bare dispersion $\epsilon_{\text{3D}}(\vec k)$, and (ii) the antiferromagnetisme approximation for the pseudogap $E^{\pm}_{\text{3D}}(\vec k)$. Both are introduced in what follow.
 
 \subsection{Bare dispersion}
 To simulate overdoped cuprates, we use the one-band three-dimensional dispersion measured by ARPES~\cite{horio_three-dimensional_2018} in Eu-LSCO:
@@ -489,21 +648,23 @@ where:
 \epsilon_{\vec k} 
 &= 
 -2t\big(\cos (k_xa) + \cos (k_yb)\big)
-\nonumber\\
-&\phantom{=\ }
+% \nonumber\\
+% &\phantom{=\ }
 -4t'\cos (k_xa)\cos (k_yb)
-\nonumber\\
-&\phantom{=\ }
+% \nonumber\\
+% &\phantom{=\ }
 -2t''\big(\cos (2k_xa)+\cos (2k_yb)\big)
-\intertext{and:}
+\end{align}
+and:
+\begin{align}
 \epsilon_{\perp}(\vec k)
 &=
 -2t_z\cos\Big(\frac{k_xa}{2}\Big)
 \cos\Big(\frac{k_yb}{2}\Big)
 \cos\Big(\frac{k_zc}{2}\Big)
-\nonumber\\
-&\phantom{=\ }
-\times\big(\cos (k_xa) - \cos (k_yb)\big)^2.
+% \nonumber\\
+% &\phantom{=\ }\times
+\big(\cos (k_xa) - \cos (k_yb)\big)^2.
 \end{align}
 We use parameters $a=b=3.75$ {\AA}, $c=13.20$ {\AA}, $t=190$ meV, and $(t',t'',t_z)=(-0.14t,0.07t,0.07t)$. The chemical potential $\mu$ is obtained by solving the integral equation for a given doping $p$:
 \begin{align}
@@ -571,8 +732,9 @@ and the scattering rate can have various contributions:
 \end{align}
 In this expression, small numerical values might be needed to prevent divergence. Respectively taken alone, $\eta_0$ would yield constant lifetime, $\eta_\ell$ would yield constant mean-free path, $\eta_N$ would yield scattering proportional to the density of state, and $\eta_{\text{an}}$ yields a phenomenological increase of the anti-nodal scattering. There can be various reasons to consider each terms separately, or combined.
 
-\section{strongly correlated case}
+% \section{strongly correlated case}
 
+% Please refer to Arsenault \emph{et al.}~\cite{arsenault_transport_2013}  for the strongly correlated case. Note that the analysis for equation 
 
 \begin{acknowledgments}
 Most of the work that lead to this note was done with Gaël Grissonanche, closely following the work of Pr. Brad Ramshaw and Yawen Fang in Cornell University.
