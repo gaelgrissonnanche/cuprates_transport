@@ -12,15 +12,9 @@ hPocket = Pocket(bandname="hPocket",
                  a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                  M=0.0041,
-                 mu=-0.795,
+                 mu=-0.494,
                  numberOfKz=7, mesh_ds=pi/100)
 
-# hPocket = Pocket(bandname="hPocket",
-#                  a=3.74767, b=3.74767, c=13.2,
-#                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-#                  M=0.10,
-#                  mu=-0.813,
-#                  numberOfKz=7, mesh_ds=pi/40)
 
 ePocket = deepcopy(hPocket)
 ePocket.bandname = "ePocket"
@@ -43,14 +37,14 @@ hPocket.doping()
 # hPocket.figMultipleFS2D()
 
 ## Conductivity
-# h_condObject = Conductivity(hPocket, Bamp=45,
-#                             gamma_0=15, gamma_k=70, power=12, gamma_dos=0)
-
-# Arcs
 h_condObject = Conductivity(hPocket, Bamp=45,
-                            gamma_0=15, gamma_k=0, power=12, gamma_dos=0, factor_arcs=100)
-h_condObject.solveMovementFunc()
-h_condObject.figArcs()
+                            gamma_0=24.2, gamma_k=0, power=12, gamma_dos=0)
+
+# # Arcs
+# h_condObject = Conductivity(hPocket, Bamp=45,
+#                             gamma_0=15, gamma_k=0, power=12, gamma_dos=0, factor_arcs=100)
+# h_condObject.solveMovementFunc()
+# h_condObject.figArcs()
 
 
 # h_condObject.solveMovementFunc()

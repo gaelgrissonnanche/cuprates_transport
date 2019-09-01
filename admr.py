@@ -70,7 +70,6 @@ class ADMR:
         self.rzz_array = rho_zz_array / rho_zz_0_array
 
         print("End ADMR computation")
-        print("------------------------------------------------")
 
     #---------------------------------------------------------------------------
     def fileNameFunc(self):

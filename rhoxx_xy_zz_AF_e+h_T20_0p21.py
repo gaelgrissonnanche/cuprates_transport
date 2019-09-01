@@ -4,8 +4,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
+from copy import deepcopy
 
-from bandstructure import BandStructure
+from bandstructure import BandStructure, Pocket, doping
 from conductivity import Conductivity
 from admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -16,29 +17,38 @@ c = 13.3e-10 # m
 
 ## Field parameters ------------------
 Bmin = 0.1
-Bmax = 45
-Bstep = 3
+Bmax = 40
+Bstep = 1
 B_array = np.arange(Bmin, Bmax, Bstep)
 
 ## BandObject ------------------------
-bandObject = BandStructure(bandname="LargePocket",
-                           a=3.74767, b=3.74767, c=13.2,
-                           t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-                           mu=-0.825,
-                           numberOfKz=7, mesh_ds=np.pi/40)
+## Initialize the BandStructure Object
+hPocket = Pocket(bandname="hPocket",
+                 a=3.74767, b=3.74767, c=13.2,
+                 t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
+                 M=0.001,
+                 mu=-0.636,
+                 numberOfKz=7, mesh_ds=np.pi/80)
 
-bandObject.discretize_FS()
-bandObject.densityOfState()
-bandObject.doping()
+ePocket = deepcopy(hPocket)
+ePocket.electronPocket = True
+ePocket.bandname = "ePocket"
 
-# # bandObject.figMultipleFS2D()
-# # bandObject.figDiscretizeFS2D()
+## Discretize >>>>>>>>>>>>>>>>>>>>>>>#
+hPocket.discretize_FS(mesh_xy_rough=2001)
+hPocket.densityOfState()
+hPocket.doping()
+
+ePocket.discretize_FS(mesh_xy_rough=2001)
+ePocket.densityOfState()
+ePocket.doping()
+
 
 ## Conductivity Object ---------------
-condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0,
-                          Btheta=0, gamma_0=15, gamma_k=70, power=12, gamma_dos=0)
-condObject.Ntime = 1000 # better for high magnetic field values
-
+hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=18.7, gamma_k=0, power=12, gamma_dos=0)
+ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=17.9, gamma_k=0, power=12, gamma_dos=0)
+hPocketCondObject.Ntime = 1000  # better for high magnetic field values
+ePocketCondObject.Ntime = 1000  # better for high magnetic field values
 
 ## Transport coeffcients -------------
 
@@ -50,14 +60,27 @@ RH_array = np.empty_like(B_array, dtype=np.float64)
 
 for i, B in enumerate(B_array):
 
-    condObject.Bamp = B
-    condObject.solveMovementFunc()
-    condObject.chambersFunc(0, 0)
-    condObject.chambersFunc(0, 1)
-    condObject.chambersFunc(2, 2)
-    sigma_xx = condObject.sigma[0, 0]
-    sigma_xy = condObject.sigma[0, 1]
-    sigma_zz = condObject.sigma[2, 2]
+    hPocketCondObject.Bamp = B
+    hPocketCondObject.solveMovementFunc()
+    hPocketCondObject.chambersFunc(0, 0)
+    hPocketCondObject.chambersFunc(0, 1)
+    hPocketCondObject.chambersFunc(2, 2)
+    sigma_xx_h = hPocketCondObject.sigma[0, 0]
+    sigma_xy_h = hPocketCondObject.sigma[0, 1]
+    sigma_zz_h = hPocketCondObject.sigma[2, 2]
+
+    ePocketCondObject.Bamp = B
+    ePocketCondObject.solveMovementFunc()
+    ePocketCondObject.chambersFunc(0, 0)
+    ePocketCondObject.chambersFunc(0, 1)
+    ePocketCondObject.chambersFunc(2, 2)
+    sigma_xx_e = ePocketCondObject.sigma[0, 0]
+    sigma_xy_e = ePocketCondObject.sigma[0, 1]
+    sigma_zz_e = ePocketCondObject.sigma[2, 2]
+
+    sigma_xx = sigma_xx_h + sigma_xx_e
+    sigma_xy = sigma_xy_h + sigma_xy_e
+    sigma_zz = sigma_zz_h + sigma_zz_e
 
     rhoxx = sigma_xx / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
     rhoxy = sigma_xy / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
@@ -69,6 +92,12 @@ for i, B in enumerate(B_array):
     rhozz_array[i] = rhozz
     RH_array[i] = RH
 
+    print("{0:.0f}".format(i) + " / " + "{0:.0f}".format(len(B_array)))
+
+
+## Doping
+dummy = ADMR([hPocketCondObject, ePocketCondObject])
+dummy.totalHoleDoping = doping([hPocket, ePocket])
 
 ## Info results ----------------------
 nH = 1 / (RH_array[-1] * e)
@@ -76,13 +105,12 @@ d = c / 2
 V = a**2 * d
 n = V * nH
 p = n - 1
-print("p = " + "{0:.3f}".format(bandObject.p))
+print("p = " + "{0:.3f}".format(dummy.totalHoleDoping))
 print("1 - n = ", np.round(p, 3))
 
 
 ## Fig / File name -------------------
-dummy = ADMR([condObject], Bphi_array=[0])
-file_name = "results_sim/Rxx_Rxy_Rzz" + dummy.fileNameFunc()[3:]
+file_name = "results_sim/FS_Rxx_xy_zz" + dummy.fileNameFunc()[3:]
 
 ## Save Data -------------------------
 Data = np.vstack((B_array, rhoxx_array*1e8, rhoxy_array*1e8, rhozz_array*1e8, RH_array*1e9))
@@ -105,7 +133,8 @@ np.savetxt(file_name + ".dat", Data, fmt='%.7e',
 fig_list = []
 
 ## Parameters ///////////////////////////////////////////////////////////////////#
-fig_list.append(condObject.figParameters(fig_show=False))
+fig_list.append(ePocketCondObject.figParameters(fig_show=False))
+fig_list.append(hPocketCondObject.figParameters(fig_show=False))
 
 
 ## rho_zz ///////////////////////////////////////////////////////////////////////#
@@ -116,22 +145,27 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 # fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
-line = axes.plot(B_array, rhozz_array*1e5, label=r"$p$ = " + "{0:.3f}".format(bandObject.p))
-plt.setp(line, ls ="-", c = '#00ff80', lw = 3, marker = "", mfc = '#00ff80', ms = 7, mec = '#00ff80', mew= 0)
+## Data @ 45T from PPMS @ 20K for p = 0.22 c-axis Cyr-Choinere 2010
+line = axes.plot([35], [27], label=r"$p$ = 0.22, T = 20K (data)")
+plt.setp(line, ls ="", c = '#c0c0c0', lw = 3, marker = "s", mfc = '#c0c0c0', ms = 9, mec = '#c0c0c0', mew= 0)
+
+line = axes.plot(B_array, rhozz_array*1e5, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping) + " (sim e+h AF)")
+plt.setp(line, ls ="-", c = '#ff6a6a', lw = 3, marker = "", mfc = '#ff6a6a', ms = 7, mec = '#ff6a6a', mew= 0)
 
 #############################################
 axes.set_xlim(0, Bmax)
-axes.set_ylim(0, 1.25*np.max(rhozz_array*1e5))
+axes.set_ylim(0, 35)
+# axes.set_ylim(0, 1.25*np.max(rhozz_array*1e5))
 axes.tick_params(axis='x', which='major', pad=7)
 axes.tick_params(axis='y', which='major', pad=8)
 axes.set_xlabel(r"$H$ ( T )", labelpad=8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ ( m$\Omega$ cm )", labelpad=8)
 #############################################
 
-plt.legend(loc=4, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
+plt.legend(loc=2, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
 
 ## Set ticks space and minor ticks space ############
-xtics = 15 # space between two ticks
+xtics = 10 # space between two ticks
 mxtics = xtics / 2.  # space between two minor ticks
 majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
 
@@ -151,22 +185,33 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 # fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
-line = axes.plot(B_array, rhoxx_array*1e8, label=r"$p$ = " + "{0:.3f}".format(bandObject.p))
-plt.setp(line, ls ="-", c = '#ff0000', lw = 3, marker = "", mfc = '#ff0000', ms = 7, mec = '#ff0000', mew= 0)
+## Load resistivity data ####################
+data = np.loadtxt("data_NdLSCO_0p21/NdLSCOp21_rho_RH_T20_H0_37p5T_FS.txt",
+                  dtype="float",
+                  comments="#")
+B_data = data[:, 0]
+rhoxx_data = data[:, 1]
+
+line = axes.plot(B_data, rhoxx_data, label=r"$p$ = 0.21, T = 20K (data)")
+plt.setp(line, ls ="-", c = '#c0c0c0', lw = 3, marker = "", mfc = '#c0c0c0', ms = 7, mec = '#c0c0c0', mew= 0)
+
+line = axes.plot(B_array, rhoxx_array*1e8, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping) + " (sim e+h AF)")
+plt.setp(line, ls ="-", c = '#0080ff', lw = 3, marker = "", mfc = '#0080ff', ms = 7, mec = '#0080ff', mew= 0)
 
 #############################################
 axes.set_xlim(0, Bmax)
-axes.set_ylim(0, 1.25*np.max(rhoxx_array*1e8))
+# axes.set_ylim(0, 1.25*np.max(rhoxx_array*1e8))
+axes.set_ylim(0, 175)
 axes.tick_params(axis='x', which='major', pad=7)
 axes.tick_params(axis='y', which='major', pad=8)
 axes.set_xlabel(r"$H$ ( T )", labelpad=8)
 axes.set_ylabel(r"$\rho_{\rm xx}$ ( $\mu\Omega$ cm )", labelpad=8)
 #############################################
 
-plt.legend(loc=4, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
+plt.legend(bbox_to_anchor=(1, 0.4), loc=4, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
 
 ## Set ticks space and minor ticks space ############
-xtics = 15 # space between two ticks
+xtics = 10 # space between two ticks
 mxtics = xtics / 2.  # space between two minor ticks
 majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
 
@@ -188,23 +233,34 @@ axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
 # fig.text(0.79, 0.22, r"$1 - n$ = " + "{0:.3f}".format(p), ha="right")
 #############################################
 
-line = axes.plot(B_array, RH_array * 1e9, label=r"$p$ = " + "{0:.3f}".format(bandObject.p))
-plt.setp(line, ls="-", c='#8080ff', lw=3, marker="",
-         mfc='#8080ff', ms=7, mec='#8080ff', mew=0)
+## Load resistivity data ####################
+data = np.loadtxt("data_NdLSCO_0p21/NdLSCOp21_rho_RH_T20_H0_37p5T_FS.txt",
+                  dtype="float",
+                  comments="#")
+B_data = data[:, 0]
+RH_data = data[:, 2]
+
+line = axes.plot(B_data, RH_data, label=r"$p$ = 0.21, T = 20K (data)")
+plt.setp(line, ls ="-", c = '#c0c0c0', lw = 3, marker = "", mfc = '#c0c0c0', ms = 7, mec = '#c0c0c0', mew= 0)
+
+line = axes.plot(B_array, RH_array * 1e9, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping)+ " (sim e+h AF)")
+plt.setp(line, ls="-", c='#00ff80', lw=3, marker="",
+         mfc='#00ff80', ms=7, mec='#00ff80', mew=0)
 
 #############################################
 axes.set_xlim(0, Bmax)
-axes.set_ylim(0, 1.25*np.max(RH_array*1e9))
+# axes.set_ylim(0, 1.25*np.max(RH_array*1e9))
+axes.set_ylim(0, 1.7)
 axes.tick_params(axis='x', which='major', pad=7)
 axes.tick_params(axis='y', which='major', pad=8)
 axes.set_xlabel(r"$H$ ( T )", labelpad=8)
 axes.set_ylabel(r"$R_{\rm H}$ ( mm$^3$ / C )", labelpad=8)
 #############################################
 
-plt.legend(loc=3, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
+plt.legend(loc=1, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
 
 ## Set ticks space and minor ticks space ############
-xtics = 15  # space between two ticks
+xtics = 10  # space between two ticks
 mxtics = xtics / 2.  # space between two minor ticks
 # ytics = 1
 # mytics = ytics / 2. # or "AutoMinorLocator(2)" if ytics is not fixed, just put 1 minor tick per interval

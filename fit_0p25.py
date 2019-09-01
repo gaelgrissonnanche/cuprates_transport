@@ -13,7 +13,7 @@ from admr import ADMR
 sample_name = r"Nd-LSCO $p$ = 0.25"
 
 ## Initial parameters
-gamma_0_ini  = 15 # in THZ
+gamma_0_ini  = 12 # in THZ
 gamma_0_vary = True
 
 gamma_dos_ini = 0 # in THz
@@ -25,7 +25,7 @@ gamma_k_vary = True
 power_ini    = 12
 power_vary   = False
 
-mu_ini       = -0.825
+mu_ini       = -0.854
 mu_vary      = False
 
 ## Graph values

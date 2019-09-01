@@ -211,8 +211,7 @@ class Conductivity:
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
         # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
-        self.sigma[i, j] = self.bandObject.particlesPerkVolume / 2  * \
-                           units_chambers * \
+        self.sigma[i, j] = units_chambers / self.bandObject.numberOfBZ * \
                            np.sum( self.bandObject.dos *
                                    self.bandObject.dkf *
                                    self.VelocitiesProduct(i=i, j=j) )
