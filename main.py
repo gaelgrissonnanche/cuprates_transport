@@ -10,7 +10,7 @@ from conductivity import Conductivity
 bandObject = BandStructure(bandname="LargePocket",
                            a=3.74767, b=3.74767, c=13.2,
                            t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-                           mu=-0.854,
+                           mu=-0.826,
                            numberOfKz=7, mesh_ds=pi/20)
 
 ## Discretize
@@ -23,10 +23,10 @@ bandObject.doping(printDoping=True)
 # bandObject.figMultipleFS2D()
 
 ## Conductivity
-
-# Arcs
+# condObject = Conductivity(bandObject, Bamp=45,
+#                           gamma_0=14, gamma_k=76.3, gamma_dos=0, power=12)
 condObject = Conductivity(bandObject, Bamp=45,
-                          gamma_0=15, gamma_k=70, gamma_dos=0, power=12)
+                          gamma_0=14, gamma_k=0, gamma_dos=20, power=12)
 condObject.solveMovementFunc()
 # condObject.figArcs()
 # Best fit p = 0.25

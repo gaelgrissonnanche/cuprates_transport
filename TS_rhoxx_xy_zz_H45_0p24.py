@@ -14,17 +14,21 @@ e = 1.6e-19 # C
 a = 3.74e-10 #m
 c = 13.3e-10 # m
 
-## Field parameters ------------------
-Bmin = 0.1
-Bmax = 40
-Bstep = 3
-B_array = np.arange(Bmin, Bmax, Bstep)
+B = 45 # Tesla
+
+## Scattering parameters -------------
+T_array = np.array([6,12,20,25])
+scattering = {} # [g0, gk, power]
+scattering[25] = [14.49, 70, 12]
+scattering[20] = [13.51, 80, 12]
+scattering[12] = [12.05, 95, 12]
+scattering[6]  = [10.87, 100, 12]
 
 ## BandObject ------------------------
 bandObject = BandStructure(bandname="LargePocket",
                            a=3.74767, b=3.74767, c=13.2,
-                           t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-                           mu=-0.854,
+                           t=190, tp=-0.16, tpp=0.07, tz=0.07, tz2=0.00,
+                           mu=-0.958,
                            numberOfKz=7, mesh_ds=np.pi/40)
 
 bandObject.discretize_FS()
@@ -34,23 +38,26 @@ bandObject.doping()
 # # bandObject.figMultipleFS2D()
 # # bandObject.figDiscretizeFS2D()
 
-## Conductivity Object ---------------
-condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0,
-                          Btheta=0, gamma_0=13.6, gamma_k=89.1, power=12, gamma_dos=0) # T = 20K, p = 0.24 from fit ADMR
-condObject.Ntime = 1000 # better for high magnetic field values
-
 
 ## Transport coeffcients -------------
 
 ## Empty arrays
-rhoxx_array = np.empty_like(B_array, dtype=np.float64)
-rhoxy_array = np.empty_like(B_array, dtype=np.float64)
-rhozz_array = np.empty_like(B_array, dtype=np.float64)
-RH_array = np.empty_like(B_array, dtype=np.float64)
+rhoxx_array = np.empty_like(T_array, dtype=np.float64)
+rhoxy_array = np.empty_like(T_array, dtype=np.float64)
+rhozz_array = np.empty_like(T_array, dtype=np.float64)
+RH_array = np.empty_like(T_array, dtype=np.float64)
 
-for i, B in enumerate(B_array):
+for i, T in enumerate(T_array):
 
-    condObject.Bamp = B
+    g0 = scattering[T][0]
+    gk = scattering[T][1]
+    power = scattering[T][2]
+
+    ## Conductivity Object ---------------
+    condObject = Conductivity(bandObject, Bamp=B, Bphi=0,
+                          Btheta=0, gamma_0=g0, gamma_k=gk, power=power, gamma_dos=0) # T = 20K, p = 0.24 from fit ADMR
+    condObject.Ntime = 1000 # better for high magnetic field values
+
     condObject.solveMovementFunc()
     condObject.chambersFunc(0, 0)
     condObject.chambersFunc(0, 1)
@@ -82,14 +89,14 @@ print("1 - n = ", np.round(p, 3))
 
 ## Fig / File name -------------------
 dummy = ADMR([condObject], Bphi_array=[0])
-file_name = "results_sim/FS_Rxx_xy_zz" + dummy.fileNameFunc()[3:]
+file_name = "results_sim/TS_Rxx_xy_zz" + dummy.fileNameFunc()[3:]
 
 ## Save Data -------------------------
-Data = np.vstack((B_array, rhoxx_array*1e8, rhoxy_array*1e8, rhozz_array*1e8, RH_array*1e9))
+Data = np.vstack((T_array, rhoxx_array*1e8, rhoxy_array*1e8, rhozz_array*1e8, RH_array*1e9))
 Data = Data.transpose()
 
 np.savetxt(file_name + ".dat", Data, fmt='%.7e',
-           header="B[T]\trhoxx[microOhm.cm]\trhoxy[microOhm.cm]\trhozz[microOhm.cm]\tRH[mm^3/C]", comments="#")
+           header="T[K]\trhoxx[microOhm.cm]\trhoxy[microOhm.cm]\trhozz[microOhm.cm]\tRH[mm^3/C]", comments="#")
 
 
 
@@ -116,19 +123,25 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 # fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
-# Data @ 16T from PPMS @ 20K
-line = axes.plot([16], [6.9], label=r"$p$ = 0.24, T = 20K (data)")
-plt.setp(line, ls ="", c = '#c0c0c0', lw = 3, marker = "s", mfc = '#c0c0c0', ms = 9, mec = '#c0c0c0', mew= 0)
+# Load data ####################
+data = np.loadtxt("data_NdLSCO_0p25/LNSCOp24c-rhoc-45T-sort.dat",
+                  dtype="float",
+                  comments="#")
+T_data = data[:, 0]
+rhozz_data = data[:, 1]
 
-line = axes.plot(B_array, rhozz_array*1e5, label=r"$p$ = " + "{0:.3f}".format(bandObject.p) + " (sim)")
-plt.setp(line, ls ="-", c = '#ff6a6a', lw = 3, marker = "", mfc = '#ff6a6a', ms = 7, mec = '#ff6a6a', mew= 0)
+line = axes.plot(T_data, rhozz_data, label=r"$p$ = 0.24, H = 35 T (data)")
+plt.setp(line, ls ="-", c = '#c0c0c0', lw = 3, marker = "", mfc = '#c0c0c0', ms = 7, mec = '#c0c0c0', mew= 0)
+
+line = axes.plot(T_array, rhozz_array*1e5, label=r"$p$ = " + "{0:.3f}".format(bandObject.p) + " (sim)")
+plt.setp(line, ls ="-", c = '#ff6a6a', lw = 3, marker = "s", mfc = '#ff6a6a', ms = 9, mec = '#ff6a6a', mew= 0)
 
 #############################################
-axes.set_xlim(0, Bmax)
+axes.set_xlim(0, 30)
 axes.set_ylim(0, 1.25*np.max(rhozz_array*1e5))
 axes.tick_params(axis='x', which='major', pad=7)
 axes.tick_params(axis='y', which='major', pad=8)
-axes.set_xlabel(r"$H$ ( T )", labelpad=8)
+axes.set_xlabel(r"$T$ ( K )", labelpad=8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ ( m$\Omega$ cm )", labelpad=8)
 #############################################
 
@@ -155,26 +168,26 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 # fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
-## Load resistivity data ####################
-data = np.loadtxt("data_NdLSCO_0p25/NdLSCOp24_rho_RH_T20_H0_37p5T_FS.txt",
+# Load data ####################
+data = np.loadtxt("data_NdLSCO_0p25/rho_vs_T_NdLSCO_0p24_Daou_2009.dat",
                   dtype="float",
                   comments="#")
-B_data = data[:, 0]
+T_data = data[:, 0]
 rhoxx_data = data[:, 1]
 
-line = axes.plot(B_data, rhoxx_data, label=r"$p$ = 0.24, T = 20K (data)")
+line = axes.plot(T_data, rhoxx_data, label=r"$p$ = 0.24, H = 35 T (data)")
 plt.setp(line, ls ="-", c = '#c0c0c0', lw = 3, marker = "", mfc = '#c0c0c0', ms = 7, mec = '#c0c0c0', mew= 0)
 
-line = axes.plot(B_array, rhoxx_array*1e8, label=r"$p$ = " + "{0:.3f}".format(bandObject.p) + " (sim)")
-plt.setp(line, ls ="-", c = '#0080ff', lw = 3, marker = "", mfc = '#0080ff', ms = 7, mec = '#0080ff', mew= 0)
+line = axes.plot(T_array, rhoxx_array*1e8, label=r"$p$ = " + "{0:.3f}".format(bandObject.p) + " (sim)")
+plt.setp(line, ls ="-", c = '#0080ff', lw = 3, marker = "s", mfc = '#0080ff', ms=9, mec = '#0080ff', mew= 0)
 
 #############################################
-axes.set_xlim(0, Bmax)
+axes.set_xlim(0, 30)
 # axes.set_ylim(0, 1.25*np.max(rhoxx_array*1e8))
 axes.set_ylim(0, 40)
 axes.tick_params(axis='x', which='major', pad=7)
 axes.tick_params(axis='y', which='major', pad=8)
-axes.set_xlabel(r"$H$ ( T )", labelpad=8)
+axes.set_xlabel(r"$T$ ( K )", labelpad=8)
 axes.set_ylabel(r"$\rho_{\rm xx}$ ( $\mu\Omega$ cm )", labelpad=8)
 #############################################
 
@@ -203,27 +216,27 @@ axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
 # fig.text(0.79, 0.22, r"$1 - n$ = " + "{0:.3f}".format(p), ha="right")
 #############################################
 
-## Load resistivity data ####################
-data = np.loadtxt("data_NdLSCO_0p25/NdLSCOp24_rho_RH_T20_H0_37p5T_FS.txt",
+## Load data ####################
+data = np.loadtxt("data_NdLSCO_0p25/RH_vs_T_NdLSCO_0p24_Daou_2009.dat",
                   dtype="float",
                   comments="#")
-B_data = data[:, 0]
-RH_data = data[:, 2]
+T_data = data[:, 0]
+RH_data = data[:, 1]
 
-line = axes.plot(B_data, RH_data, label=r"$p$ = 0.24, T = 20K (data)")
+line = axes.plot(T_data, RH_data, label=r"$p$ = 0.24, H = 35 T (data)")
 plt.setp(line, ls ="-", c = '#c0c0c0', lw = 3, marker = "", mfc = '#c0c0c0', ms = 7, mec = '#c0c0c0', mew= 0)
 
-line = axes.plot(B_array, RH_array * 1e9, label=r"$p$ = " + "{0:.3f}".format(bandObject.p)+ " (sim)")
-plt.setp(line, ls="-", c='#00ff80', lw=3, marker="",
-         mfc='#00ff80', ms=7, mec='#00ff80', mew=0)
+line = axes.plot(T_array, RH_array * 1e9, label=r"$p$ = " + "{0:.3f}".format(bandObject.p)+ " (sim)")
+plt.setp(line, ls="-", c='#00ff80', lw=3, marker="s",
+         mfc='#00ff80', ms=9, mec='#00ff80', mew=0)
 
 #############################################
-axes.set_xlim(0, Bmax)
+axes.set_xlim(0, 30)
 # axes.set_ylim(0, 1.25*np.max(RH_array*1e9))
-axes.set_ylim(0, 1.5)
+axes.set_ylim(0, 0.8)
 axes.tick_params(axis='x', which='major', pad=7)
 axes.tick_params(axis='y', which='major', pad=8)
-axes.set_xlabel(r"$H$ ( T )", labelpad=8)
+axes.set_xlabel(r"$T$ ( K )", labelpad=8)
 axes.set_ylabel(r"$R_{\rm H}$ ( mm$^3$ / C )", labelpad=8)
 #############################################
 

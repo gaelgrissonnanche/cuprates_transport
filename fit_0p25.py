@@ -13,13 +13,13 @@ from admr import ADMR
 sample_name = r"Nd-LSCO $p$ = 0.25"
 
 ## Initial parameters
-gamma_0_ini  = 12 # in THZ
+gamma_0_ini  = 13.6 # in THZ
 gamma_0_vary = True
 
 gamma_dos_ini = 0 # in THz
 gamma_dos_vary = False
 
-gamma_k_ini  = 70 # in THz
+gamma_k_ini  = 89.1 # in THz
 gamma_k_vary = True
 
 power_ini    = 12
@@ -29,7 +29,7 @@ mu_ini       = -0.854
 mu_vary      = False
 
 ## Graph values
-T = 25 # in Kelvin
+T = 20 # in Kelvin
 Bamp = 45 # in Telsa
 
 Btheta_array = np.arange(0, 95, 5)
@@ -39,7 +39,7 @@ Btheta_array = np.arange(0, 95, 5)
 ## Initialize the BandStructure Object
 bandObject = BandStructure(bandname="hPocket",
                            a=3.74767, b=3.74767, c=13.2,
-                           t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
+                           t=150, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                            mu=mu_ini,
                            numberOfKz=7, mesh_ds=np.pi/20)
 
