@@ -102,7 +102,7 @@ class ADMR:
         for (bandname, iniCondObject) in self.initialCondObjectDict.items():
             file_parameters_list.extend([bandname,
                                          r"gzero" + "{0:.1f}".format(iniCondObject.gamma_0),
-                                         r"gdos" + "{0:.1f}".format(iniCondObject.gamma_dos),
+                                         r"gdos" + "{0:.1f}".format(iniCondObject.gamma_dos_max),
                                          r"gk"  + "{0:.1f}".format(iniCondObject.gamma_k),
                                          r"pwr" + "{0:.0f}".format(iniCondObject.power)
                                         ])
@@ -155,11 +155,11 @@ class ADMR:
         for (bandname, iniCondObject) in self.initialCondObjectDict.items():
             Data = np.vstack((Data,
                               iniCondObject.gamma_0 * Ones,
-                              iniCondObject.gamma_dos * Ones,
+                              iniCondObject.gamma_dos_max * Ones,
                               iniCondObject.gamma_k * Ones,
                               iniCondObject.power   * Ones))
             condHeader += bandname + "_g_0[THz]\t" + \
-                          bandname + "_g_dos[THz]\t" + \
+                          bandname + "_g_dos_max[THz]\t" + \
                           bandname + "_g_k[THz]\t" + \
                           bandname + "_power\t"
 

@@ -1,5 +1,4 @@
 import time
-
 from numpy import pi
 from bandstructure import BandStructure, Pocket, setMuToDoping, doping
 from admr import ADMR
@@ -23,18 +22,18 @@ bandObject.doping(printDoping=True)
 # bandObject.figMultipleFS2D()
 
 ## Conductivity
-# condObject = Conductivity(bandObject, Bamp=45,
-#                           gamma_0=14, gamma_k=76.3, gamma_dos=0, power=12)
 condObject = Conductivity(bandObject, Bamp=45,
-                          gamma_0=14, gamma_k=0, gamma_dos=20, power=12)
+                          gamma_0=0, gamma_k=0, gamma_dos_max=275, power=12)
+# condObject = Conductivity(bandObject, Bamp=45,
+#                           gamma_0=14, gamma_k=0, gamma_dos_max=0, power=12)
 condObject.solveMovementFunc()
 # condObject.figArcs()
 # Best fit p = 0.25
 # condObject = Conductivity(bandObject, Bamp=45,
-#                           gamma_0=15, gamma_k=70, gamma_dos=0, power=12)
+#                           gamma_0=15, gamma_k=70, gamma_dos_max=0, power=12)
 
 # condObject = Conductivity(bandObject, Bamp=45,
-#                           gamma_0=10, gamma_k=5, gamma_dos=50, power=2)
+#                           gamma_0=10, gamma_k=5, gamma_dos_max=50, power=2)
 # condObject.figLifeTime()
 
 ## ADMR
@@ -44,5 +43,3 @@ amro1band.runADMR()
 print("amro1band time : %.6s seconds" % (time.time() - start_total_time))
 amro1band.fileADMR(folder="results_sim")
 amro1band.figADMR(folder="results_sim")
-
-
