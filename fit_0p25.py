@@ -16,7 +16,7 @@ sample_name = r"Nd-LSCO $p$ = 0.25"
 gamma_0_ini  = 0 # in THZ
 gamma_0_vary = False
 
-gamma_dos_max_ini = 175 # in THz
+gamma_dos_max_ini = 50 # in THz
 gamma_dos_max_vary = True
 
 gamma_k_ini  = 0 # in THz
@@ -28,8 +28,11 @@ power_vary   = False
 mu_ini       = -0.826
 mu_vary      = False
 
+t_ini       = 190
+t_vary      = False
+
 ## Graph values
-T = 20 # in Kelvin
+T = 25 # in Kelvin
 Bamp = 45 # in Telsa
 
 Btheta_array = np.arange(0, 95, 5)
@@ -39,7 +42,7 @@ Btheta_array = np.arange(0, 95, 5)
 ## Initialize the BandStructure Object
 bandObject = BandStructure(bandname="hPocket",
                            a=3.74767, b=3.74767, c=13.2,
-                           t=150, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
+                           t=t_ini, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                            mu=mu_ini,
                            numberOfKz=7, mesh_ds=np.pi/20)
 
@@ -69,18 +72,21 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
     gamma_dos_max = pars["gamma_dos_max"].value
     gamma_k = pars["gamma_k"].value
     power = pars["power"].value
+    t = pars["t"].value
     mu = pars["mu"].value
 
     print("gamma_0 = ", gamma_0)
     print("gamma_dos_max = ", gamma_dos_max)
     print("gamma_k = ", gamma_k)
     print("power = ", power)
+    print("t = ", t)
     print("mu = ", mu)
 
     power = int(power)
     if power % 2 == 1:
         power += 1
     start_total_time = time.time()
+    bandObject.t = t
     bandObject.mu = mu
     bandObject.discretize_FS()
     bandObject.densityOfState()
@@ -104,6 +110,7 @@ pars.add("gamma_0", value = gamma_0_ini, vary = gamma_0_vary, min = 1)
 pars.add("gamma_dos_max",      value = gamma_dos_max_ini, vary = gamma_dos_max_vary, min = 0)
 pars.add("gamma_k", value = gamma_k_ini, vary = gamma_k_vary, min = 0)
 pars.add("power",   value = power_ini, vary = power_vary, min = 2)
+pars.add("t",      value = t_ini, vary = t_vary)
 pars.add("mu",      value = mu_ini, vary = mu_vary)
 
 ## Run fit algorithm
@@ -117,9 +124,11 @@ gamma_0 = out.params["gamma_0"].value
 gamma_dos_max      = out.params["gamma_dos_max"].value
 gamma_k = out.params["gamma_k"].value
 power   = out.params["power"].value
+t       = out.params["t"].value
 mu      = out.params["mu"].value
 
 ## Compute ADMR with final parameters from the fit
+bandObject.t = t
 bandObject.mu = mu
 bandObject.discretize_FS()
 bandObject.densityOfState()
@@ -170,7 +179,7 @@ fig.text(0.84,0.82, r"$H$ = " + str(Bamp) + " T", ha = "left")
 
 #############################################
 axes.set_xlim(0,90)   # limit for xaxis
-axes.set_ylim(0.990,1.008) # leave the ymax auto, but fix ymin
+axes.set_ylim(0.988,1.011) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
 #############################################
