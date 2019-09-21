@@ -14,15 +14,15 @@ c = 13.3e-10 # m
 
 Bmin = 2
 Bmax = 200
-Bstep = 5
+Bstep = 20
 B_array = np.arange(Bmin, Bmax, Bstep)
 
 
 bandObject = Pocket(bandname="hPocket",
                  a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-                 M=0.21,
-                 mu=-0.77,
+                 M=0.1,
+                 mu=-0.636,
                  numberOfKz=7, mesh_ds=np.pi/80)
 
 bandObject.discretize_FS()
@@ -60,6 +60,8 @@ for i, B in enumerate(B_array):
     rhoxy_array[i] = rhoxy
     RH_array[i] = RH
 
+    print("{0:.0f}".format(i+1) + " / " + "{0:.0f}".format(len(B_array)))
+
 ## Save Data
 Data = np.vstack((B_array, rhoxx_array*1e8, rhoxx_array*1e8, RH_array*1e9))
 Data = Data.transpose()
@@ -72,7 +74,7 @@ d = c / 2
 V = a**2 * d
 n = V * np.abs(nH)
 p = n
-print("n = ", np.round(p, 3) )
+print("n_H = ", np.round(p, 3) )
 
 
 
@@ -85,7 +87,7 @@ fig.subplots_adjust(left = 0.18, right = 0.82, bottom = 0.18, top = 0.95)
 
 #############################################
 fig.text(0.79,0.28, r"$p$ = " + "{0:.3f}".format(bandObject.p), ha = "right")
-fig.text(0.79,0.22, r"$n$ = " + "{0:.3f}".format(p) , ha = "right")
+fig.text(0.79,0.22, r"$n_{\rm H}$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
 #############################################
@@ -139,7 +141,7 @@ fig.subplots_adjust(left = 0.18, right = 0.82, bottom = 0.18, top = 0.95)
 
 #############################################
 fig.text(0.79,0.28, r"$p$ = " + "{0:.3f}".format(bandObject.p), ha = "right")
-fig.text(0.79,0.22, r"$n$ = " + "{0:.3f}".format(p) , ha = "right")
+fig.text(0.79,0.22, r"$n_{\rm H}$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
 ## Allow to shift the label ticks up or down with set_pad

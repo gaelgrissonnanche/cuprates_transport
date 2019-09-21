@@ -27,7 +27,7 @@ class BandStructure:
         self.p    = None # hole doping, unknown at first
         self.n    = None # band filling (of electron), unknown at first
         self.dos  = None
-        self.particlesPerkVolume = 2
+        self.numberOfBZ = 1 # number of BZ we intregrate on
         self.bandname = bandname # a string to designate the band
 
         ## Discretization
@@ -108,7 +108,7 @@ class BandStructure:
     def updateFilling(self, resX=500, resY=500, resZ=10):
         E = self.dispersionMesh(resX, resY, resZ)
         kVolume = E.shape[0] * E.shape[1] * E.shape[2]
-        self.n = self.particlesPerkVolume / kVolume * np.sum(np.greater_equal(0, E))
+        self.n = 2 * np.sum(np.greater_equal(0, E)) / kVolume / self.numberOfBZ # 2 is for the spin
         self.p = 1 - self.n
         return self.n
 
@@ -128,7 +128,7 @@ class BandStructure:
         # Number of k in the Brillouin zone per plane
         Nz = E.shape[0] * E.shape[1]
         # Number of electron in the Brillouin zone per plane
-        n_per_kz = self.particlesPerkVolume / Nz * np.sum(np.greater_equal(0, E), axis=(0, 1))
+        n_per_kz = 2 * np.sum(np.greater_equal(0, E), axis=(0, 1)) / Nz / self.numberOfBZ # 2 is for the spin
         p_per_kz = 1 - n_per_kz
         return p_per_kz
 
@@ -149,7 +149,7 @@ class BandStructure:
         kx_a = np.linspace(0, pi / self.a, mesh_xy_rough)
         ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
         kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
-               # half of FBZ, 2*pi/c because bodycentered unit cell
+        # half of FBZ, 2*pi/c because bodycentered unit cell
         dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
@@ -170,9 +170,9 @@ class BandStructure:
                 s[1:] = np.cumsum(ds)  # integrate path, s[0] = 0
 
                 mesh_xy = int(max(np.ceil(s.max() / self.mesh_ds), 4))
-                          # choose at least a minimum of 4 points per contour
+                # choose at least a minimum of 4 points per contour
                 numberPointsPerKz += mesh_xy
-                          # discretize one fourth of FS, therefore need * 4
+                # discretize one fourth of FS, therefore need * 4
 
                 dks = s.max() / (mesh_xy + 1) / self.a  # dk path
 
@@ -200,7 +200,7 @@ class BandStructure:
                     # self.a (and not b) because anisotropy is taken into account earlier
                     kzf = kz * np.ones_like(x_int)
                     self.dkf = 2 * dks * dkz * np.ones_like(x_int)
-                                        # factor 2 because integrate only half kz.
+                    # factor 2 because integrate only half kz.
                 else:
                     kxf = np.append(kxf, x_int / self.a)
                     kyf = np.append(kyf, y_int / self.a)
@@ -225,7 +225,7 @@ class BandStructure:
     def densityOfState(self):
         # Density of State
         dos = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
-                # dos = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
+        # dos = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
         self.dos = dos
         return dos
 
@@ -246,7 +246,7 @@ class BandStructure:
     mpl.rcParams['ytick.major.width'] = 0.6
     mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
     mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
-                                        # editing the text in illustrator
+    # editing the text in illustrator
 
     def figDiscretizeFS2D(self, kz = 0, meshXY = 1001):
         """Show Discretized 2D Fermi Surface """
@@ -418,7 +418,7 @@ class Pocket(BandStructure):
         super().__init__(**kwargs)
         self._M = M*self.t
         self.electronPocket = electronPocket
-        self.particlesPerkVolume = 1
+        self.numberOfBZ = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
 
     def _get_M(self):
         return self._M / self._t
@@ -530,25 +530,25 @@ def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPo
 
 ## Functions to compute the doping of a two bands system and more >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 def doping(bandIterable, printDoping=False):
-        totalFilling=0
+    totalFilling=0
+    if printDoping == True:
+        print("------------------------------------------------")
+    for band in bandIterable:
+        band.updateFilling()
+        totalFilling += band.n
         if printDoping == True:
-            print("------------------------------------------------")
-        for band in bandIterable:
-            band.updateFilling()
-            totalFilling += band.n
-            if printDoping == True:
-                print(band.bandname + ": band filling = " + "{0:.3f}".format(band.n))
-        doping = 1-totalFilling
-        if printDoping == True:
-            print("total hole doping = " + "{0:.3f}".format(doping))
-            print("------------------------------------------------")
-        return doping
+            print(band.bandname + ": band filling = " + "{0:.3f}".format(band.n))
+    doping = 1-totalFilling
+    if printDoping == True:
+        print("total hole doping = " + "{0:.3f}".format(doping))
+        print("------------------------------------------------")
+    return doping
 
 def dopingCondition(mu,ptarget,bandIterable):
-        print("mu = " + "{0:.3f}".format(mu[0]))
-        for band in bandIterable:
-            band.mu = mu
-        return doping(bandIterable) - ptarget
+    print("mu = " + "{0:.3f}".format(mu[0]))
+    for band in bandIterable:
+        band.mu = mu
+    return doping(bandIterable) - ptarget
 
 def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.005):
     solObject = optimize.root(dopingCondition, np.array([muStart]), args=(pTarget,bandIterable), options={'xtol': xtol})

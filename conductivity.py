@@ -25,7 +25,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meVolt * picosecond / Angstrom / hbar**2
 
 class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0,
-                 gamma_0=15, gamma_dos=0, gamma_k=0, power=2, factor_arcs=1):
+                 gamma_0=15, gamma_dos_max=0, gamma_k=0, power=2, factor_arcs=1):
 
         # Band object
         self.bandObject = bandObject ## WARNING do not modify within this object
@@ -38,16 +38,17 @@ class Conductivity:
 
         # Scattering rate
         self.gamma_0 = gamma_0 # in THz
-        self.gamma_dos = gamma_dos # in THz
+        self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k = gamma_k # in THz
         self.power   = int(power)
         if self.power % 2 == 1:
             self.power += 1
         self.factor_arcs = factor_arcs # factor * gamma_0 outsite AF FBZ
+        self.gamma_tot_max = 1 / self.tauTotMinFunc() # in THz
+        self.gamma_tot_min = 1 / self.tauTotMaxFunc() # in THz
 
         # Time parameters
-        self.tau_0 = 1 / self.gamma_0 # in picoseconds
-        self.tmax = 8 * self.tau_0 # in picoseconds
+        self.tmax = 8 * self.tauTotMaxFunc()  # in picoseconds
         self._Ntime = 500 # number of steps in time
         self.dt = self.tmax / self.Ntime
         self.t = np.arange(0, self.tmax, self.dt)
@@ -57,7 +58,7 @@ class Conductivity:
         self.kft = np.empty(1)
         self.vft = np.empty(1)
         self.t_over_tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
-                                      # i_t index of the time from the starting position
+        # i_t index of the time from the starting position
 
         # Conductivity Tensor: x, y, z = 0, 1, 2
         self.sigma = np.empty((3,3), dtype= np.float64)
@@ -158,36 +159,61 @@ class Conductivity:
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
 
-    def factor_arcs_Func(self):
-        # line ky = kx + pi
-        d1 = self.kft[1, :, :] * self.bandObject.b - self.kft[0, :, :] * self.bandObject.a - pi  # line ky = kx + pi
-        d2 = self.kft[1, :, :] * self.bandObject.b - self.kft[0, :, :] * self.bandObject.a + pi  # line ky = kx - pi
-        d3 = self.kft[1, :, :] * self.bandObject.b + self.kft[0, :, :] * self.bandObject.a - pi  # line ky = -kx + pi
-        d4 = self.kft[1, :, :] * self.bandObject.b + self.kft[0, :, :] * self.bandObject.a + pi  # line ky = -kx - pi
+    # def factor_arcs_Func(self):
+    #     # line ky = kx + pi
+    #     d1 = self.kft[1, :, :] * self.bandObject.b - self.kft[0, :, :] * self.bandObject.a - pi  # line ky = kx + pi
+    #     d2 = self.kft[1, :, :] * self.bandObject.b - self.kft[0, :, :] * self.bandObject.a + pi  # line ky = kx - pi
+    #     d3 = self.kft[1, :, :] * self.bandObject.b + self.kft[0, :, :] * self.bandObject.a - pi  # line ky = -kx + pi
+    #     d4 = self.kft[1, :, :] * self.bandObject.b + self.kft[0, :, :] * self.bandObject.a + pi  # line ky = -kx - pi
 
-        is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
-        is_out_FBZ_AF = np.logical_not(is_in_FBZ_AF)
-        factor_out_of_FBZ_AF = np.ones_like(self.kft[0, :, :])
-        factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
-        return factor_out_of_FBZ_AF
+    #     is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
+    #     is_out_FBZ_AF = np.logical_not(is_in_FBZ_AF)
+    #     factor_out_of_FBZ_AF = np.ones_like(self.kft[0, :, :])
+    #     factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
+    #     return factor_out_of_FBZ_AF
 
-    def gamma_DOS_Func(self):
-        dos = 1 / sqrt( self.vft[0, :, :]**2 +
-                        self.vft[1, :, :]**2 +
-                        self.vft[2, :, :]**2 )
-        dos_norm = 0.006  # value to normalize the DOS to a quantity without units
-        return self.gamma_dos * dos / dos_norm
+    def gamma_DOS_Func(self, vx, vy, vz):
+        dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
+        dos_max = np.max(self.bandObject.dos)  # value to normalize the DOS to a quantity without units
+        return self.gamma_dos_max * dos / dos_max
 
-    def gamma_k_Func(self):
-        phi = arctan2(self.kft[1, :, :], self.kft[0, :, :])
+    def gamma_k_Func(self, kx, ky):
+        phi = arctan2(ky, kx)
         return self.gamma_k * cos(2*phi)**self.power
 
     def tOverTauFunc(self):
         # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
-        self.t_over_tau = np.cumsum( self.dt_array * (
-                                     self.gamma_0 * self.factor_arcs_Func() +
-                                     self.gamma_DOS_Func()             +
-                                     self.gamma_k_Func() ) , axis = 1)
+        self.t_over_tau = np.cumsum( self.dt_array / (
+                                     self.tauTotFunc(self.kft[0, :, :],
+                                                     self.kft[1, :, :],
+                                                     self.vft[0, :, :],
+                                                     self.vft[1, :, :],
+                                                     self.vft[2, :, :]
+                                                     )
+                                                      )
+                         , axis = 1)
+
+    def tauTotFunc(self, kx, ky, vx, vy, vz):
+        tauTot = 1 / (self.gamma_0 + # * self.factor_arcs_Func() +
+                      self.gamma_DOS_Func(vx, vy, vz) +
+                      self.gamma_k_Func(kx, ky))
+        return tauTot
+
+    def tauTotMaxFunc(self):
+        # Compute the tau_max (the longest time between two collisions)
+        # to better integrate from 0 --> 8 * 1 / gamma_min (instead of infinity)
+        kf = self.bandObject.kf
+        vf = self.bandObject.vf
+        tauTotMax = np.max(self.tauTotFunc(kf[0, :], kf[1, :],
+                                           vf[0, :], vf[1, :], vf[2, :]))
+        return tauTotMax
+
+    def tauTotMinFunc(self):
+        kf = self.bandObject.kf
+        vf = self.bandObject.vf
+        tauTotMin = np.min(self.tauTotFunc(kf[0, :], kf[1, :],
+                                           vf[0, :], vf[1, :], vf[2, :]))
+        return tauTotMin
 
     def solveMovementForPoint(self, kpoint):
         len_t = self.t.shape[0]
@@ -211,8 +237,7 @@ class Conductivity:
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
         # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
-        self.sigma[i, j] = self.bandObject.particlesPerkVolume / 2  * \
-                           units_chambers * \
+        self.sigma[i, j] = units_chambers / self.bandObject.numberOfBZ * \
                            np.sum( self.bandObject.dos *
                                    self.bandObject.dkf *
                                    self.VelocitiesProduct(i=i, j=j) )
@@ -236,68 +261,68 @@ class Conductivity:
     mpl.rcParams['ytick.major.width'] = 0.6
     mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
     mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
-                                        # editing the text in illustrator
+    # editing the text in illustrator
 
-    def figLifeTime(self, mesh_phi = 1000):
-        fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
-        fig.subplots_adjust(left=0.10, right=0.70, bottom=0.20, top=0.9)
+    # def figLifeTime(self, mesh_phi = 1000):
+    #     fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
+    #     fig.subplots_adjust(left=0.10, right=0.70, bottom=0.20, top=0.9)
 
-        phi = np.linspace(0, 2*pi, 1000)
-        ## tau_0
-        tau_0_x = self.tau_0 * cos(phi)
-        tau_0_y = self.tau_0 * sin(phi)
-        line = axes.plot(tau_0_x / self.tau_0, tau_0_y / self.tau_0,
-                             clip_on=False, label=r"$\tau_{\rm 0}$", zorder=10)
-        plt.setp(line, ls="--", c='#000000', lw=3, marker="",
-                 mfc='#000000', ms=5, mec="#7E2320", mew=0)
-        ## tau_k
-        tau_k_x = 1 / (self.gamma_0 + self.gamma_k * (sin(phi) **
-                                            2 - cos(phi)**2)**self.power) * cos(phi)
-        tau_k_y = 1 / (self.gamma_0 + self.gamma_k * (sin(phi) **
-                                            2 - cos(phi)**2)**self.power) * sin(phi)
-        line = axes.plot(tau_k_x / self.tau_0, tau_k_y / self.tau_0,
-                             clip_on=False, zorder=20, label=r"$\tau_{\rm tot}$")
-        plt.setp(line, ls="-", c='#00FF9C', lw=3, marker="",
-                 mfc='#000000', ms=5, mec="#7E2320", mew=0)
-        ## tau_k_min
-        phi_min = 3 * pi / 2
-        tau_k_x_min = 1 / \
-            (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 -
-                                  cos(phi_min)**2)**self.power) * cos(phi_min)
-        tau_k_y_min = 1 / \
-            (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 -
-                                  cos(phi_min)**2)**self.power) * sin(phi_min)
-        line = axes.plot(tau_k_x_min / self.tau_0, tau_k_y_min / self.tau_0,
-                             clip_on=False, label=r"$\tau_{\rm min}$", zorder=25)
-        plt.setp(line, ls="", c='#1CB7FF', lw=3, marker="o",
-                 mfc='#1CB7FF', ms=8, mec="#1CB7FF", mew=2)
-        ## tau_k_max
-        phi_max = 5 * pi / 4
-        tau_k_x_max = 1 / \
-            (self.gamma_0 + self.gamma_k * (sin(phi_max)**2 -
-                                  cos(phi_max)**2)**self.power) * cos(phi_max)
-        tau_k_y_max = 1 / \
-            (self.gamma_0 + self.gamma_k * (sin(phi_max)**2 -
-                                  cos(phi_max)**2)**self.power) * sin(phi_max)
-        line = axes.plot(tau_k_x_max / self.tau_0, tau_k_y_max / self.tau_0,
-                             clip_on=False, label=r"$\tau_{\rm max}$", zorder=25)
-        plt.setp(line, ls="", c='#FF8181', lw=3, marker="o",
-                 mfc='#FF8181', ms=8, mec="#FF8181", mew=2)
+    #     phi = np.linspace(0, 2*pi, 1000)
+    #     ## tau_0
+    #     tau_0_x = self.tau_0 * cos(phi)
+    #     tau_0_y = self.tau_0 * sin(phi)
+    #     line = axes.plot(tau_0_x / self.tau_0, tau_0_y / self.tau_0,
+    #                          clip_on=False, label=r"$\tau_{\rm 0}$", zorder=10)
+    #     plt.setp(line, ls="--", c='#000000', lw=3, marker="",
+    #              mfc='#000000', ms=5, mec="#7E2320", mew=0)
+    #     ## tau_k
+    #     tau_k_x = 1 / (self.gamma_0 + self.gamma_k * (sin(phi) **
+    #                                         2 - cos(phi)**2)**self.power) * cos(phi)
+    #     tau_k_y = 1 / (self.gamma_0 + self.gamma_k * (sin(phi) **
+    #                                         2 - cos(phi)**2)**self.power) * sin(phi)
+    #     line = axes.plot(tau_k_x / self.tau_0, tau_k_y / self.tau_0,
+    #                          clip_on=False, zorder=20, label=r"$\tau_{\rm tot}$")
+    #     plt.setp(line, ls="-", c='#00FF9C', lw=3, marker="",
+    #              mfc='#000000', ms=5, mec="#7E2320", mew=0)
+    #     ## tau_k_min
+    #     phi_min = 3 * pi / 2
+    #     tau_k_x_min = 1 / \
+    #         (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 -
+    #                               cos(phi_min)**2)**self.power) * cos(phi_min)
+    #     tau_k_y_min = 1 / \
+    #         (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 -
+    #                               cos(phi_min)**2)**self.power) * sin(phi_min)
+    #     line = axes.plot(tau_k_x_min / self.tau_0, tau_k_y_min / self.tau_0,
+    #                          clip_on=False, label=r"$\tau_{\rm min}$", zorder=25)
+    #     plt.setp(line, ls="", c='#1CB7FF', lw=3, marker="o",
+    #              mfc='#1CB7FF', ms=8, mec="#1CB7FF", mew=2)
+    #     ## tau_k_max
+    #     phi_max = 5 * pi / 4
+    #     tau_k_x_max = 1 / \
+    #         (self.gamma_0 + self.gamma_k * (sin(phi_max)**2 -
+    #                               cos(phi_max)**2)**self.power) * cos(phi_max)
+    #     tau_k_y_max = 1 / \
+    #         (self.gamma_0 + self.gamma_k * (sin(phi_max)**2 -
+    #                               cos(phi_max)**2)**self.power) * sin(phi_max)
+    #     line = axes.plot(tau_k_x_max / self.tau_0, tau_k_y_max / self.tau_0,
+    #                          clip_on=False, label=r"$\tau_{\rm max}$", zorder=25)
+    #     plt.setp(line, ls="", c='#FF8181', lw=3, marker="o",
+    #              mfc='#FF8181', ms=8, mec="#FF8181", mew=2)
 
-        fraction = np.abs(np.round(self.tau_0 / tau_k_y_min, 2))
-        fig.text(0.74, 0.21, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
-                 "\n" + r"= {0:.1f}".format(fraction))
+    #     fraction = np.abs(np.round(self.tau_0 / tau_k_y_min, 2))
+    #     fig.text(0.74, 0.21, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
+    #              "\n" + r"= {0:.1f}".format(fraction))
 
-        axes.set_xlim(-1, 1)
-        axes.set_ylim(-1, 1)
-        axes.set_xticks([])
-        axes.set_yticks([])
+    #     axes.set_xlim(-1, 1)
+    #     axes.set_ylim(-1, 1)
+    #     axes.set_xticks([])
+    #     axes.set_yticks([])
 
-        plt.legend(bbox_to_anchor=[1.51, 1.01], loc=1,
-                   frameon=False,
-                   numpoints=1, markerscale=1, handletextpad=0.2)
+    #     plt.legend(bbox_to_anchor=[1.51, 1.01], loc=1,
+    #                frameon=False,
+    #                numpoints=1, markerscale=1, handletextpad=0.2)
 
-        plt.show()
+    #     plt.show()
 
     def figArcs(self, index_kf = 0, meshXY = 1001):
         fig, axes = plt.subplots(1, 1, figsize=(5.6, 5.6))
@@ -495,7 +520,7 @@ class Conductivity:
         fig.text(0.45, 0.08, "Scattering formula",
                     fontsize=16, color='#A9A9A9', style="italic")
         scatteringFormula = r"$1 / \tau_{\rm tot}$ = $\Gamma_{\rm 0}$ + " + \
-            r"$\Gamma_{\rm k}$ cos$^{\rm n}$(2$\phi$) + $\Gamma_{\rm DOS}$ / |$v_{\rm k}$|"
+            r"$\Gamma_{\rm k}$ cos$^{\rm n}$(2$\phi$) + $\Gamma_{\rm DOS}^{\rm max}$ (|$v_{\rm k}^{\rm min}$| / |$v_{\rm k}$|)"
         fig.text(0.45, 0.03, scatteringFormula, fontsize=12)
 
         # Parameters Bandstructure
@@ -537,15 +562,18 @@ class Conductivity:
         # Scattering parameters
         fig.text(0.72, 0.77, "Scattering Parameters",
                     fontsize=16, color='#A9A9A9', style="italic")
-        label_parameters = [r"$\Gamma_{\rm 0}$   = " + "{0:.1f}".format(self.gamma_0) + "   THz",
-                            r"$\Gamma_{\rm DOS}$   = " +
-                            "{0:.1f}".format(
-                                self.gamma_dos) + "   THz",
-                            r"$\Gamma_{\rm k}$   = " +
-                            "{0:.1f}".format(
-            self.gamma_k) + "   THz",
-            r"$n$    = " +
-            "{0:.0f}".format(self.power)
+        label_parameters = [
+            r"$\Gamma_{\rm 0}$     = " + "{0:.1f}".format(self.gamma_0) +
+            "   THz",
+            r"$\Gamma_{\rm DOS}^{\rm max}$   = " +
+            "{0:.1f}".format(self.gamma_dos_max) + "   THz",
+            r"$\Gamma_{\rm k}$     = " + "{0:.1f}".format(self.gamma_k) +
+            "   THz",
+            r"$n$      = " + "{0:.0f}".format(self.power),
+            r"$\Gamma_{\rm tot}^{\rm max}$   = " +
+            "{0:.1f}".format(self.gamma_tot_max) + "   THz",
+            r"$\Gamma_{\rm tot}^{\rm min}$   = " +
+            "{0:.1f}".format(self.gamma_tot_min) + "   THz",
         ]
         h_label = 0.72
         for label in label_parameters:
@@ -586,59 +614,72 @@ class Conductivity:
         # axes_FS.tick_params(axis='y', which='major', pad=8)
 
         ## Inset Life Time ////////////////////////////////////////////////////#
-        tau_0 = self.tau_0
-        gamma_0 = self.gamma_0
-        gamma_k = self.gamma_k
-        power = self.power
-
         axes_tau = plt.axes([-0.02, 0.04, .4, .4])
         axes_tau.set_aspect(aspect=1)
 
-        phi = np.linspace(0, 2*pi, 1000)
+        # phi = arctan2(ky, kx)
+        # zeros = np.zeros_like(kx)
+        # vx, vy, vz = self.bandObject.v_3D_func(kx, ky, 0)
+        # print(np.min(vx))
+        # print(np.min(vy))
+        # print(np.min(vz))
+        nn = int(self.bandObject.numberPointsPerKz_list[0] / 4)
+        print(nn)
+        kx = self.bandObject.kf[0, :nn]
+        ky = self.bandObject.kf[1, :nn]
+        phi = arctan2(ky, kx)
+        vx = self.bandObject.vf[0, :nn]
+        vy = self.bandObject.vf[1, :nn]
+        vz = self.bandObject.vf[2, :nn]
+
+
+        # nn = self.bandObject.numberPointsPerKz_list[0] # number of points at kz = 0
+        # print(nn)
+        gamma_kz0 = (self.gamma_0 +
+                    self.gamma_DOS_Func(vx, vy, vz) +
+                    self.gamma_k_Func(kx, ky) )
+        # print(len(gamma_kz0))
+        tau_kz0 = 1 / gamma_kz0
+        tau_max_kz0 = np.max(tau_kz0)
+
         ## tau_0
-        tau_0_x = tau_0 * cos(phi)
-        tau_0_y = tau_0 * sin(phi)
-        line = axes_tau.plot(tau_0_x / tau_0, tau_0_y / tau_0,
+        line = axes_tau.plot(cos(phi), sin(phi),
                                 clip_on=False, label=r"$\tau_{\rm 0}$", zorder=10)
         plt.setp(line, ls="--", c='#000000', lw=1, marker="",
                     mfc='#000000', ms=5, mec="#7E2320", mew=0)
         ## tau_k
-        tau_k_x = 1 / (gamma_0 + gamma_k * (sin(phi) **
-                                            2 - cos(phi)**2)**power) * cos(phi)
-        tau_k_y = 1 / (gamma_0 + gamma_k * (sin(phi) **
-                                            2 - cos(phi)**2)**power) * sin(phi)
-        line = axes_tau.plot(tau_k_x / tau_0, tau_k_y / tau_0,
+        line = axes_tau.plot(tau_kz0/tau_max_kz0*cos(phi), tau_kz0/tau_max_kz0*sin(phi),
                                 clip_on=False, zorder=20, label=r"$\tau_{\rm tot}$")
         plt.setp(line, ls="-", c='#00FF9C', lw=1, marker="",
                     mfc='#000000', ms=5, mec="#7E2320", mew=0)
-        ## tau_k_min
-        phi_min = 3 * pi / 2
-        tau_k_x_min = 1 / \
-            (gamma_0 + gamma_k * (sin(phi_min)**2 -
-                                    cos(phi_min)**2)**power) * cos(phi_min)
-        tau_k_y_min = 1 / \
-            (gamma_0 + gamma_k * (sin(phi_min)**2 -
-                                    cos(phi_min)**2)**power) * sin(phi_min)
-        line = axes_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0,
-                                clip_on=False, label=r"$\tau_{\rm min}$", zorder=25)
-        plt.setp(line, ls="", c='#1CB7FF', lw=3, marker="o",
-                    mfc='#1CB7FF', ms=8, mec="#1CB7FF", mew=0)
-        ## tau_k_max
-        phi_max = 5 * pi / 4
-        tau_k_x_max = 1 / \
-            (gamma_0 + gamma_k * (sin(phi_max)**2 -
-                                    cos(phi_max)**2)**power) * cos(phi_max)
-        tau_k_y_max = 1 / \
-            (gamma_0 + gamma_k * (sin(phi_max)**2 -
-                                    cos(phi_max)**2)**power) * sin(phi_max)
-        line = axes_tau.plot(tau_k_x_max / tau_0, tau_k_y_max / tau_0,
-                                clip_on=False, label=r"$\tau_{\rm max}$", zorder=25)
-        plt.setp(line, ls="", c='#FF8181', lw=3, marker="o",
-                    mfc='#FF8181', ms=8, mec="#FF8181", mew=0)
+        # ## tau_k_min
+        # phi_min = 3 * pi / 2
+        # tau_k_x_min = 1 / \
+        #     (gamma_0 + gamma_k * (sin(phi_min)**2 -
+        #                             cos(phi_min)**2)**power) * cos(phi_min)
+        # tau_k_y_min = 1 / \
+        #     (gamma_0 + gamma_k * (sin(phi_min)**2 -
+        #                             cos(phi_min)**2)**power) * sin(phi_min)
+        # line = axes_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0,
+        #                         clip_on=False, label=r"$\tau_{\rm min}$", zorder=25)
+        # plt.setp(line, ls="", c='#1CB7FF', lw=3, marker="o",
+        #             mfc='#1CB7FF', ms=8, mec="#1CB7FF", mew=0)
+        # ## tau_k_max
+        # phi_max = 5 * pi / 4
+        # tau_k_x_max = 1 / \
+        #     (gamma_0 + gamma_k * (sin(phi_max)**2 -
+        #                             cos(phi_max)**2)**power) * cos(phi_max)
+        # tau_k_y_max = 1 / \
+        #     (gamma_0 + gamma_k * (sin(phi_max)**2 -
+        #                             cos(phi_max)**2)**power) * sin(phi_max)
+        # line = axes_tau.plot(tau_k_x_max / tau_0, tau_k_y_max / tau_0,
+        #                         clip_on=False, label=r"$\tau_{\rm max}$", zorder=25)
+        # plt.setp(line, ls="", c='#FF8181', lw=3, marker="o",
+        #             mfc='#FF8181', ms=8, mec="#FF8181", mew=0)
 
-        fraction = np.abs(np.round(tau_0 / tau_k_y_min, 2))
-        fig.text(0.30, 0.05, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
-                    "\n" + r"= {0:.1f}".format(fraction), fontsize=14)
+        # fraction = np.abs(np.round(tau_0 / tau_k_y_min, 2))
+        # fig.text(0.30, 0.05, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
+        #             "\n" + r"= {0:.1f}".format(fraction), fontsize=14)
 
         axes_tau.set_xlim(-1, 1)
         axes_tau.set_ylim(-1, 1)
@@ -655,6 +696,3 @@ class Conductivity:
         if fig_show == True:
             plt.show()
         #//////////////////////////////////////////////////////////////////////////////#
-
-
-
