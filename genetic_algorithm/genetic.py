@@ -36,7 +36,7 @@ search_ranges = {
     "gamma_0": [1.0,20.0],
     # "gamma_k": [60.0,70.0],
     "gamma_dos_max": [10.0,300.0],
-    "power":[2,10,12,14]
+    # "power":[2,10,12,14]
 }
 
 class ObjectView():
