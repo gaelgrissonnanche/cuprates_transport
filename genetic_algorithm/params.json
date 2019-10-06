@@ -1,0 +1,23 @@
+{
+    "bandname":"LargePocket",
+    "a":3.74767,
+    "b":3.74767, 
+    "c":13.2,
+    "t":190,
+    "tp":-0.14,
+    "tpp":0.07,
+    "tz":0.07,
+    "tz2":0.00,
+    "mu":-0.826,
+    "fixdoping":-2,
+    "numberOfKz":7,
+    "mesh_ds":0.15707963267948966,
+    "Bamp":45,
+    "gamma_0":0,
+    "gamma_k":0,
+    "gamma_dos_max":275,
+    "power":12,
+    "seed":72,
+    "experiment_doping":25,
+    "experiment_temperature":25
+}
