@@ -13,7 +13,7 @@ hPocket = Pocket(bandname="hPocket",
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                  M=0.0041,
                  mu=-0.494,
-                 numberOfKz=7, mesh_ds=pi/100)
+                 numberOfKz=7, mesh_ds=pi/80)
 
 
 ePocket = deepcopy(hPocket)
@@ -38,14 +38,7 @@ hPocket.doping()
 
 ## Conductivity
 h_condObject = Conductivity(hPocket, Bamp=45,
-                            gamma_0=24.2, gamma_k=0, power=12, gamma_dos=0)
-
-# # Arcs
-# h_condObject = Conductivity(hPocket, Bamp=45,
-#                             gamma_0=15, gamma_k=0, power=12, gamma_dos=0, factor_arcs=100)
-# h_condObject.solveMovementFunc()
-# h_condObject.figArcs()
-
+                            gamma_0=15, gamma_k=0, power=12, gamma_dos_max=0, factor_arcs=1)
 
 # h_condObject.solveMovementFunc()
 # h_condObject.figOnekft()

@@ -27,9 +27,9 @@ condObject = Conductivity(bandObject, Bamp=45,
 # condObject = Conductivity(bandObject, Bamp=45,
 #                           gamma_0=14, gamma_k=0, gamma_dos_max=0, power=12)
 condObject.solveMovementFunc()
-# condObject.figScattering2(kz=0)
-# condObject.figScattering2(kz=pi/bandObject.c)
-# condObject.figScattering2(kz=2*pi/bandObject.c)
+# condObject.figScatteringPhi(kz=0)
+# condObject.figScatteringPhi(kz=pi/bandObject.c)
+# condObject.figScatteringPhi(kz=2*pi/bandObject.c)
 # condObject.figArcs()
 # Best fit p = 0.25
 # condObject = Conductivity(bandObject, Bamp=45,

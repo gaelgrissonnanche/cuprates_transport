@@ -25,10 +25,10 @@ B_array = np.arange(Bmin, Bmax, Bstep)
 ## Initialize the BandStructure Object
 hPocket = Pocket(bandname="hPocket",
                  a=3.74767, b=3.74767, c=13.2,
-                 t=60, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
+                 t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                  M=0.004,
                  mu=-0.494,
-                 numberOfKz=7, mesh_ds=np.pi/80)
+                 numberOfKz=7, mesh_ds=np.pi/100)
 
 ePocket = deepcopy(hPocket)
 ePocket.electronPocket = True
@@ -45,7 +45,8 @@ ePocket.doping()
 
 
 ## Conductivity Object ---------------
-hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=24.2, gamma_k=0, power=12, gamma_dos=0)
+hPocketCondObject = Conductivity(hPocket, Bamp=45,
+                    gamma_0=15, gamma_k=0, power=12, gamma_dos_max=0, factor_arcs=1)
 hPocketCondObject.Ntime = 1000  # better for high magnetic field values
 
 ## Transport coeffcients -------------

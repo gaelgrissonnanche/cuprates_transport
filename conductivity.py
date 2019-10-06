@@ -187,6 +187,7 @@ class Conductivity:
         self.t_over_tau = np.cumsum( self.dt_array / (
                                      self.tauTotFunc(self.kft[0, :, :],
                                                      self.kft[1, :, :],
+                                                     self.kft[2, :, :],
                                                      self.vft[0, :, :],
                                                      self.vft[1, :, :],
                                                      self.vft[2, :, :]
@@ -194,18 +195,18 @@ class Conductivity:
                                                       )
                          , axis = 1)
 
-    def tauTotFunc(self, kx, ky, vx, vy, vz):
+    def tauTotFunc(self, kx, ky, kz, vx, vy, vz):
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
         gammaTot = self.gamma_0 * np.ones_like(kx)
 
-        if self.factor_arcs!=1:
-            gammaTot = self.gamma_0*self.factor_arcs_Func(kx, ky)
         if self.gamma_k!=0:
             gammaTot += self.gamma_k_Func(kx, ky)
         if self.gamma_dos_max!=0:
             gammaTot += self.gamma_DOS_Func(vx, vy, vz)
+        if self.factor_arcs!=1:
+            gammaTot *= self.factor_arcs_Func(kx, ky)
 
         return 1/gammaTot
 
@@ -214,14 +215,14 @@ class Conductivity:
         # to better integrate from 0 --> 8 * 1 / gamma_min (instead of infinity)
         kf = self.bandObject.kf
         vf = self.bandObject.vf
-        tauTotMax = np.max(self.tauTotFunc(kf[0, :], kf[1, :],
+        tauTotMax = np.max(self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
                                            vf[0, :], vf[1, :], vf[2, :]))
         return tauTotMax
 
     def tauTotMinFunc(self):
         kf = self.bandObject.kf
         vf = self.bandObject.vf
-        tauTotMin = np.min(self.tauTotFunc(kf[0, :], kf[1, :],
+        tauTotMin = np.min(self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
                                            vf[0, :], vf[1, :], vf[2, :]))
         return tauTotMin
 
@@ -273,7 +274,7 @@ class Conductivity:
     mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
     # editing the text in illustrator
 
-    def figScattering(self, kz=0, mesh_xy=501):
+    def figScatteringColor(self, kz=0, mesh_xy=501):
         fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
         fig.subplots_adjust(left=0.10, right=0.85, bottom=0.20, top=0.9)
 
@@ -285,6 +286,8 @@ class Conductivity:
         bands = self.bandObject.e_3D_func(kxx, kyy, kz)
         contours = measure.find_contours(bands, 0)
 
+        gamma_max_list = []
+        gamma_min_list = []
         for contour in contours:
 
             # Contour come in units proportionnal to size of meshgrid
@@ -293,22 +296,28 @@ class Conductivity:
             ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / self.bandObject.b
             vx, vy, vz = self.bandObject.v_3D_func(kx, ky, kz)
 
-            gamma_kz0 = 1 / self.tauTotFunc(kx, ky, vx, vy, vz)
+            gamma_kz = 1 / self.tauTotFunc(kx, ky, kz, vx, vy, vz)
+            gamma_max_list.append(np.max(gamma_kz))
+            gamma_min_list.append(np.min(gamma_kz))
 
             points = np.array([kx*self.bandObject.a, ky*self.bandObject.b]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
             lc = LineCollection(segments, cmap=plt.get_cmap('gnuplot'))
-            lc.set_array(gamma_kz0)
+            lc.set_array(gamma_kz)
             lc.set_linewidth(4)
 
             line = axes.add_collection(lc)
 
+        gamma_max = max(gamma_max_list)
+        gamma_min = min(gamma_min_list)
+        line.set_clim(gamma_min, gamma_max)
         cbar = fig.colorbar(line, ax=axes)
+        cbar.minorticks_on()
         cbar.ax.set_ylabel(r'$\Gamma_{\rm tot}$ ( THz )', rotation=270, labelpad=40)
 
-        kz = np.round(kz, 2)
-        fig.text(0.97, 0.05, r"$k_{\rm z}$ = " + "{0:g}".format(kz), ha="right", color="r")
+        kz = np.round(kz/(np.pi/self.bandObject.c), 1)
+        fig.text(0.97, 0.05, r"$k_{\rm z}$ = " + "{0:g}".format(kz) + r"$\pi$/c", ha="right", color="r")
         axes.tick_params(axis='x', which='major', pad=7)
         axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$k_{\rm x}$", labelpad=8)
@@ -321,10 +330,13 @@ class Conductivity:
 
         plt.show()
 
-    def figScattering2(self, kz=0, mesh_xy=501):
-        fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
-        fig.subplots_adjust(left=0.10, right=0.85, bottom=0.20, top=0.9)
+    def figScatteringPhi(self, kz=0, mesh_xy=501):
+        fig, axes = plt.subplots(1, 1, figsize=(6.5, 4.6))
+        fig.subplots_adjust(left=0.20, right=0.8, bottom=0.20, top=0.9)
+        axes2 = axes.twinx()
+        axes2.set_axisbelow(True)
 
+        ###
         kx_a = np.linspace(-pi / self.bandObject.a, pi / self.bandObject.a, mesh_xy)
         ky_a = np.linspace(-pi / self.bandObject.b, pi / self.bandObject.b, mesh_xy)
 
@@ -341,34 +353,28 @@ class Conductivity:
             ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / self.bandObject.b
             vx, vy, vz = self.bandObject.v_3D_func(kx, ky, kz)
 
-            gamma_kz0 = 1 / self.tauTotFunc(kx, ky, vx, vy, vz)
+            gamma_kz = 1 / self.tauTotFunc(kx, ky, kz, vx, vy, vz)
 
             phi = np.rad2deg(np.arctan2(ky,kx))
 
-            line = axes.plot(phi, gamma_kz0)
+            line = axes2.plot(phi, vz)
+            plt.setp(line, ls ="", c = '#80ff80', lw = 3, marker = "o", mfc = '#80ff80', ms = 3, mec = "#7E2320", mew= 0)  # set properties
+
+            line = axes.plot(phi, gamma_kz)
             plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 3, mec = "#7E2320", mew= 0)  # set properties
 
-            # points = np.array([kx*self.bandObject.a, ky*self.bandObject.b]).T.reshape(-1, 1, 2)
-            # segments = np.concatenate([points[:-1], points[1:]], axis=1)
-
-            # # lc = LineCollection(segments, cmap=plt.get_cmap('gnuplot'))
-            # # lc.set_array(gamma_kz0)
-            # # lc.set_linewidth(4)
-
-            # # line = axes.add_collection(lc)
-
-        # cbar = fig.colorbar(line, ax=axes)
-        # cbar.ax.set_ylabel(r'$\Gamma_{\rm tot}$ ( THz )', rotation=270, labelpad=40)
-
-
+        axes.set_xlim(0, 180)
+        axes.set_xticks([0, 45, 90, 135, 180])
         axes.tick_params(axis='x', which='major', pad=7)
         axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$\phi$", labelpad = 8)
         axes.set_ylabel(r"$\Gamma_{\rm tot}$ ( THz )", labelpad=8)
+        axes2.set_ylabel(r"$v_{\rm z}$", rotation = 270, labelpad =25, color="#80ff80")
 
 
-        kz = np.round(kz, 2)
-        fig.text(0.97, 0.05, r"$k_{\rm z}$ = " + "{0:g}".format(kz), ha="right", color="r")
+
+        kz = np.round(kz/(np.pi/self.bandObject.c), 1)
+        fig.text(0.97, 0.05, r"$k_{\rm z}$ = " + "{0:g}".format(kz) + r"$\pi$/c", ha="right", color="r", fontsize = 20)
         # axes.tick_params(axis='x', which='major', pad=7)
         # axes.tick_params(axis='y', which='major', pad=8)
         # axes.set_xlabel(r"$k_{\rm x}$", labelpad=8)
@@ -612,6 +618,8 @@ class Conductivity:
         bands = self.bandObject.e_3D_func(kxx, kyy, 0)
         contours = measure.find_contours(bands, 0)
 
+        gamma_max_list = []
+        gamma_min_list = []
         for contour in contours:
 
             # Contour come in units proportionnal to size of meshgrid
@@ -622,7 +630,9 @@ class Conductivity:
                   (mesh_xy - 1) - 0.5) * 2 * pi / self.bandObject.b
             vx, vy, vz = self.bandObject.v_3D_func(kx, ky, 0)
 
-            gamma_kz0 = 1 / self.tauTotFunc(kx, ky, vx, vy, vz)
+            gamma_kz0 = 1 / self.tauTotFunc(kx, ky, 0, vx, vy, vz)
+            gamma_max_list.append(np.max(gamma_kz0))
+            gamma_min_list.append(np.min(gamma_kz0))
 
             points = np.array([kx * self.bandObject.a,
                                ky * self.bandObject.b]).T.reshape(-1, 1, 2)
@@ -634,7 +644,11 @@ class Conductivity:
 
             line = axes_srate.add_collection(lc)
 
+        gamma_max = max(gamma_max_list)
+        gamma_min = min(gamma_min_list)
+        line.set_clim(gamma_min, gamma_max)
         cbar = fig.colorbar(line, ax=axes_srate)
+        cbar.minorticks_on()
         cbar.ax.tick_params(labelsize=10)
         cbar.ax.set_ylabel(r'$\Gamma_{\rm tot}$ ( THz )',
                            rotation=270,
