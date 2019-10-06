@@ -160,18 +160,18 @@ class Conductivity:
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
 
-    # def factor_arcs_Func(self, kx, ky):
-    #     # line ky = kx + pi
-    #     d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
-    #     d2 = ky * self.bandObject.b - kx * self.bandObject.a + pi  # line ky = kx - pi
-    #     d3 = ky * self.bandObject.b + kx * self.bandObject.a - pi  # line ky = -kx + pi
-    #     d4 = ky * self.bandObject.b + kx * self.bandObject.a + pi  # line ky = -kx - pi
+    def factor_arcs_Func(self, kx, ky):
+        # line ky = kx + pi
+        d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
+        d2 = ky * self.bandObject.b - kx * self.bandObject.a + pi  # line ky = kx - pi
+        d3 = ky * self.bandObject.b + kx * self.bandObject.a - pi  # line ky = -kx + pi
+        d4 = ky * self.bandObject.b + kx * self.bandObject.a + pi  # line ky = -kx - pi
 
-    #     is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
-    #     is_out_FBZ_AF = np.logical_not(is_in_FBZ_AF)
-    #     factor_out_of_FBZ_AF = np.ones_like(kx)
-    #     factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
-    #     return factor_out_of_FBZ_AF
+        is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
+        is_out_FBZ_AF = np.logical_not(is_in_FBZ_AF)
+        factor_out_of_FBZ_AF = np.ones_like(kx)
+        factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
+        return factor_out_of_FBZ_AF
 
     def gamma_DOS_Func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
@@ -195,11 +195,19 @@ class Conductivity:
                          , axis = 1)
 
     def tauTotFunc(self, kx, ky, vx, vy, vz):
-        tauTot = 1 / (
-            self.gamma_0 +  #* self.factor_arcs_Func(kx, ky) +
-            self.gamma_DOS_Func(vx, vy, vz) +
-            self.gamma_k_Func(kx, ky)) #* (1 + np.abs(vz) / np.abs(np.max(self.bandObject.vf[2]))))
-        return tauTot
+        """Computes the total lifetime based on the input model
+        for the scattering rate"""
+
+        gammaTot = self.gamma_0 * np.ones_like(kx)
+
+        if self.factor_arcs!=1:
+            gammaTot = self.gamma_0*self.factor_arcs_Func(kx, ky)
+        if self.gamma_k!=0:
+            gammaTot += self.gamma_k_Func(kx, ky)
+        if self.gamma_dos_max!=0:
+            gammaTot += self.gamma_DOS_Func(vx, vy, vz)
+
+        return 1/gammaTot
 
     def tauTotMaxFunc(self):
         # Compute the tau_max (the longest time between two collisions)
@@ -373,79 +381,6 @@ class Conductivity:
 
         plt.show()
 
-    def figArcs(self, index_kf = 0, meshXY = 1001):
-        fig, axes = plt.subplots(1, 1, figsize=(5.6, 5.6))
-        fig.subplots_adjust(left = 0.24, right = 0.87, bottom = 0.29, top = 0.91)
-
-        fig.text(0.39,0.86, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
-        fig.text(0.85, 0.86, r"$\Gamma_{\rm 0}$", ha="right", fontsize=16, color = "#1CB7FF")
-        fig.text(0.85, 0.81, str(self.factor_arcs) + r" $\Gamma_{\rm 0}$", ha="right", fontsize=16, color="#FF8181")
-
-        kx = np.linspace(-pi, pi, meshXY)
-        ky = np.linspace(-pi, pi, meshXY)
-
-        # line ky = kx + pi
-        d1 = ky - kx - pi  # line ky = kx + pi
-        d2 = ky - kx + pi  # line ky = kx - pi
-        d3 = ky + kx - pi  # line ky = -kx + pi
-        d4 = ky + kx + pi  # line ky = -kx - pi
-
-        # Draw FBZ AF
-        line = axes.plot(kx, d1-ky)
-        plt.setp(line, ls ="--", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "k", mew= 0, zorder = -1)  # end point
-        line = axes.plot(kx, d2-ky)
-        plt.setp(line, ls ="--", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "k", mew= 0, zorder = -1)  # end point
-        line = axes.plot(kx, d3-ky)
-        plt.setp(line, ls ="--", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "k", mew= 0, zorder = -1)  # end point
-        line = axes.plot(kx, d4-ky)
-        plt.setp(line, ls ="--", c = 'k', lw = 1, marker = "", mfc = 'k', ms = 5, mec = "k", mew= 0, zorder = -1)  # end point
-
-        # Draw FS
-        a = self.bandObject.a
-        b = self.bandObject.b
-        kxx, kyy = np.meshgrid(kx/a, ky/b, indexing='ij')
-        bands = self.bandObject.e_3D_func(kxx, kyy, 0)
-        contours = measure.find_contours(bands, 0)
-
-        for contour in contours:
-
-            # Contour come in units proportionnal to size of meshgrid
-            # one want to scale to units of kx and ky
-            kx_f = (contour[:, 0] / (meshXY - 1) -0.5) * 2*pi
-            ky_f = (contour[:, 1] / (meshXY - 1) -0.5) * 2*pi / (b/a)
-
-            d1 = ky_f - kx_f - pi  # line ky = kx + pi
-            d2 = ky_f - kx_f + pi  # line ky = kx - pi
-            d3 = ky_f + kx_f - pi  # line ky = -kx + pi
-            d4 = ky_f + kx_f + pi  # line ky = -kx - pi
-
-            is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
-            kx_arcs = kx_f[is_in_FBZ_AF]
-            ky_arcs = ky_f[is_in_FBZ_AF]
-            kx_out_arcs = kx_f[np.logical_not(is_in_FBZ_AF)]
-            ky_out_arcs = ky_f[np.logical_not(is_in_FBZ_AF)]
-
-            line = axes.plot(kx_arcs, ky_arcs)
-            plt.setp(line, ls="", c='#1CB7FF', lw=2, marker="o", mfc='#1CB7FF',
-                 ms=2, mec='#1CB7FF', mew=0)
-            line = axes.plot(kx_out_arcs, ky_out_arcs)
-            plt.setp(line, ls="", c='#FF8181', lw=2, marker="o", mfc='#FF8181',
-                 ms=2, mec='#FF8181', mew=0)
-
-        axes.set_xlim(-pi, pi)
-        axes.set_ylim(-pi, pi)
-        axes.tick_params(axis='x', which='major', pad=7)
-        axes.tick_params(axis='y', which='major', pad=8)
-        axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
-        axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
-
-        axes.set_xticks([-pi, 0., pi])
-        axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
-        axes.set_yticks([-pi, 0., pi])
-        axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
-
-        plt.show()
-
 
     def figOnekft(self, index_kf = 0, meshXY = 1001):
         mesh_graph = meshXY
@@ -568,8 +503,8 @@ class Conductivity:
         # Scattering Formula
         fig.text(0.45, 0.08, "Scattering formula",
                     fontsize=16, color='#A9A9A9', style="italic")
-        scatteringFormula = r"$1 / \tau_{\rm tot}$ = $\Gamma_{\rm 0}$ + " + \
-            r"$\Gamma_{\rm k}$ cos$^{\rm n}$(2$\phi$) + $\Gamma_{\rm DOS}^{\rm max}$ (|$v_{\rm k}^{\rm min}$| / |$v_{\rm k}$|)"
+        scatteringFormula = r"$\Gamma_{\rm tot}$ = $\Gamma_{\rm 0}$ + " + \
+            r"$\Gamma_{\rm k}$ cos$^{\rm n}$(2$\phi$) + $\Gamma_{\rm DOS}^{\rm max}$ (DOS / DOS$^{\rm max}$)"
         fig.text(0.45, 0.03, scatteringFormula, fontsize=12)
 
         # Parameters Bandstructure
@@ -687,8 +622,7 @@ class Conductivity:
                   (mesh_xy - 1) - 0.5) * 2 * pi / self.bandObject.b
             vx, vy, vz = self.bandObject.v_3D_func(kx, ky, 0)
 
-            gamma_kz0 = (self.gamma_0 + self.gamma_DOS_Func(vx, vy, vz) +
-                         self.gamma_k_Func(kx, ky))
+            gamma_kz0 = 1 / self.tauTotFunc(kx, ky, vx, vy, vz)
 
             points = np.array([kx * self.bandObject.a,
                                ky * self.bandObject.b]).T.reshape(-1, 1, 2)
