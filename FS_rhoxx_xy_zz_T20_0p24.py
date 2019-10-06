@@ -24,7 +24,7 @@ B_array = np.arange(Bmin, Bmax, Bstep)
 bandObject = BandStructure(bandname="LargePocket",
                            a=3.74767, b=3.74767, c=13.2,
                            t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-                           mu=-0.854,
+                           mu=-0.826,
                            numberOfKz=7, mesh_ds=np.pi/40)
 
 bandObject.discretize_FS()
@@ -36,7 +36,7 @@ bandObject.doping()
 
 ## Conductivity Object ---------------
 condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0,
-                          Btheta=0, gamma_0=13.6, gamma_k=89.1, power=12, gamma_dos=0) # T = 20K, p = 0.24 from fit ADMR
+                          Btheta=0, gamma_0=15, gamma_k=0, power=12, gamma_dos_max=0) # T = 20K, p = 0.24 from fit ADMR
 condObject.Ntime = 1000 # better for high magnetic field values
 
 

@@ -23,10 +23,13 @@ bandObject.doping(printDoping=True)
 
 ## Conductivity
 condObject = Conductivity(bandObject, Bamp=45,
-                          gamma_0=0, gamma_k=0, gamma_dos_max=275, power=12)
+                          gamma_0=15.1, gamma_k=66, gamma_dos_max=0, power=12)
 # condObject = Conductivity(bandObject, Bamp=45,
 #                           gamma_0=14, gamma_k=0, gamma_dos_max=0, power=12)
 condObject.solveMovementFunc()
+# condObject.figScattering2(kz=0)
+# condObject.figScattering2(kz=pi/bandObject.c)
+# condObject.figScattering2(kz=2*pi/bandObject.c)
 # condObject.figArcs()
 # Best fit p = 0.25
 # condObject = Conductivity(bandObject, Bamp=45,
@@ -34,7 +37,7 @@ condObject.solveMovementFunc()
 
 # condObject = Conductivity(bandObject, Bamp=45,
 #                           gamma_0=10, gamma_k=5, gamma_dos_max=50, power=2)
-# condObject.figLifeTime()
+
 
 ## ADMR
 start_total_time = time.time()

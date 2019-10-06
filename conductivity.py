@@ -5,6 +5,7 @@ from skimage import measure
 from numba import jit, prange
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Constant //////
@@ -159,16 +160,16 @@ class Conductivity:
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
 
-    # def factor_arcs_Func(self):
+    # def factor_arcs_Func(self, kx, ky):
     #     # line ky = kx + pi
-    #     d1 = self.kft[1, :, :] * self.bandObject.b - self.kft[0, :, :] * self.bandObject.a - pi  # line ky = kx + pi
-    #     d2 = self.kft[1, :, :] * self.bandObject.b - self.kft[0, :, :] * self.bandObject.a + pi  # line ky = kx - pi
-    #     d3 = self.kft[1, :, :] * self.bandObject.b + self.kft[0, :, :] * self.bandObject.a - pi  # line ky = -kx + pi
-    #     d4 = self.kft[1, :, :] * self.bandObject.b + self.kft[0, :, :] * self.bandObject.a + pi  # line ky = -kx - pi
+    #     d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
+    #     d2 = ky * self.bandObject.b - kx * self.bandObject.a + pi  # line ky = kx - pi
+    #     d3 = ky * self.bandObject.b + kx * self.bandObject.a - pi  # line ky = -kx + pi
+    #     d4 = ky * self.bandObject.b + kx * self.bandObject.a + pi  # line ky = -kx - pi
 
     #     is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
     #     is_out_FBZ_AF = np.logical_not(is_in_FBZ_AF)
-    #     factor_out_of_FBZ_AF = np.ones_like(self.kft[0, :, :])
+    #     factor_out_of_FBZ_AF = np.ones_like(kx)
     #     factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
     #     return factor_out_of_FBZ_AF
 
@@ -194,9 +195,10 @@ class Conductivity:
                          , axis = 1)
 
     def tauTotFunc(self, kx, ky, vx, vy, vz):
-        tauTot = 1 / (self.gamma_0 + # * self.factor_arcs_Func() +
-                      self.gamma_DOS_Func(vx, vy, vz) +
-                      self.gamma_k_Func(kx, ky))
+        tauTot = 1 / (
+            self.gamma_0 +  #* self.factor_arcs_Func(kx, ky) +
+            self.gamma_DOS_Func(vx, vy, vz) +
+            self.gamma_k_Func(kx, ky)) #* (1 + np.abs(vz) / np.abs(np.max(self.bandObject.vf[2]))))
         return tauTot
 
     def tauTotMaxFunc(self):
@@ -263,66 +265,113 @@ class Conductivity:
     mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
     # editing the text in illustrator
 
-    # def figLifeTime(self, mesh_phi = 1000):
-    #     fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
-    #     fig.subplots_adjust(left=0.10, right=0.70, bottom=0.20, top=0.9)
+    def figScattering(self, kz=0, mesh_xy=501):
+        fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
+        fig.subplots_adjust(left=0.10, right=0.85, bottom=0.20, top=0.9)
 
-    #     phi = np.linspace(0, 2*pi, 1000)
-    #     ## tau_0
-    #     tau_0_x = self.tau_0 * cos(phi)
-    #     tau_0_y = self.tau_0 * sin(phi)
-    #     line = axes.plot(tau_0_x / self.tau_0, tau_0_y / self.tau_0,
-    #                          clip_on=False, label=r"$\tau_{\rm 0}$", zorder=10)
-    #     plt.setp(line, ls="--", c='#000000', lw=3, marker="",
-    #              mfc='#000000', ms=5, mec="#7E2320", mew=0)
-    #     ## tau_k
-    #     tau_k_x = 1 / (self.gamma_0 + self.gamma_k * (sin(phi) **
-    #                                         2 - cos(phi)**2)**self.power) * cos(phi)
-    #     tau_k_y = 1 / (self.gamma_0 + self.gamma_k * (sin(phi) **
-    #                                         2 - cos(phi)**2)**self.power) * sin(phi)
-    #     line = axes.plot(tau_k_x / self.tau_0, tau_k_y / self.tau_0,
-    #                          clip_on=False, zorder=20, label=r"$\tau_{\rm tot}$")
-    #     plt.setp(line, ls="-", c='#00FF9C', lw=3, marker="",
-    #              mfc='#000000', ms=5, mec="#7E2320", mew=0)
-    #     ## tau_k_min
-    #     phi_min = 3 * pi / 2
-    #     tau_k_x_min = 1 / \
-    #         (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 -
-    #                               cos(phi_min)**2)**self.power) * cos(phi_min)
-    #     tau_k_y_min = 1 / \
-    #         (self.gamma_0 + self.gamma_k * (sin(phi_min)**2 -
-    #                               cos(phi_min)**2)**self.power) * sin(phi_min)
-    #     line = axes.plot(tau_k_x_min / self.tau_0, tau_k_y_min / self.tau_0,
-    #                          clip_on=False, label=r"$\tau_{\rm min}$", zorder=25)
-    #     plt.setp(line, ls="", c='#1CB7FF', lw=3, marker="o",
-    #              mfc='#1CB7FF', ms=8, mec="#1CB7FF", mew=2)
-    #     ## tau_k_max
-    #     phi_max = 5 * pi / 4
-    #     tau_k_x_max = 1 / \
-    #         (self.gamma_0 + self.gamma_k * (sin(phi_max)**2 -
-    #                               cos(phi_max)**2)**self.power) * cos(phi_max)
-    #     tau_k_y_max = 1 / \
-    #         (self.gamma_0 + self.gamma_k * (sin(phi_max)**2 -
-    #                               cos(phi_max)**2)**self.power) * sin(phi_max)
-    #     line = axes.plot(tau_k_x_max / self.tau_0, tau_k_y_max / self.tau_0,
-    #                          clip_on=False, label=r"$\tau_{\rm max}$", zorder=25)
-    #     plt.setp(line, ls="", c='#FF8181', lw=3, marker="o",
-    #              mfc='#FF8181', ms=8, mec="#FF8181", mew=2)
+        kx_a = np.linspace(-pi / self.bandObject.a, pi / self.bandObject.a, mesh_xy)
+        ky_a = np.linspace(-pi / self.bandObject.b, pi / self.bandObject.b, mesh_xy)
 
-    #     fraction = np.abs(np.round(self.tau_0 / tau_k_y_min, 2))
-    #     fig.text(0.74, 0.21, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
-    #              "\n" + r"= {0:.1f}".format(fraction))
+        kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
-    #     axes.set_xlim(-1, 1)
-    #     axes.set_ylim(-1, 1)
-    #     axes.set_xticks([])
-    #     axes.set_yticks([])
+        bands = self.bandObject.e_3D_func(kxx, kyy, kz)
+        contours = measure.find_contours(bands, 0)
 
-    #     plt.legend(bbox_to_anchor=[1.51, 1.01], loc=1,
-    #                frameon=False,
-    #                numpoints=1, markerscale=1, handletextpad=0.2)
+        for contour in contours:
 
-    #     plt.show()
+            # Contour come in units proportionnal to size of meshgrid
+            # one want to scale to units of kx and ky
+            kx = (contour[:, 0] / (mesh_xy - 1) -0.5) * 2*pi / self.bandObject.a
+            ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / self.bandObject.b
+            vx, vy, vz = self.bandObject.v_3D_func(kx, ky, kz)
+
+            gamma_kz0 = 1 / self.tauTotFunc(kx, ky, vx, vy, vz)
+
+            points = np.array([kx*self.bandObject.a, ky*self.bandObject.b]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+            lc = LineCollection(segments, cmap=plt.get_cmap('gnuplot'))
+            lc.set_array(gamma_kz0)
+            lc.set_linewidth(4)
+
+            line = axes.add_collection(lc)
+
+        cbar = fig.colorbar(line, ax=axes)
+        cbar.ax.set_ylabel(r'$\Gamma_{\rm tot}$ ( THz )', rotation=270, labelpad=40)
+
+        kz = np.round(kz, 2)
+        fig.text(0.97, 0.05, r"$k_{\rm z}$ = " + "{0:g}".format(kz), ha="right", color="r")
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
+        axes.set_xlabel(r"$k_{\rm x}$", labelpad=8)
+        axes.set_ylabel(r"$k_{\rm y}$", labelpad=8)
+
+        axes.set_xticks([-pi, 0., pi])
+        axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+        axes.set_yticks([-pi, 0., pi])
+        axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+
+        plt.show()
+
+    def figScattering2(self, kz=0, mesh_xy=501):
+        fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
+        fig.subplots_adjust(left=0.10, right=0.85, bottom=0.20, top=0.9)
+
+        kx_a = np.linspace(-pi / self.bandObject.a, pi / self.bandObject.a, mesh_xy)
+        ky_a = np.linspace(-pi / self.bandObject.b, pi / self.bandObject.b, mesh_xy)
+
+        kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
+
+        bands = self.bandObject.e_3D_func(kxx, kyy, kz)
+        contours = measure.find_contours(bands, 0)
+
+        for contour in contours:
+
+            # Contour come in units proportionnal to size of meshgrid
+            # one want to scale to units of kx and ky
+            kx = (contour[:, 0] / (mesh_xy - 1) -0.5) * 2*pi / self.bandObject.a
+            ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / self.bandObject.b
+            vx, vy, vz = self.bandObject.v_3D_func(kx, ky, kz)
+
+            gamma_kz0 = 1 / self.tauTotFunc(kx, ky, vx, vy, vz)
+
+            phi = np.rad2deg(np.arctan2(ky,kx))
+
+            line = axes.plot(phi, gamma_kz0)
+            plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 3, mec = "#7E2320", mew= 0)  # set properties
+
+            # points = np.array([kx*self.bandObject.a, ky*self.bandObject.b]).T.reshape(-1, 1, 2)
+            # segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+            # # lc = LineCollection(segments, cmap=plt.get_cmap('gnuplot'))
+            # # lc.set_array(gamma_kz0)
+            # # lc.set_linewidth(4)
+
+            # # line = axes.add_collection(lc)
+
+        # cbar = fig.colorbar(line, ax=axes)
+        # cbar.ax.set_ylabel(r'$\Gamma_{\rm tot}$ ( THz )', rotation=270, labelpad=40)
+
+
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
+        axes.set_xlabel(r"$\phi$", labelpad = 8)
+        axes.set_ylabel(r"$\Gamma_{\rm tot}$ ( THz )", labelpad=8)
+
+
+        kz = np.round(kz, 2)
+        fig.text(0.97, 0.05, r"$k_{\rm z}$ = " + "{0:g}".format(kz), ha="right", color="r")
+        # axes.tick_params(axis='x', which='major', pad=7)
+        # axes.tick_params(axis='y', which='major', pad=8)
+        # axes.set_xlabel(r"$k_{\rm x}$", labelpad=8)
+        # axes.set_ylabel(r"$k_{\rm y}$", labelpad=8)
+
+        # axes.set_xticks([-pi, 0., pi])
+        # axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
+        # axes.set_yticks([-pi, 0., pi])
+        # axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+
+        plt.show()
 
     def figArcs(self, index_kf = 0, meshXY = 1001):
         fig, axes = plt.subplots(1, 1, figsize=(5.6, 5.6))
@@ -613,82 +662,61 @@ class Conductivity:
         # axes_FS.tick_params(axis='x', which='major', pad=7)
         # axes_FS.tick_params(axis='y', which='major', pad=8)
 
-        ## Inset Life Time ////////////////////////////////////////////////////#
-        axes_tau = plt.axes([-0.02, 0.04, .4, .4])
-        axes_tau.set_aspect(aspect=1)
+        ## Inset Scattering rate ////////////////////////////////////////////////#
+        axes_srate = plt.axes([-0.02, 0.04, .4, .4])
+        axes_srate.set_aspect(aspect=1)
 
-        # phi = arctan2(ky, kx)
-        # zeros = np.zeros_like(kx)
-        # vx, vy, vz = self.bandObject.v_3D_func(kx, ky, 0)
-        # print(np.min(vx))
-        # print(np.min(vy))
-        # print(np.min(vz))
-        nn = int(self.bandObject.numberPointsPerKz_list[0] / 4)
-        print(nn)
-        kx = self.bandObject.kf[0, :nn]
-        ky = self.bandObject.kf[1, :nn]
-        phi = arctan2(ky, kx)
-        vx = self.bandObject.vf[0, :nn]
-        vy = self.bandObject.vf[1, :nn]
-        vz = self.bandObject.vf[2, :nn]
+        mesh_xy = 501
+        kx_a = np.linspace(-pi / self.bandObject.a, pi / self.bandObject.a,
+                           mesh_xy)
+        ky_a = np.linspace(-pi / self.bandObject.b, pi / self.bandObject.b,
+                           mesh_xy)
 
+        kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
-        # nn = self.bandObject.numberPointsPerKz_list[0] # number of points at kz = 0
-        # print(nn)
-        gamma_kz0 = (self.gamma_0 +
-                    self.gamma_DOS_Func(vx, vy, vz) +
-                    self.gamma_k_Func(kx, ky) )
-        # print(len(gamma_kz0))
-        tau_kz0 = 1 / gamma_kz0
-        tau_max_kz0 = np.max(tau_kz0)
+        bands = self.bandObject.e_3D_func(kxx, kyy, 0)
+        contours = measure.find_contours(bands, 0)
 
-        ## tau_0
-        line = axes_tau.plot(cos(phi), sin(phi),
-                                clip_on=False, label=r"$\tau_{\rm 0}$", zorder=10)
-        plt.setp(line, ls="--", c='#000000', lw=1, marker="",
-                    mfc='#000000', ms=5, mec="#7E2320", mew=0)
-        ## tau_k
-        line = axes_tau.plot(tau_kz0/tau_max_kz0*cos(phi), tau_kz0/tau_max_kz0*sin(phi),
-                                clip_on=False, zorder=20, label=r"$\tau_{\rm tot}$")
-        plt.setp(line, ls="-", c='#00FF9C', lw=1, marker="",
-                    mfc='#000000', ms=5, mec="#7E2320", mew=0)
-        # ## tau_k_min
-        # phi_min = 3 * pi / 2
-        # tau_k_x_min = 1 / \
-        #     (gamma_0 + gamma_k * (sin(phi_min)**2 -
-        #                             cos(phi_min)**2)**power) * cos(phi_min)
-        # tau_k_y_min = 1 / \
-        #     (gamma_0 + gamma_k * (sin(phi_min)**2 -
-        #                             cos(phi_min)**2)**power) * sin(phi_min)
-        # line = axes_tau.plot(tau_k_x_min / tau_0, tau_k_y_min / tau_0,
-        #                         clip_on=False, label=r"$\tau_{\rm min}$", zorder=25)
-        # plt.setp(line, ls="", c='#1CB7FF', lw=3, marker="o",
-        #             mfc='#1CB7FF', ms=8, mec="#1CB7FF", mew=0)
-        # ## tau_k_max
-        # phi_max = 5 * pi / 4
-        # tau_k_x_max = 1 / \
-        #     (gamma_0 + gamma_k * (sin(phi_max)**2 -
-        #                             cos(phi_max)**2)**power) * cos(phi_max)
-        # tau_k_y_max = 1 / \
-        #     (gamma_0 + gamma_k * (sin(phi_max)**2 -
-        #                             cos(phi_max)**2)**power) * sin(phi_max)
-        # line = axes_tau.plot(tau_k_x_max / tau_0, tau_k_y_max / tau_0,
-        #                         clip_on=False, label=r"$\tau_{\rm max}$", zorder=25)
-        # plt.setp(line, ls="", c='#FF8181', lw=3, marker="o",
-        #             mfc='#FF8181', ms=8, mec="#FF8181", mew=0)
+        for contour in contours:
 
-        # fraction = np.abs(np.round(tau_0 / tau_k_y_min, 2))
-        # fig.text(0.30, 0.05, r"$\tau_{\rm max}$/$\tau_{\rm min}$" +
-        #             "\n" + r"= {0:.1f}".format(fraction), fontsize=14)
+            # Contour come in units proportionnal to size of meshgrid
+            # one want to scale to units of kx and ky
+            kx = (contour[:, 0] /
+                  (mesh_xy - 1) - 0.5) * 2 * pi / self.bandObject.a
+            ky = (contour[:, 1] /
+                  (mesh_xy - 1) - 0.5) * 2 * pi / self.bandObject.b
+            vx, vy, vz = self.bandObject.v_3D_func(kx, ky, 0)
 
-        axes_tau.set_xlim(-1, 1)
-        axes_tau.set_ylim(-1, 1)
-        axes_tau.set_xticks([])
-        axes_tau.set_yticks([])
+            gamma_kz0 = (self.gamma_0 + self.gamma_DOS_Func(vx, vy, vz) +
+                         self.gamma_k_Func(kx, ky))
 
-        plt.legend(bbox_to_anchor=[1.49, 1.05], loc=1,
-                    fontsize=14, frameon=False,
-                    numpoints=1, markerscale=1, handletextpad=0.2)
+            points = np.array([kx * self.bandObject.a,
+                               ky * self.bandObject.b]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+            lc = LineCollection(segments, cmap=plt.get_cmap('gnuplot'))
+            lc.set_array(gamma_kz0)
+            lc.set_linewidth(4)
+
+            line = axes_srate.add_collection(lc)
+
+        cbar = fig.colorbar(line, ax=axes_srate)
+        cbar.ax.tick_params(labelsize=10)
+        cbar.ax.set_ylabel(r'$\Gamma_{\rm tot}$ ( THz )',
+                           rotation=270,
+                           labelpad=20,
+                           fontsize=14)
+
+        fig.text(0.295, 0.405, r"$k_{\rm z}$=0", fontsize=10, ha="right")
+        axes_srate.tick_params(axis='x', which='major')
+        axes_srate.tick_params(axis='y', which='major')
+        axes_srate.set_xlabel(r"$k_{\rm x}$", fontsize=14)
+        axes_srate.set_ylabel(r"$k_{\rm y}$", fontsize=14, labelpad=-5)
+
+        axes_srate.set_xticks([-pi, 0., pi])
+        axes_srate.set_xticklabels([r"$-\pi$", "0", r"$\pi$"], fontsize=14)
+        axes_srate.set_yticks([-pi, 0., pi])
+        axes_srate.set_yticklabels([r"$-\pi$", "0", r"$\pi$"], fontsize=14)
 
         return fig
 

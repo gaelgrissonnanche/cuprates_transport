@@ -11,6 +11,11 @@ import matplotlib.pyplot as plt
 hbar = 1  # velocity will be in units of 1 / hbar,
 # this hbar is taken into accound in the constant units_move_eq
 
+## Units ////////
+meVolt = 1.602e-22  # 1 meV in Joule
+Angstrom = 1e-10  # 1 A in meters
+
+
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
@@ -27,6 +32,7 @@ class BandStructure:
         self.p    = None # hole doping, unknown at first
         self.n    = None # band filling (of electron), unknown at first
         self.dos  = None
+        self.vf_mean  = None
         self.numberOfBZ = 1 # number of BZ we intregrate on
         self.bandname = bandname # a string to designate the band
 
@@ -227,6 +233,8 @@ class BandStructure:
         dos = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
         # dos = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
         self.dos = dos
+        # units_vf = meVolt * Angstrom / 1.0545718e-34 # J.s
+        # self.vf_mean = np.mean(sqrt( self.vf[0,:]**2+self.vf[1,:]**2+self.vf[2,:]**2 )) * units_vf
         return dos
 
     ## Figures ////////////////////////////////////////////////////////////////#

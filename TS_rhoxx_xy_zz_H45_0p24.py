@@ -18,11 +18,16 @@ B = 45 # Tesla
 
 ## Scattering parameters -------------
 T_array = np.array([6,12,20,25])
-scattering = {} # [g0, gk, power]
-scattering[25] = [14.49, 70, 12]
-scattering[20] = [13.51, 80, 12]
-scattering[12] = [12.05, 95, 12]
-scattering[6]  = [10.87, 100, 12]
+scattering = {} # [g0, gk, power, gdos_max]
+scattering[25] = [14.49, 70, 12, 0]
+scattering[20] = [13.51, 80, 12, 0]
+scattering[12] = [12.05, 95, 12, 0]
+scattering[6]  = [10.87, 100, 12, 0]
+
+# scattering[25] = [7.7, 60.8, 12, 129.4]
+# scattering[20] = [9, 72.9, 12, 58.4]
+# scattering[12] = [7.1, 95.2, 12, 61.5]
+# scattering[6] = [7.6, 115.8, 12, 42]
 
 ## BandObject ------------------------
 bandObject = BandStructure(bandname="LargePocket",
@@ -39,6 +44,7 @@ bandObject.doping()
 # # bandObject.figDiscretizeFS2D()
 
 
+
 ## Transport coeffcients -------------
 
 ## Empty arrays
@@ -52,10 +58,11 @@ for i, T in enumerate(T_array):
     g0 = scattering[T][0]
     gk = scattering[T][1]
     power = scattering[T][2]
+    gdos_max = scattering[T][3]
 
     ## Conductivity Object ---------------
     condObject = Conductivity(bandObject, Bamp=B, Bphi=0,
-                          Btheta=0, gamma_0=g0, gamma_k=gk, power=power, gamma_dos=0) # T = 20K, p = 0.24 from fit ADMR
+                          Btheta=0, gamma_0=g0, gamma_k=gk, power=power, gamma_dos_max=gdos_max) # T = 20K, p = 0.24 from fit ADMR
     condObject.Ntime = 1000 # better for high magnetic field values
 
     condObject.solveMovementFunc()
