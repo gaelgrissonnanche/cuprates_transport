@@ -14,20 +14,20 @@ from admr import ADMR
 sample_name = r"Nd-LSCO $p$ = 0.25"
 
 # Which temperature to fit?
-T = 25  # in Kelvin
+T = 6  # in Kelvin
 
 ## Initial parameters
-gamma_0_ini  = 10 # in THZ
-gamma_0_vary = True
+gamma_0_ini  = 0 # in THZ
+gamma_0_vary = False
 
-gamma_dos_max_ini = 0 # in THz
-gamma_dos_max_vary = False
+gamma_dos_max_ini = 215 # in THz
+gamma_dos_max_vary = True
 
-gamma_k_ini  = 50 # in THz
+gamma_k_ini  = 90 # in THz
 gamma_k_vary = True
 
-power_ini    = 12
-power_vary   = False
+power_ini    = 13
+power_vary   = True
 
 mu_ini       = -0.826
 mu_vary      = False
@@ -107,10 +107,6 @@ def residualFunc(pars, rzz_matrix):
     print("t = ", t)
     print("mu = ", mu)
 
-    power = int(power)
-    if power % 2 == 1:
-        power += 1
-
     # ADMR
     start_total_time = time.time()
 
@@ -141,7 +137,7 @@ pars = Parameters()
 pars.add("gamma_0", value = gamma_0_ini, vary = gamma_0_vary, min = 0)
 pars.add("gamma_dos_max",      value = gamma_dos_max_ini, vary = gamma_dos_max_vary, min = 0)
 pars.add("gamma_k", value = gamma_k_ini, vary = gamma_k_vary, min = 0)
-pars.add("power",   value = power_ini, vary = power_vary, min = 2)
+pars.add("power",   value = power_ini, vary = power_vary, min = 0)
 pars.add("t",      value = t_ini, vary = t_vary)
 pars.add("mu",      value = mu_ini, vary = mu_vary)
 

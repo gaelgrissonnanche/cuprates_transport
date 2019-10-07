@@ -11,8 +11,6 @@ from admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 e = 1.6e-19 # C
-a = 3.74e-10 #m
-c = 13.3e-10 # m
 
 ## Field parameters ------------------
 Bmin = 0.1
@@ -35,8 +33,8 @@ bandObject.doping()
 # # bandObject.figDiscretizeFS2D()
 
 ## Conductivity Object ---------------
-condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0,
-                          Btheta=0, gamma_0=15, gamma_k=0, power=12, gamma_dos_max=0) # T = 20K, p = 0.24 from fit ADMR
+condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0, Btheta=0,
+                          gamma_0=14.1, gamma_k=75.7, power=12, gamma_dos_max=0) # T = 20K, p = 0.24 from fit ADMR
 condObject.Ntime = 1000 # better for high magnetic field values
 
 
@@ -71,13 +69,13 @@ for i, B in enumerate(B_array):
 
 
 ## Info results ----------------------
-nH = 1 / (RH_array[-1] * e)
-d = c / 2
-V = a**2 * d
+nH = 1 / (RH_array[0] * e)
+d = bandObject.c*1e-10 / 2
+V = (bandObject.a*1e-10)**2 * d
 n = V * nH
 p = n - 1
 print("p = " + "{0:.3f}".format(bandObject.p))
-print("1 - n = ", np.round(p, 3))
+print("n - 1 = ", np.round(p, 3))
 
 
 ## Fig / File name -------------------
@@ -220,7 +218,7 @@ plt.setp(line, ls="-", c='#00ff80', lw=3, marker="",
 #############################################
 axes.set_xlim(0, Bmax)
 # axes.set_ylim(0, 1.25*np.max(RH_array*1e9))
-axes.set_ylim(0, 1.5)
+axes.set_ylim(0, 1.0)
 axes.tick_params(axis='x', which='major', pad=7)
 axes.tick_params(axis='y', which='major', pad=8)
 axes.set_xlabel(r"$H$ ( T )", labelpad=8)

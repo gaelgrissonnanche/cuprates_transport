@@ -2,7 +2,6 @@ import numpy as np
 from numpy import cos, sin, pi, exp, sqrt, arctan2
 from scipy.integrate import odeint
 from skimage import measure
-from numba import jit, prange
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
@@ -41,9 +40,7 @@ class Conductivity:
         self.gamma_0 = gamma_0 # in THz
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k = gamma_k # in THz
-        self.power   = int(power)
-        if self.power % 2 == 1:
-            self.power += 1
+        self.power   = power
         self.factor_arcs = factor_arcs # factor * gamma_0 outsite AF FBZ
         self.gamma_tot_max = 1 / self.tauTotMinFunc() # in THz
         self.gamma_tot_min = 1 / self.tauTotMaxFunc() # in THz
@@ -176,11 +173,11 @@ class Conductivity:
     def gamma_DOS_Func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
         dos_max = np.max(self.bandObject.dos)  # value to normalize the DOS to a quantity without units
-        return self.gamma_dos_max * dos / dos_max
+        return self.gamma_dos_max * (dos / dos_max)
 
     def gamma_k_Func(self, kx, ky):
         phi = arctan2(ky, kx)
-        return self.gamma_k * cos(2*phi)**self.power
+        return self.gamma_k * np.abs(cos(2*phi))**self.power
 
     def tOverTauFunc(self):
         # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
@@ -199,10 +196,10 @@ class Conductivity:
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
+        #A = 0.5
         gammaTot = self.gamma_0 * np.ones_like(kx)
-
         if self.gamma_k!=0:
-            gammaTot += self.gamma_k_Func(kx, ky)
+            gammaTot += self.gamma_k_Func(kx, ky)   #*(1+A*np.abs(sin(kz*self.bandObject.c/2)))
         if self.gamma_dos_max!=0:
             gammaTot += self.gamma_DOS_Func(vx, vy, vz)
         if self.factor_arcs!=1:
@@ -510,7 +507,7 @@ class Conductivity:
         fig.text(0.45, 0.08, "Scattering formula",
                     fontsize=16, color='#A9A9A9', style="italic")
         scatteringFormula = r"$\Gamma_{\rm tot}$ = $\Gamma_{\rm 0}$ + " + \
-            r"$\Gamma_{\rm k}$ cos$^{\rm n}$(2$\phi$) + $\Gamma_{\rm DOS}^{\rm max}$ (DOS / DOS$^{\rm max}$)"
+            r"$\Gamma_{\rm k}$ |cos$^{\rm n}$(2$\phi$)| + $\Gamma_{\rm DOS}^{\rm max}$ (DOS / DOS$^{\rm max}$)"
         fig.text(0.45, 0.03, scatteringFormula, fontsize=12)
 
         # Parameters Bandstructure
@@ -559,7 +556,7 @@ class Conductivity:
             "{0:.1f}".format(self.gamma_dos_max) + "   THz",
             r"$\Gamma_{\rm k}$     = " + "{0:.1f}".format(self.gamma_k) +
             "   THz",
-            r"$n$      = " + "{0:.0f}".format(self.power),
+            r"$n$      = " + "{0:g}".format(self.power),
             r"$\Gamma_{\rm tot}^{\rm max}$   = " +
             "{0:.1f}".format(self.gamma_tot_max) + "   THz",
             r"$\Gamma_{\rm tot}^{\rm min}$   = " +

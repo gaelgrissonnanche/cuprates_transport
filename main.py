@@ -23,9 +23,7 @@ bandObject.doping(printDoping=True)
 
 ## Conductivity
 condObject = Conductivity(bandObject, Bamp=45,
-                          gamma_0=15.1, gamma_k=66, gamma_dos_max=0, power=12)
-# condObject = Conductivity(bandObject, Bamp=45,
-#                           gamma_0=14, gamma_k=0, gamma_dos_max=0, power=12)
+                          gamma_0=15.1, gamma_k=66, power=2.5, gamma_dos_max=0)
 condObject.solveMovementFunc()
 # condObject.figScatteringPhi(kz=0)
 # condObject.figScatteringPhi(kz=pi/bandObject.c)

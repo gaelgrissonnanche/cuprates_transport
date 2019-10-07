@@ -19,15 +19,21 @@ B = 45 # Tesla
 ## Scattering parameters -------------
 T_array = np.array([6,12,20,25])
 scattering = {} # [g0, gk, power, gdos_max]
-scattering[25] = [14.49, 70, 12, 0]
-scattering[20] = [13.51, 80, 12, 0]
-scattering[12] = [12.05, 95, 12, 0]
-scattering[6]  = [10.87, 100, 12, 0]
+# scattering[25] = [14.49, 70, 12, 0]
+# scattering[20] = [13.51, 80, 12, 0]
+# scattering[12] = [12.05, 95, 12, 0]
+# scattering[6]  = [10.87, 100, 12, 0]
 
 # scattering[25] = [7.7, 60.8, 12, 129.4]
 # scattering[20] = [9, 72.9, 12, 58.4]
 # scattering[12] = [7.1, 95.2, 12, 61.5]
 # scattering[6] = [7.6, 115.8, 12, 42]
+
+## just gk, gdos
+scattering[25] = [0, 49.9, 16.52, 256.8]
+scattering[20] = [0, 62.2, 15.36, 241]
+scattering[12] = [0, 90.6, 13.44, 215.3]
+scattering[6] = [0, 106.5, 14.3, 194.4]
 
 ## BandObject ------------------------
 bandObject = BandStructure(bandname="LargePocket",

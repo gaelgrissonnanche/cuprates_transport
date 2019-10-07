@@ -2,7 +2,7 @@ import numpy as np
 from numpy import cos, sin, pi, sqrt
 from scipy import optimize
 from skimage import measure
-from numba import jit
+from numba import jit, jitclass
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -347,7 +347,7 @@ class BandStructure:
 
 # ABOUT JUST IN TIME (JIT) COMPILATION >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # jitclass do not work, the best option is to call a jit otimized function from inside the class.
-@jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True, parallel=True)
 def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     # 2D Dispersion
     e_2D = -2 * t * (cos(kx * a) + cos(ky * b))
@@ -364,7 +364,7 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     return e_2D + e_z
 
 
-@jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True, parallel=True)
 def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     d = c / 2
     kxa = kx * a
@@ -443,7 +443,7 @@ class Pocket(BandStructure):
 
 
 ## These definition are only valid for (Qx,Qy)=(pi,pi) without coherence of the AF in z
-@jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True, parallel=True)
 def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPocket=False):
     d = c / 2
     kxa = kx * a
