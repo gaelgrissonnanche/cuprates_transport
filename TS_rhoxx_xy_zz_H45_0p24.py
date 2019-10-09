@@ -19,27 +19,28 @@ B = 45 # Tesla
 ## Scattering parameters -------------
 T_array = np.array([6,12,20,25])
 scattering = {} # [g0, gk, power, gdos_max]
-# scattering[25] = [14.49, 70, 12, 0]
-# scattering[20] = [13.51, 80, 12, 0]
-# scattering[12] = [12.05, 95, 12, 0]
-# scattering[6]  = [10.87, 100, 12, 0]
+scattering[25] = [14.49, 70, 12, 0]
+scattering[20] = [13.51, 80, 12, 0]
+scattering[12] = [12.05, 95, 12, 0]
+scattering[6]  = [10.87, 100, 12, 0]
 
-# scattering[25] = [7.7, 60.8, 12, 129.4]
-# scattering[20] = [9, 72.9, 12, 58.4]
-# scattering[12] = [7.1, 95.2, 12, 61.5]
-# scattering[6] = [7.6, 115.8, 12, 42]
+## just g0, gk, gdos
+# scattering[25] = [7.5, 61.5, 12, 131.5]
+# scattering[20] = [7.5, 72.6, 12, 114.5]
+# scattering[12] = [6.6, 95.4, 12, 101.9]
+# scattering[6] = [7.5, 116, 12, 65.6]
 
 ## just gk, gdos
-scattering[25] = [0, 49.9, 16.52, 256.8]
-scattering[20] = [0, 62.2, 15.36, 241]
-scattering[12] = [0, 90.6, 13.44, 215.3]
-scattering[6] = [0, 106.5, 14.3, 194.4]
+# scattering[25] = [0, 49.9, 16.52, 256.8]
+# scattering[20] = [0, 62.2, 15.36, 241]
+# scattering[12] = [0, 90.6, 13.44, 215.3]
+# scattering[6] = [0, 106.5, 14.3, 194.4]
 
 ## BandObject ------------------------
 bandObject = BandStructure(bandname="LargePocket",
                            a=3.74767, b=3.74767, c=13.2,
-                           t=190, tp=-0.16, tpp=0.07, tz=0.07, tz2=0.00,
-                           mu=-0.958,
+                           t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
+                           mu=-0.826,
                            numberOfKz=7, mesh_ds=np.pi/40)
 
 bandObject.discretize_FS()
@@ -123,9 +124,6 @@ np.savetxt(file_name + ".dat", Data, fmt='%.7e',
 ## Figures ----------------------------------------------------------------------#
 
 fig_list = []
-
-## Parameters ///////////////////////////////////////////////////////////////////#
-fig_list.append(condObject.figParameters(fig_show=False))
 
 
 ## rho_zz ///////////////////////////////////////////////////////////////////////#

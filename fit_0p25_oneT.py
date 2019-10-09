@@ -14,20 +14,20 @@ from admr import ADMR
 sample_name = r"Nd-LSCO $p$ = 0.25"
 
 # Which temperature to fit?
-T = 6  # in Kelvin
+T = 25  # in Kelvin
 
 ## Initial parameters
-gamma_0_ini  = 0 # in THZ
-gamma_0_vary = False
+gamma_0_ini  = 7.5 # in THZ
+gamma_0_vary = True
 
-gamma_dos_max_ini = 215 # in THz
+gamma_dos_max_ini = 101 # in THz
 gamma_dos_max_vary = True
 
-gamma_k_ini  = 90 # in THz
+gamma_k_ini  = 72 # in THz
 gamma_k_vary = True
 
-power_ini    = 13
-power_vary   = True
+power_ini    = 12
+power_vary   = False
 
 mu_ini       = -0.826
 mu_vary      = False
