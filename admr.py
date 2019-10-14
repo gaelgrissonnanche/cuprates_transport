@@ -21,9 +21,9 @@ class ADMR:
 
 
         # Magnetic field
-        self.Btheta_min   = 0           # in degrees
-        self.Btheta_max   = 110         # in degrees
-        self.Btheta_step  = 5           # in degrees
+        self.Btheta_min   = Btheta_min    # in degrees
+        self.Btheta_max   = Btheta_max    # in degrees
+        self.Btheta_step  = Btheta_step  # in degrees
         self.Btheta_array = np.arange(self.Btheta_min, self.Btheta_max + self.Btheta_step, self.Btheta_step)
         self.Bphi_array = np.array(Bphi_array)
 
@@ -108,12 +108,15 @@ class ADMR:
                                         ])
 
         if bandAF == True:
-            file_name = "Rzz_AF"
+            file_name = "AF"
         else:
-            file_name = "Rzz"
+            file_name = ""
 
-        for string in file_parameters_list:
-            file_name += "_" + string
+        for i, string in enumerate(file_parameters_list):
+            if i==0:
+                file_name += string
+            else:
+                file_name += "_" + string
         return file_name
 
     #---------------------------------------------------------------------------
@@ -170,7 +173,7 @@ class ADMR:
                      "B[T]\tt[meV]\ttp\ttpp\ttz\ttz2\tmu\tmesh_ds\tmesh_z\t" + \
                      condHeader
 
-        np.savetxt(folder + "/" + self.fileNameFunc() + ".dat", Data, fmt='%.7e',
+        np.savetxt(folder + "/Rzz_" + self.fileNameFunc() + ".dat", Data, fmt='%.7e',
         header = DataHeader, comments = "#")
 
 
@@ -191,7 +194,7 @@ class ADMR:
         mpl.rcParams['ytick.major.width'] = 0.6
         mpl.rcParams['axes.linewidth'] = 0.6 # thickness of the axes lines
         mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
-                                            # editing the text in illustrator
+        # editing the text in illustrator
 
         ## Create the list object of figures
         fig_list = []

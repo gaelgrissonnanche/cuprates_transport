@@ -25,7 +25,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meVolt * picosecond / Angstrom / hbar**2
 
 class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0,
-                 gamma_0=15, gamma_dos_max=0, gamma_k=0, power=2, factor_arcs=1):
+                 gamma_0=15, gamma_dos_max=0, gamma_k=0, power=2, az=0, factor_arcs=1):
 
         # Band object
         self.bandObject = bandObject ## WARNING do not modify within this object
@@ -41,6 +41,7 @@ class Conductivity:
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k = gamma_k # in THz
         self.power   = power
+        self.az      = az
         self.factor_arcs = factor_arcs # factor * gamma_0 outsite AF FBZ
         self.gamma_tot_max = 1 / self.tauTotMinFunc() # in THz
         self.gamma_tot_min = 1 / self.tauTotMaxFunc() # in THz
@@ -157,7 +158,7 @@ class Conductivity:
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
 
-    def factor_arcs_Func(self, kx, ky):
+    def factor_arcs_Func(self, kx, ky, kz):
         # line ky = kx + pi
         d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
         d2 = ky * self.bandObject.b - kx * self.bandObject.a + pi  # line ky = kx - pi
@@ -175,9 +176,9 @@ class Conductivity:
         dos_max = np.max(self.bandObject.dos)  # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (dos / dos_max)
 
-    def gamma_k_Func(self, kx, ky):
+    def gamma_k_Func(self, kx, ky, kz):
         phi = arctan2(ky, kx)
-        return self.gamma_k * np.abs(cos(2*phi))**self.power
+        return self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
 
     def tOverTauFunc(self):
         # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
@@ -199,11 +200,11 @@ class Conductivity:
         #A = 0.5
         gammaTot = self.gamma_0 * np.ones_like(kx)
         if self.gamma_k!=0:
-            gammaTot += self.gamma_k_Func(kx, ky)   #*(1+A*np.abs(sin(kz*self.bandObject.c/2)))
+            gammaTot += self.gamma_k_Func(kx, ky, kz)   #*(1+A*np.abs(sin(kz*self.bandObject.c/2)))
         if self.gamma_dos_max!=0:
             gammaTot += self.gamma_DOS_Func(vx, vy, vz)
         if self.factor_arcs!=1:
-            gammaTot *= self.factor_arcs_Func(kx, ky)
+            gammaTot *= self.factor_arcs_Func(kx, ky, kz)
 
         return 1/gammaTot
 

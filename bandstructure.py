@@ -147,7 +147,7 @@ class BandStructure:
         solObject = optimize.root(self.dopingCondition, np.array([muStart]), args=(pTarget,), options={'xtol': xtol})
         self._mu = solObject.x[0]
 
-    def discretize_FS(self, mesh_xy_rough=501, endmessage=True):
+    def discretize_FS(self, mesh_xy_rough=501, PrintEnding=True):
         """
         mesh_xy_rough: make denser rough meshgrid to interpolate after
         """
@@ -224,7 +224,7 @@ class BandStructure:
         self.vf = np.vstack([vx, vy, vz])
 
         ## Output message
-        if endmessage == True:
+        if PrintEnding == True:
             print(self.bandname + ": discretized")
 
 

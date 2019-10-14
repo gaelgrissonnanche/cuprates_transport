@@ -18,6 +18,6 @@
     "gamma_dos_max":275,
     "power":12,
     "seed":72,
-    "experiment_doping":25,
-    "experiment_temperature":25
+    "experiment_p":25,
+    "experiment_T":25
 }

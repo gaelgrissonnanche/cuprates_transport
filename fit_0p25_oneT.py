@@ -14,20 +14,23 @@ from admr import ADMR
 sample_name = r"Nd-LSCO $p$ = 0.25"
 
 # Which temperature to fit?
-T = 25  # in Kelvin
+T = 20  # in Kelvin
 
 ## Initial parameters
-gamma_0_ini  = 7.5 # in THZ
+gamma_0_ini  = 15 # in THZ
 gamma_0_vary = True
 
-gamma_dos_max_ini = 101 # in THz
-gamma_dos_max_vary = True
+gamma_dos_max_ini = 0 # in THz
+gamma_dos_max_vary = False
 
 gamma_k_ini  = 72 # in THz
 gamma_k_vary = True
 
 power_ini    = 12
 power_vary   = False
+
+az_ini    = 1
+az_vary   = True
 
 mu_ini       = -0.826
 mu_vary      = False
@@ -59,7 +62,7 @@ data_dict[6, 0] = ["data_NdLSCO_0p25/0p25_0degr_45T_6K.dat", 0, 1, 73.5]
 data_dict[6, 15] = ["data_NdLSCO_0p25/0p25_15degr_45T_6K.dat", 0, 1, 73.5]
 data_dict[6, 45] = ["data_NdLSCO_0p25/0p25_45degr_45T_6K.dat", 0, 1, 73.5]
 
-## Create array of phi at a temperature
+## Create array of phi at the selected temperature
 Bphi_array = []
 for t, phi in data_dict.keys():
     if (T == t):
@@ -97,6 +100,7 @@ def residualFunc(pars, rzz_matrix):
     gamma_dos_max = pars["gamma_dos_max"].value
     gamma_k = pars["gamma_k"].value
     power = pars["power"].value
+    az = pars["az"].value
     t = pars["t"].value
     mu = pars["mu"].value
 
@@ -104,6 +108,7 @@ def residualFunc(pars, rzz_matrix):
     print("gamma_dos_max = ", gamma_dos_max)
     print("gamma_k = ", gamma_k)
     print("power = ", power)
+    print("az = ", az)
     print("t = ", t)
     print("mu = ", mu)
 
@@ -119,7 +124,7 @@ def residualFunc(pars, rzz_matrix):
     bandObject.discretize_FS()
     bandObject.densityOfState()
     bandObject.doping()
-    condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, gamma_dos_max=gamma_dos_max)
+    condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, az=az, gamma_dos_max=gamma_dos_max)
     ADMRObject = ADMR([condObject])
     ADMRObject.Bphi_array = np.array(Bphi_array)
     ADMRObject.Btheta_array = np.array(Btheta_array)
@@ -138,6 +143,7 @@ pars.add("gamma_0", value = gamma_0_ini, vary = gamma_0_vary, min = 0)
 pars.add("gamma_dos_max",      value = gamma_dos_max_ini, vary = gamma_dos_max_vary, min = 0)
 pars.add("gamma_k", value = gamma_k_ini, vary = gamma_k_vary, min = 0)
 pars.add("power",   value = power_ini, vary = power_vary, min = 0)
+pars.add("az", value=az_ini, vary=az_vary, min=0)
 pars.add("t",      value = t_ini, vary = t_vary)
 pars.add("mu",      value = mu_ini, vary = mu_vary)
 
@@ -152,6 +158,7 @@ gamma_0 = out.params["gamma_0"].value
 gamma_dos_max      = out.params["gamma_dos_max"].value
 gamma_k = out.params["gamma_k"].value
 power   = out.params["power"].value
+az   = out.params["az"].value
 t       = out.params["t"].value
 mu      = out.params["mu"].value
 
@@ -165,7 +172,7 @@ bandObject = BandStructure(bandname="hPocket",
 bandObject.discretize_FS()
 bandObject.densityOfState()
 bandObject.doping()
-condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, gamma_dos_max=gamma_dos_max)
+condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0, gamma_k=gamma_k, power=power, az=az, gamma_dos_max=gamma_dos_max)
 ADMRObject = ADMR([condObject])
 ADMRObject.Bphi_array = np.array(Bphi_array)
 ADMRObject.Btheta_array = np.array(Btheta_array)
