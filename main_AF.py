@@ -13,7 +13,7 @@ hPocket = Pocket(bandname="hPocket",
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                  M=0.0041,
                  mu=-0.494,
-                 numberOfKz=7, mesh_ds=pi/80)
+                 numberOfKz=7, mesh_ds=1/80)
 
 
 ePocket = deepcopy(hPocket)
@@ -62,7 +62,7 @@ ADMRObject.figADMR(folder="results_sim")
 #                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
 #                  M=0.001,
 #                  mu=-0.636,
-#                  numberOfKz=7, mesh_ds=pi/100)
+#                  numberOfKz=7, mesh_ds=1/100)
 
 # ePocket = deepcopy(hPocket)
 # ePocket.electronPocket=True

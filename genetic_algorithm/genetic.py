@@ -17,12 +17,12 @@ init_member = {
     "mu": -0.826,
     "fixdoping": -2,
     "numberOfKz": 7,
-    "mesh_ds": 0.15707963267948966,
+    "mesh_ds": 1/20,
     "Bamp": 45,
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
-    "Bphi_array": [0, 15, 30, 45],
+    "Bphi_array": [0, 45],
     "gamma_0": 15,
     "gamma_k": 66,
     "gamma_dos_max": 0,
@@ -69,8 +69,8 @@ data_dict[6, 45] = ["../data_NdLSCO_0p25/0p25_45degr_45T_6K.dat", 0, 1, 73.5]
 
 
 
-def genetic_search(init_member, ranges_dict, data_dict, folder=""
-        population_size=6, N_generation=20, mutation_s=0.1, crossing_p=0.9):
+def genetic_search(init_member, ranges_dict, data_dict, folder="",
+        population_size=100, N_generation=20, mutation_s=0.1, crossing_p=0.9):
     """init_params_dic is the inital set where we want the algorthim to start from"""
 
     ## Randomize the radom generator at first
@@ -81,7 +81,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder=""
 
     ## Compute the ADMR for the initial set of parameters
     print('\nINITIAL PARAMETER SET')
-    init_member, admr = utils.compute_chi2(init_member, data_dict)
+    init_member = utils.compute_chi2(init_member, data_dict)[0]
     print('Initial chi2 = ' + "{0:.3e}".format(init_member["chi2"]))
 
     ## Initialize the BEST member
@@ -106,7 +106,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder=""
             this_member[gene_name] = random.uniform(gene_range[0], gene_range[-1])
 
         ## Compute the fitness of this MEMBER
-        this_member, admr = utils.compute_chi2(this_member, data_dict)
+        this_member = utils.compute_chi2(this_member, data_dict)[0]
         print('this chi2 = ' + "{0:.3e}".format(this_member["chi2"]))
 
         ## Just display if this member has a better ChiSquare than the Best Member so far
@@ -154,7 +154,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder=""
                     child[gene_name] = np.clip(new_gene, gene_range[0], gene_range[-1])
 
             ## Compute the fitness of the CHILD
-            child, admr = utils.compute_chi2(child, data_dict)
+            child = utils.compute_chi2(child, data_dict)[0]
             print('this chi2 = ' + "{0:.3e}".format(child["chi2"]))
 
             # If the CHILD has a better fitness than the PARENT, then keep CHILD
@@ -193,12 +193,12 @@ def genetic_search(init_member, ranges_dict, data_dict, folder=""
 
 
 ## Play
-genetic_search(init_member,ranges_dict, data_dict, folder="../data_NdLSCO_0p25",
-                population_size=100, N_generation=20, mutation_s=0.1, crossing_p=0.9)
+# genetic_search(init_member,ranges_dict, data_dict, folder="../data_NdLSCO_0p25",
+#                 population_size=1, N_generation=1, mutation_s=0.1, crossing_p=0.9)
 
 
 # utils.save_member_to_json(init_member, folder="../data_NdLSCO_0p25")
-# utils.fig_compare(init_member, data_dict, folder="../data_NdLSCO_0p25")
+utils.fig_compare(init_member, data_dict, folder="../data_NdLSCO_0p25")
 
 
 

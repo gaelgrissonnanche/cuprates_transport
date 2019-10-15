@@ -208,7 +208,6 @@ class ADMR:
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
         CondObject0 = self.initialCondObjectDict[self.bandNamesList[0]]
-        bandObject0 = CondObject0.bandObject
 
         # Labels
         fig.text(0.8, 0.9, r"$B$ = " + "{0:.0f}".format(CondObject0.Bamp) + " T")

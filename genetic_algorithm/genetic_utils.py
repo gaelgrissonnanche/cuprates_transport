@@ -118,20 +118,7 @@ def save_member_to_json(member, folder=""):
 
 
 def produce_ADMR(member):
-    bandObject = BandStructure(
-                        bandname=member["bandname"],
-                        a=member["a"],
-                        b=member["b"],
-                        c=member["c"],
-                        t=member["t"],
-                        tp=member["tp"],
-                        tpp=member["tpp"],
-                        tz=member["tz"],
-                        tz2=member["tz2"],
-                        mu=member["mu"],
-                        numberOfKz=member["numberOfKz"],
-                        mesh_ds=member["mesh_ds"]
-                    )
+    bandObject = BandStructure(**member)
 
     if member["fixdoping"] >=-1 and member["fixdoping"] <=1  :
         bandObject.setMuToDoping(member["fixdoping"])
@@ -139,20 +126,10 @@ def produce_ADMR(member):
     bandObject.densityOfState()
     bandObject.doping(printDoping=False)
 
-    condObject = Conductivity(bandObject,
-                        Bamp=member["Bamp"],
-                        gamma_0=member["gamma_0"],
-                        gamma_k=member["gamma_k"],
-                        gamma_dos_max=member["gamma_dos_max"],
-                        power=member["power"]
-                    )
+    condObject = Conductivity(bandObject, **member)
 
     condObject.solveMovementFunc()
-    admr = ADMR([condObject],
-                Bphi_array=member["Bphi_array"],
-                Btheta_min=member["Btheta_min"],
-                Btheta_max=member["Btheta_max"],
-                Btheta_step=member["Btheta_step"])
+    admr = ADMR([condObject], **member)
 
     return admr
 
@@ -228,15 +205,15 @@ def compute_chi2(member, data_dict):
     Bphi_array, Btheta_array, rzz_data_matrix = load_and_interp_data(member, data_dict)
 
     ## Update Btheta & Bphi function of the data
-    member["Bphi_array"] = list(Bphi_array)
-    member["Btheta_min"] = np.min(Btheta_array)
-    member["Btheta_max"] = np.max(Btheta_array)
-    member["Btheta_step"] = Btheta_array[1] - Btheta_array[0]
+    member["Bphi_array"]  = list(Bphi_array)
+    member["Btheta_min"]  = float(np.min(Btheta_array)) # float need for JSON
+    member["Btheta_max"]  = float(np.max(Btheta_array))
+    member["Btheta_step"] = float(Btheta_array[1] - Btheta_array[0])
 
     ## Compute ADMR ------------------------------------------------------------
     admr = produce_ADMR(member)
-    print(admr.fileNameFunc())
     admr.runADMR()
+    print(admr.fileNameFunc())
 
     ## Compute Chi^2
     chi2 = 0

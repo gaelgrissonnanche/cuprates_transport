@@ -23,7 +23,7 @@ bandObject = Pocket(bandname="hPocket",
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                  M=0.1,
                  mu=-0.636,
-                 numberOfKz=7, mesh_ds=np.pi/80)
+                 numberOfKz=7, mesh_ds=1/80)
 
 bandObject.discretize_FS()
 bandObject.densityOfState()

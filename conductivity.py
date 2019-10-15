@@ -668,9 +668,10 @@ class Conductivity:
         axes_srate.set_yticks([-pi, 0., pi])
         axes_srate.set_yticklabels([r"$-\pi$", "0", r"$\pi$"], fontsize=14)
 
-        return fig
-
         ## Show figure ////////////////////////////////////////////////////////#
         if fig_show == True:
             plt.show()
         #//////////////////////////////////////////////////////////////////////////////#
+
+        return fig
+

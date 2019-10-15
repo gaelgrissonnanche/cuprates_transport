@@ -119,7 +119,7 @@ def residualFunc(pars, rzz_matrix):
                            a=3.74767, b=3.74767, c=13.2,
                            t=t, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                            mu=mu,
-                           numberOfKz=7, mesh_ds=np.pi/20)
+                           numberOfKz=7, mesh_ds=1/20)
 
     bandObject.discretize_FS()
     bandObject.densityOfState()
@@ -167,7 +167,7 @@ bandObject = BandStructure(bandname="hPocket",
                         a=3.74767, b=3.74767, c=13.2,
                         t=t, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                         mu=mu,
-                        numberOfKz=7, mesh_ds=np.pi/20)
+                        numberOfKz=7, mesh_ds=1/20)
 
 bandObject.discretize_FS()
 bandObject.densityOfState()

@@ -19,7 +19,7 @@ Angstrom = 1e-10  # 1 A in meters
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
-                 numberOfKz=7, mesh_ds=pi/15, **trash):
+                 numberOfKz=7, mesh_ds=1/15, **trash):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
         self.c    = c  # in Angstrom
@@ -175,15 +175,15 @@ class BandStructure:
                 s = np.zeros_like(x)  # arrays of zeros
                 s[1:] = np.cumsum(ds)  # integrate path, s[0] = 0
 
-                mesh_xy = int(max(np.ceil(s.max() / self.mesh_ds), 4))
+                mesh_xy = int(max(np.ceil(np.max(s) / (self.mesh_ds*pi)), 4))
                 # choose at least a minimum of 4 points per contour
                 numberPointsPerKz += mesh_xy
                 # discretize one fourth of FS, therefore need * 4
 
-                dks = s.max() / (mesh_xy + 1) / self.a  # dk path
+                dks = np.max(s) / (mesh_xy + 1) / self.a  # dk path
 
                 # regular spaced path, add one
-                s_int = np.linspace(0, s.max(), mesh_xy + 1)
+                s_int = np.linspace(0, np.max(s), mesh_xy + 1)
                 # interpolate and remove the last point (not to repeat)
                 x_int = np.interp(s_int, s, x)[:-1]
                 y_int = np.interp(s_int, s, y)[:-1]

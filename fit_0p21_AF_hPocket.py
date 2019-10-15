@@ -45,7 +45,7 @@ bandObject = Pocket(bandname="hPocket",
                     t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                     M=M_ini,
                     mu=mu_ini,
-                    numberOfKz=7, mesh_ds=np.pi/40)
+                    numberOfKz=7, mesh_ds=1/40)
 
 ## Interpolate data over theta of simulation
 data = np.loadtxt(

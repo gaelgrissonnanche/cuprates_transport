@@ -41,7 +41,7 @@ bandObject = BandStructure(bandname="hPocket",
                            a=3.74767, b=3.74767, c=13.2,
                            t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                            mu=mu_ini,
-                           numberOfKz=7, mesh_ds=pi/20)
+                           numberOfKz=7, mesh_ds=1/20)
 
 ## Interpolate data over theta of simulation
 data = np.loadtxt(
