@@ -5,6 +5,9 @@ from admr import ADMR
 from conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
+
+# for i in tqdm(range(1000)):
+#     pass
 ## ONE BAND Horio et al. /////////////////////////////////////////////////////////
 bandObject = BandStructure(bandname="LargePocket",
                            a=3.74767, b=3.74767, c=13.2,

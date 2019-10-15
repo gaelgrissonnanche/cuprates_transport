@@ -69,7 +69,7 @@ data_dict[6, 45] = ["../data_NdLSCO_0p25/0p25_45degr_45T_6K.dat", 0, 1, 73.5]
 
 
 
-def genetic_search(init_member, ranges_dict, data_dict,
+def genetic_search(init_member, ranges_dict, data_dict, folder=""
         population_size=6, N_generation=20, mutation_s=0.1, crossing_p=0.9):
     """init_params_dic is the inital set where we want the algorthim to start from"""
 
@@ -82,11 +82,10 @@ def genetic_search(init_member, ranges_dict, data_dict,
     ## Compute the ADMR for the initial set of parameters
     print('\nINITIAL PARAMETER SET')
     init_member, admr = utils.compute_chi2(init_member, data_dict)
-    print('this chi2 = ' + "{0:.3e}".format(init_member["chi2"]))
+    print('Initial chi2 = ' + "{0:.3e}".format(init_member["chi2"]))
 
     ## Initialize the BEST member
     best_member = deepcopy(init_member)
-    print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
     n_improvements = 0
 
 
@@ -117,6 +116,8 @@ def genetic_search(init_member, ranges_dict, data_dict,
             best_member = deepcopy(this_member)
             n_improvements += 1
             print(str(n_improvements)+' IMPROVEMENTS SO FAR!')
+            ## Save BEST member to JSON
+            utils.save_member_to_json(best_member, folder=folder)
         print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
 
 
@@ -168,6 +169,8 @@ def genetic_search(init_member, ranges_dict, data_dict,
                 best_member = deepcopy(child)
                 n_improvements += 1
                 print(str(n_improvements)+' IMPROVEMENTS SO FAR!')
+                ## Save BEST member to JSON
+                utils.save_member_to_json(best_member, folder=folder)
             print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
 
         generations_list.append(deepcopy(last_generation))
@@ -179,22 +182,25 @@ def genetic_search(init_member, ranges_dict, data_dict,
     print('THE END OF TIME')
 
     ## Save BEST member to JSON
-    utils.save_member_to_json(best_member, folder="../data_NdLSCO_0p25")
+    utils.save_member_to_json(best_member, folder=folder)
 
     ## Print and Compute the BEST member
     print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
-    utils.fig_compare(best_member, data_dict, folder="../data_NdLSCO_0p25")
+    utils.fig_compare(best_member, data_dict, folder=folder)
 
 
 
 
 
 ## Play
-genetic_search(init_member,ranges_dict, data_dict, population_size=100, N_generation=20, mutation_s=0.3, crossing_p=0.5)
+genetic_search(init_member,ranges_dict, data_dict, folder="../data_NdLSCO_0p25",
+                population_size=100, N_generation=20, mutation_s=0.1, crossing_p=0.9)
 
 
 # utils.save_member_to_json(init_member, folder="../data_NdLSCO_0p25")
 # utils.fig_compare(init_member, data_dict, folder="../data_NdLSCO_0p25")
+
+
 
 # class ObjectView():
 #     def __init__(self,dictionary):

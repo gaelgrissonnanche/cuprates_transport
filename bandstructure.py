@@ -19,7 +19,7 @@ Angstrom = 1e-10  # 1 A in meters
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
-                 numberOfKz=7, mesh_ds=pi/15):
+                 numberOfKz=7, mesh_ds=pi/15, **trash):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
         self.c    = c  # in Angstrom
@@ -121,7 +121,7 @@ class BandStructure:
     def doping(self, resX=500, resY=500, resZ=10, printDoping=False):
         self.updateFilling(resX,resY,resZ)
         if printDoping==True:
-            print(self.bandname + ": p = " + "{0:.3f}".format(self.p))
+            print("BAND: " + self.bandname + " (p = " + "{0:.3f}".format(self.p) +")")
         return self.p
 
     def filling(self, resX=500, resY=500, resZ=10):
@@ -147,7 +147,7 @@ class BandStructure:
         solObject = optimize.root(self.dopingCondition, np.array([muStart]), args=(pTarget,), options={'xtol': xtol})
         self._mu = solObject.x[0]
 
-    def discretize_FS(self, mesh_xy_rough=501, PrintEnding=True):
+    def discretize_FS(self, mesh_xy_rough=501, PrintEnding=False):
         """
         mesh_xy_rough: make denser rough meshgrid to interpolate after
         """
@@ -225,7 +225,7 @@ class BandStructure:
 
         ## Output message
         if PrintEnding == True:
-            print(self.bandname + ": discretized")
+            print("Band: " + self.bandname + ": discretized")
 
 
     def densityOfState(self):

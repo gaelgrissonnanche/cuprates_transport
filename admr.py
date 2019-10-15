@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import cos, sin, pi, sqrt, ones
+from tqdm import tqdm
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
@@ -8,7 +9,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 class ADMR:
     def __init__(self, initialcondObjectList, Btheta_min=0, Btheta_max=110,
-                 Btheta_step=5, Bphi_array=[0, 15, 30, 45]):
+                 Btheta_step=5, Bphi_array=[0, 15, 30, 45], **trash):
 
         # Band dictionary
         self.initialCondObjectDict = {} # will contain the condObject for each band, with key their bandname
@@ -39,12 +40,9 @@ class ADMR:
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
 
-        print("------------------------------------------------")
-        print("Start ADMR computation")
-
         rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype= np.float64)
 
-        for l, phi in enumerate(self.Bphi_array):
+        for l, phi in enumerate(tqdm(self.Bphi_array, ncols=80, unit="phi", desc="ADMR")):
             for m, theta in enumerate(self.Btheta_array):
 
                 sigma_zz = 0
@@ -68,8 +66,6 @@ class ADMR:
 
         rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rzz_array = rho_zz_array / rho_zz_0_array
-
-        print("End ADMR computation")
 
     #---------------------------------------------------------------------------
     def fileNameFunc(self):
