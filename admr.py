@@ -40,7 +40,7 @@ class ADMR:
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
 
-        rho_zz_array = np.empty((self.Bphi_array.shape[0], self.Btheta_array.shape[0]), dtype= np.float64)
+        rho_zz_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
 
         for l, phi in enumerate(tqdm(self.Bphi_array, ncols=80, unit="phi", desc="ADMR")):
             for m, theta in enumerate(self.Btheta_array):
@@ -100,7 +100,7 @@ class ADMR:
                                          r"gzero" + "{0:.1f}".format(iniCondObject.gamma_0),
                                          r"gdos" + "{0:.1f}".format(iniCondObject.gamma_dos_max),
                                          r"gk"  + "{0:.1f}".format(iniCondObject.gamma_k),
-                                         r"pwr" + "{0:.0f}".format(iniCondObject.power)
+                                         r"pwr" + "{0:.1f}".format(iniCondObject.power)
                                         ])
 
         if bandAF == True:
@@ -133,7 +133,7 @@ class ADMR:
         Ones = np.ones_like(self.Btheta_array) # column of 1 with same size of Btheta_array
         rzzMatrix = self.rzz_array[0,:] # initialize with first phi value
         rzzHeader = "rzz(phi=" + str(self.Bphi_array[0])+ ")\t"
-        for l in range(self.Bphi_array.shape[0]):
+        for l in range(self.Bphi_array.size):
             if l==0:
                 pass # because we already have rzz_array for the inital value of phi
             else:
@@ -214,9 +214,9 @@ class ADMR:
         fig.text(0.8, 0.84, r"$p$ = " + "{0:.3f}".format(self.totalHoleDoping))
 
         ## Colors
-        if self.Bphi_array.shape[0] > 4:
-            cmap = mpl.cm.get_cmap('jet', self.Bphi_array.shape[0])
-            colors = cmap(np.arange(self.Bphi_array.shape[0]))
+        if self.Bphi_array.size > 4:
+            cmap = mpl.cm.get_cmap('jet', self.Bphi_array.size)
+            colors = cmap(np.arange(self.Bphi_array.size))
         else:
             colors = ['#000000', '#3B528B', '#FF0000', '#C7E500']
 

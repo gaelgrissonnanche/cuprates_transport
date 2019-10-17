@@ -2,6 +2,7 @@ import numpy as np
 import random
 from copy import deepcopy
 import genetic_utils as utils
+import os
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 init_member = {
@@ -15,7 +16,7 @@ init_member = {
     "tz": 0.07,
     "tz2": 0.00,
     "mu": -0.826,
-    "fixdoping": -2,
+    "fixdoping": 0.25,
     "numberOfKz": 7,
     "mesh_ds": 1/20,
     "Bamp": 45,
@@ -23,8 +24,8 @@ init_member = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 45],
-    "gamma_0": 15,
-    "gamma_k": 66,
+    "gamma_0": 10,
+    "gamma_k": 95,
     "gamma_dos_max": 0,
     "power": 12,
     "seed": 72,
@@ -34,15 +35,15 @@ init_member = {
 
 
 ranges_dict = {
-    "t": [150.0,250.0],
+    "t": [150.0,350.0],
     "tp": [-0.16,-0.12],
     "tpp": [0.05,0.09],
     "tz": [0.05,0.09],
-    "mu": [-0.85,-0.8],
+    # "mu": [-0.85,-0.8],
     "gamma_0": [5,25],
     "gamma_k": [20,100],
+    "power":[1, 20],
     # "gamma_dos_max": [10.0,300.0],
-    # "power":[1, 20],
 }
 
 ## Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -86,6 +87,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
 
     ## Initialize the BEST member
     best_member = deepcopy(init_member)
+    best_member_path = utils.save_member_to_json(best_member, folder=folder)
     n_improvements = 0
 
 
@@ -117,7 +119,8 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
             n_improvements += 1
             print(str(n_improvements)+' IMPROVEMENTS SO FAR!')
             ## Save BEST member to JSON
-            utils.save_member_to_json(best_member, folder=folder)
+            os.remove(best_member_path)
+            best_member_path = utils.save_member_to_json(best_member, folder=folder)
         print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
 
 
@@ -170,7 +173,8 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
                 n_improvements += 1
                 print(str(n_improvements)+' IMPROVEMENTS SO FAR!')
                 ## Save BEST member to JSON
-                utils.save_member_to_json(best_member, folder=folder)
+                os.remove(best_member_path)
+                best_member_path = utils.save_member_to_json(best_member, folder=folder)
             print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
 
         generations_list.append(deepcopy(last_generation))
@@ -182,6 +186,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
     print('THE END OF TIME')
 
     ## Save BEST member to JSON
+    os.remove(best_member_path)
     utils.save_member_to_json(best_member, folder=folder)
 
     ## Print and Compute the BEST member
@@ -194,11 +199,15 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
 
 ## Play
 # genetic_search(init_member,ranges_dict, data_dict, folder="../data_NdLSCO_0p25",
-#                 population_size=1, N_generation=1, mutation_s=0.1, crossing_p=0.9)
+#                 population_size=100, N_generation=50, mutation_s=0.1, crossing_p=0.9)
 
 
 # utils.save_member_to_json(init_member, folder="../data_NdLSCO_0p25")
-utils.fig_compare(init_member, data_dict, folder="../data_NdLSCO_0p25")
+# member = utils.load_member_from_json(
+#         "../data_NdLSCO_0p25",
+#         "member_p0.219_B45_t176.3_mu-0.849_tp-0.145_tpp0.089_tz0.054_tzz0.000_LargePocket_gzero16.8_gdos0.0_gk98.0_pwr4"
+#                                     )
+# utils.fig_compare(member, data_dict, folder="../data_NdLSCO_0p25")
 
 
 

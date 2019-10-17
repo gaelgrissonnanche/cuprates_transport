@@ -20,7 +20,7 @@ ePocket = deepcopy(hPocket)
 ePocket.bandname = "ePocket"
 ePocket.electronPocket=True
 
-# setMuToDoping([hPocket,ePocket],pTarget=0.21,muStart=-0.9)
+# setMuToDoping([hPocket,ePocket],pTarget=0.21)
 
 # hPocket.figMultipleFS2D()
 # ePocket.figMultipleFS2D()

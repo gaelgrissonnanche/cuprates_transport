@@ -108,8 +108,8 @@ class BandStructure:
         ky_a = np.linspace(-pi / self.b, pi / self.b, resY)
         kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, resZ)
         kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-        disp = self.e_3D_func(kxx, kyy, kzz)
-        return disp
+        E = self.e_3D_func(kxx, kyy, kzz)
+        return E
 
     def updateFilling(self, resX=500, resY=500, resZ=10):
         E = self.dispersionMesh(resX, resY, resZ)
@@ -121,7 +121,7 @@ class BandStructure:
     def doping(self, resX=500, resY=500, resZ=10, printDoping=False):
         self.updateFilling(resX,resY,resZ)
         if printDoping==True:
-            print("BAND: " + self.bandname + " (p = " + "{0:.3f}".format(self.p) +")")
+            print("p=" + "{0:.3f}".format(self.p) + " :: " + self.bandname)
         return self.p
 
     def filling(self, resX=500, resY=500, resZ=10):
@@ -138,14 +138,12 @@ class BandStructure:
         p_per_kz = 1 - n_per_kz
         return p_per_kz
 
-    def dopingCondition(self, mu, ptarget):
-        self._mu = mu
-        print(self.doping())
+    def diffDoping(self, mu, ptarget):
+        self.mu = mu
         return self.doping() - ptarget
 
-    def setMuToDoping(self, pTarget, muStart=-8.0, xtol=0.001):
-        solObject = optimize.root(self.dopingCondition, np.array([muStart]), args=(pTarget,), options={'xtol': xtol})
-        self._mu = solObject.x[0]
+    def setMuToDoping(self, pTarget, ptol=0.001):
+        self.mu = optimize.brentq(self.diffDoping, -10, 10, args=(pTarget,), xtol=ptol)
 
     def discretize_FS(self, mesh_xy_rough=501, PrintEnding=False):
         """
@@ -407,6 +405,8 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
 
     return vx, vy, vz
 
+
+@jit(nopython=True, cache=True, parallel=True)
 def rotation(x, y, angle):
     xp = cos(angle) * x + sin(angle) * y
     yp = -sin(angle) * x + cos(angle) * y
@@ -553,12 +553,13 @@ def doping(bandIterable, printDoping=False):
     return doping
 
 def dopingCondition(mu,ptarget,bandIterable):
-    print("mu = " + "{0:.3f}".format(mu[0]))
+    print("mu = " + "{0:.3f}".format(mu))
     for band in bandIterable:
         band.mu = mu
     return doping(bandIterable) - ptarget
 
-def setMuToDoping(bandIterable, pTarget, muStart=-8.0, xtol=0.005):
-    solObject = optimize.root(dopingCondition, np.array([muStart]), args=(pTarget,bandIterable), options={'xtol': xtol})
+def setMuToDoping(bandIterable, pTarget, ptol=0.001):
+    print("Computing mu for hole doping = " + "{0:.3f}".format(pTarget))
+    mu = optimize.brentq(dopingCondition, -10, 10, args=(pTarget ,bandIterable), xtol=ptol)
     for band in bandIterable:
-        band.mu = solObject.x[0]
+        band.mu = mu

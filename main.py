@@ -6,8 +6,6 @@ from conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 
-# for i in tqdm(range(1000)):
-#     pass
 ## ONE BAND Horio et al. /////////////////////////////////////////////////////////
 bandObject = BandStructure(bandname="LargePocket",
                            a=3.74767, b=3.74767, c=13.2,
@@ -16,10 +14,10 @@ bandObject = BandStructure(bandname="LargePocket",
                            numberOfKz=7, mesh_ds=1/20)
 
 ## Discretize
-# bandObject.setMuToDoping(0.27)
+# bandObject.setMuToDoping(0.22)
+bandObject.doping(printDoping=True)
 bandObject.discretize_FS()
 bandObject.densityOfState()
-bandObject.doping(printDoping=True)
 
 # bandObject.figDiscretizeFS2D()
 # bandObject.figMultipleFS2D()
