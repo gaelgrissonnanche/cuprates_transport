@@ -33,10 +33,10 @@ bandObject.doping()
 # # bandObject.figDiscretizeFS2D()
 
 ## Conductivity Object ---------------
-condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0, Btheta=0, T=1,
+condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0, Btheta=0, T=25,
                           gamma_0=14.0, gamma_k=78.1, power=12, gamma_dos_max=0) # T = 20K, p = 0.24 from fit ADMR
 condObject.Ntime = 1000 # better for high magnetic field values
-
+condObject.epsilon_N = 10
 
 ## Transport coeffcients -------------
 

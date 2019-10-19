@@ -39,7 +39,7 @@ hPocket.doping()
 ## Conductivity
 h_condObject = Conductivity(hPocket, Bamp=45,
                             gamma_0=15, gamma_k=0, power=12, gamma_dos_max=0, factor_arcs=1)
-
+# h_condObject.figParameters()
 # h_condObject.solveMovementFunc()
 # h_condObject.figOnekft()
 # h_condObject.figLifeTime()

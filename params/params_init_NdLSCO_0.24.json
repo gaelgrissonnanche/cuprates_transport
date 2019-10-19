@@ -1,0 +1,33 @@
+{
+    "bandname": "LargePocket",
+    "a": 3.74767,
+    "b": 3.74767,
+    "c": 13.2,
+    "t": 182.1228060760671,
+    "tp": -0.1318857693357217,
+    "tpp": 0.084728705336046,
+    "tz": 0.08836265689681319,
+    "tz2": 0.0,
+    "mu": -0.8236180469118579,
+    "fixdoping": -2,
+    "numberOfKz": 7,
+    "mesh_ds": 0.05,
+    "T": 0,
+    "Bamp": 45,
+    "Btheta_min": 0.0,
+    "Btheta_max": 90.0,
+    "Btheta_step": 5.0,
+    "Bphi_array": [
+        0.0,
+        45.0
+    ],
+    "gamma_0": 15.1,
+    "gamma_k": 66,
+    "gamma_dos_max": 0,
+    "power": 12,
+    "factor_arcs": 1.0,
+    "seed": 72,
+    "data_T": 25,
+    "data_p": 0.24,
+    "chi2": 0
+}
