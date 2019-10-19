@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import cos, sin, pi, exp, sqrt, arctan2
+from numpy import cos, sin, pi, exp, sqrt, arctan2, cosh, arccosh
 from scipy.integrate import odeint
 from skimage import measure
 import matplotlib as mpl
@@ -7,14 +7,17 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-## Constant //////
-hbar = 1.05e-34 # m2 kg / s
-e = 1.6e-19 # C
-
 ## Units ////////
 meVolt = 1.602e-22 # 1 meV in Joule
 Angstrom = 1e-10 # 1 A in meters
 picosecond = 1e-12 # 1 ps in seconds
+
+## Constant //////
+hbar = 1.05e-34 # m2 kg / s
+e = 1.6e-19 # C
+kB = 1.380649e-23 # J / K
+kB = kB / meVolt # meV / K
+
 
 ## This coefficient takes into accound all units and constant to prefactor the movement equation
 units_move_eq =  e * Angstrom**2 * picosecond * meVolt / hbar**2
@@ -25,6 +28,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meVolt * picosecond / Angstrom / hbar**2
 
 class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0,
+                 T=0, dfdE_cut=0.1,
                  gamma_0=15,
                  gamma_dos_max=0,
                  gamma_k=0, power=2, az=0,
@@ -40,12 +44,22 @@ class Conductivity:
         self._Bphi   = Bphi
         self._B_vector = self.BFunc() # np array fo Bx,By,Bz
 
+        # Temperature and energy integration
+        self._T = T # in Kelvin
+        self._epsilon_N = 10
+        if self._epsilon_N % 2 != 0:  # make sure it is an even number
+            self._epsilon_N += 1
+        if T != 0:
+            self._dfdE_cut = dfdE_cut * np.abs(self.dfdE(0)) # factor of the max amplitude of dfdE for cut off
+            self._epsilon_cut = self.energyCutOff(self._dfdE_cut)
+            self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
+
+
         # Scattering rate
         self.gamma_0 = gamma_0 # in THz
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k = gamma_k # in THz
         self.power   = power
-        self.az      = az
         self.factor_arcs = factor_arcs # factor * gamma_0 outsite AF FBZ
         self.gamma_tot_max = 1 / self.tauTotMinFunc() # in THz
         self.gamma_tot_min = 1 / self.tauTotMaxFunc() # in THz
@@ -63,7 +77,7 @@ class Conductivity:
         self.t_over_tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
         # i_t index of the time from the starting position
 
-        # Conductivity Tensor: x, y, z = 0, 1, 2
+        # Electrical conductivity tensor: x, y, z = 0, 1, 2
         self.sigma = np.empty((3,3), dtype= np.float64)
 
 
@@ -105,7 +119,38 @@ class Conductivity:
         self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1]
     Ntime = property(_get_Ntime, _set_Ntime)
 
+    def _get_T(self):
+        return self._T
+    def _set_T(self, T):
+        self._T = T
+        self._dfdE_cut = self.dfdE_cut * np.abs(self.dfdE(0)) # amplitude for cut off
+        self._epsilon_cut = self.energyCutOff(self._dfdE_cut)
+        self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
+    T = property(_get_T, _set_T)
 
+    def _get_epsilon_N(self):
+        return self._epsilon_N
+    def _set_epsilon_N(self, epsilon_N):
+        self._epsilon_N = epsilon_N
+        if self._epsilon_N % 2 != 0:  # make sure it is an even number
+            self._epsilon_N += 1
+        self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
+    epsilon_N = property(_get_epsilon_N, _set_epsilon_N)
+
+    def _get_dfdE_cut(self):
+        return self._dfdE_cut / np.abs(self.dfdE(0))
+    def _set_dfdE_cut(self, dfdE_cut):
+        self._dfdE_cut  = dfdE_cut * np.abs(self.dfdE(0))
+        self._epsilon_cut = self.energyCutOff(self._dfdE_cut)
+        self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
+    dfdE_cut = property(_get_dfdE_cut, _set_dfdE_cut)
+
+    def _get_epsilon_cut(self):
+        return self._epsilon_cut
+    def _set_epsilon_cut(self, epsilon_cut):
+        self._epsilon_cut  = epsilon_cut
+        self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
+    epsilon_cut = property(_get_epsilon_cut, _set_epsilon_cut)
 
     ## Special Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def __eq__(self, other):
@@ -120,15 +165,15 @@ class Conductivity:
         return not self == other
 
 
-
-
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+
     def BFunc(self):
         B = self._Bamp * \
             np.array([sin(self._Btheta*pi/180) * cos(self._Bphi*pi/180),
                       sin(self._Btheta*pi/180) * sin(self._Bphi*pi/180),
                       cos(self._Btheta*pi/180)])
         return B
+
 
     def crossProductVectorized(self, vx, vy, vz):
         # (- B) represents -t in vj(-t, k) in the Chambers formula
@@ -137,6 +182,7 @@ class Conductivity:
         product_y = vz[:] * -self._B_vector[0] - vx[:] * -self._B_vector[2]
         product_z = vx[:] * -self._B_vector[1] - vy[:] * -self._B_vector[0]
         return np.vstack((product_x, product_y, product_z))
+
 
     def solveMovementFunc(self):
         len_t = self.t.shape[0]
@@ -154,6 +200,7 @@ class Conductivity:
         # Compute right away the t_over_tau array
         self.tOverTauFunc()
 
+
     def diffEqFunc(self, k, t):
         len_k = int(k.shape[0]/3)
         k.shape = (3, len_k) # reshape the flatten k
@@ -161,6 +208,7 @@ class Conductivity:
         dkdt = ( - units_move_eq ) * self.crossProductVectorized(vx, vy, vz)
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
+
 
     def factor_arcs_Func(self, kx, ky, kz):
         # line ky = kx + pi
@@ -175,14 +223,17 @@ class Conductivity:
         factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
         return factor_out_of_FBZ_AF
 
+
     def gamma_DOS_Func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
         dos_max = np.max(self.bandObject.dos)  # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (dos / dos_max)
 
+
     def gamma_k_Func(self, kx, ky, kz):
         phi = arctan2(ky, kx)
         return self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
+
 
     def tOverTauFunc(self):
         # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
@@ -197,20 +248,21 @@ class Conductivity:
                                                       )
                          , axis = 1)
 
+
     def tauTotFunc(self, kx, ky, kz, vx, vy, vz):
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
-        #A = 0.5
         gammaTot = self.gamma_0 * np.ones_like(kx)
         if self.gamma_k!=0:
-            gammaTot += self.gamma_k_Func(kx, ky, kz)   #*(1+A*np.abs(sin(kz*self.bandObject.c/2)))
+            gammaTot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
             gammaTot += self.gamma_DOS_Func(vx, vy, vz)
         if self.factor_arcs!=1:
             gammaTot *= self.factor_arcs_Func(kx, ky, kz)
 
         return 1/gammaTot
+
 
     def tauTotMaxFunc(self):
         # Compute the tau_max (the longest time between two collisions)
@@ -221,6 +273,7 @@ class Conductivity:
                                            vf[0, :], vf[1, :], vf[2, :]))
         return tauTotMax
 
+
     def tauTotMinFunc(self):
         kf = self.bandObject.kf
         vf = self.bandObject.vf
@@ -228,32 +281,77 @@ class Conductivity:
                                            vf[0, :], vf[1, :], vf[2, :]))
         return tauTotMin
 
+
     def solveMovementForPoint(self, kpoint):
         len_t = self.t.shape[0]
         kt = odeint(self.diffEqFunc, kpoint, self.t, rtol = 1e-4, atol = 1e-4).transpose() # solve differential equation
         kt = np.reshape(kt, (3, 1, len_t))
         return kt
 
+
     def VelocitiesProduct(self, i, j):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0: vif = vxf """
+
         # Velocity components
-        vif  = self.bandObject.vf[i,:]
-        vjft = self.vft[j,:,:]
-        # Integral over t
-        vj_sum_over_t = np.sum(vjft * exp(-self.t_over_tau) * self.dt, axis=1)
-        # Product of velocities
-        v_product = vif * vj_sum_over_t
+        vf  = self.bandObject.vf
+
+        if self.Bamp != 0:
+            vft = self.vft
+            # Integral over t
+            vj_sum_over_t = np.sum(vft[j, :, :] * exp(-self.t_over_tau) * self.dt, axis=1)
+            # Product of velocities
+            v_product = vf[i, :] * vj_sum_over_t
+        else:
+            kf = self.bandObject.kf
+            v_product = vf[i, :] * vf[j, :] * self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
+                                                              vf[0, :], vf[1, :], vf[2, :])
         return v_product
+
 
     def chambersFunc(self, i = 2, j = 2):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
-        # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
-        self.sigma[i, j] = units_chambers / self.bandObject.numberOfBZ * \
-                           np.sum( self.bandObject.dos *
-                                   self.bandObject.dkf *
-                                   self.VelocitiesProduct(i=i, j=j) )
+
+        if self._T == 0:
+            # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
+            self.sigma[i, j] = units_chambers / self.bandObject.numberOfBZ * \
+                            np.sum( self.bandObject.dos *
+                                    self.bandObject.dkf *
+                                    self.VelocitiesProduct(i=i, j=j) )
+        else:
+
+            sigma_tot = 0
+            mu_init = self.bandObject.mu
+            for n in range(self._epsilon_N+1):
+
+                self.bandObject.mu = mu_init - self._epsilon_cut + n * self.d_epsilon
+                self.bandObject.discretize_FS()
+                self.bandObject.densityOfState()
+                ## !!!!  Do not forget to update scattering rates !!! ##
+                ## Create properties for tmax, etc.
+                self.solveMovementFunc()
+                sigma_epsilon = units_chambers / self.bandObject.numberOfBZ * \
+                                np.sum( self.bandObject.dos *
+                                        self.bandObject.dkf *
+                                        self.VelocitiesProduct(i=i, j=j) )
+                # Sum over the energie
+                sigma_tot += sigma_epsilon * self.d_epsilon * (- self.dfdE(-self._epsilon_cut + self.d_epsilon))
+
+            self.bandObject.mu = mu_init
+            self.sigma[i, j] = sigma_tot
+
+
+    def dfdE(self, epsilon):
+        """Returns in fact dfdE * t in order to get epsilon unitless"""
+        return -self.bandObject.t / (4 * kB * self._T) / (cosh((epsilon * self.bandObject.t) / (2*kB * self._T)))**2
+
+
+    def energyCutOff(self, dfdE_cut):
+        if self._T != 0:
+            return 2*kB*self._T / (self.bandObject.t) * arccosh(1/sqrt(dfdE_cut/self.bandObject.t * 4*kB*self._T))
+        else:
+            return 0
 
 
 
@@ -457,6 +555,32 @@ class Conductivity:
 
         plt.show()
 
+    def figdfdE(self):
+        fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
+        fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
+
+        axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
+
+        epsilon = np.arange(-self._epsilon_cut-10*self.d_epsilon, self._epsilon_cut+11*self.d_epsilon, self.d_epsilon)
+        dfdE = self.dfdE(epsilon)
+        line = axes.plot(epsilon, -dfdE)
+        plt.setp(line, ls ="-", c = 'r', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
+
+        line = axes.plot(self._epsilon_cut, self._dfdE_cut)
+        plt.setp(line, ls ="", c = 'k', lw = 3, marker = "s", mfc = 'k', ms = 6, mec = "#7E2320", mew= 0)  # set properties
+        line = axes.plot(-self._epsilon_cut, self._dfdE_cut)
+        plt.setp(line, ls ="", c = 'k', lw = 3, marker = "s", mfc = 'k', ms = 6, mec = "#7E2320", mew= 0)  # set properties
+
+
+        axes.tick_params(axis='x', which='major', pad=7)
+        axes.tick_params(axis='y', which='major', pad=8)
+        axes.set_xlabel(r"$\epsilon$", labelpad = 8)
+        axes.set_ylabel(r"-$df/d\epsilon$ ( units of t )", labelpad = 8)
+
+        axes.locator_params(axis = 'y', nbins = 6)
+
+        plt.show()
+
     #---------------------------------------------------------------------------
 
     def figParameters(self, fig_show=True):
@@ -468,8 +592,8 @@ class Conductivity:
         axes.remove()
 
         # Band name
-        fig.text(0.45, 0.92, "Band #: " +
-                    self.bandObject.bandname, fontsize=20, color='#2E00A4', style="italic")
+        fig.text(0.45, 0.92, "Band :: " +
+                    self.bandObject.bandname, fontsize=20, color='#0000ff')
         try:
             self.bandObject.M
             fig.text(0.41, 0.92, "AF", fontsize=20,
@@ -477,21 +601,19 @@ class Conductivity:
         except:
             None
         # Band Formulas
-        fig.text(0.45, 0.47, "Band formula", fontsize=16,
+        fig.text(0.45, 0.40, "Band formula", fontsize=16,
                     color='#A9A9A9', style="italic")
         bandFormulaE2D = r"$\epsilon_{\rm k}^{\rm 2D}$ = - $\mu$" +\
             r" - 2$t$ (cos($k_{\rm x}a$) + cos($k_{\rm y}b$))" +\
             r" - 4$t^{'}$ (cos($k_{\rm x}a$) cos($k_{\rm y}b$))" + "\n" +\
             r"          - 2$t^{''}$ (cos(2$k_{\rm x}a$) + cos(2$k_{\rm y}b$))" + "\n"
-        fig.text(0.45, 0.34, bandFormulaE2D, fontsize=12)
+        fig.text(0.45, 0.27, bandFormulaE2D, fontsize=10)
 
         bandFormulaEz = r"$\epsilon_{\rm k}^{\rm z}$   =" +\
             r" - 2$t_{\rm z}$ cos($k_{\rm z}c/2$) cos($k_{\rm x}a/2$) cos(2$k_{\rm y}b/2$) (cos($k_{\rm x}a$) - cos($k_{\rm y}b$))$^2$" + "\n" +\
             r"          - 2$t_{\rm z}^{'}$ cos($k_{\rm z}c/2$)"
-        fig.text(0.45, 0.27, bandFormulaEz, fontsize=12)
+        fig.text(0.45, 0.21, bandFormulaEz, fontsize=10)
 
-        bandFormulaE3D = r"$\epsilon_{\rm k}^{\rm 3D}$   = $\epsilon_{\rm k}^{\rm 2D}$ + $\epsilon_{\rm k}^{\rm z}$"
-        fig.text(0.45, 0.21, bandFormulaE3D, fontsize=12)
 
         # AF Band Formula
         try:
@@ -500,20 +622,22 @@ class Conductivity:
                 sign_symbol = "+"
             else:
                 sign_symbol = "-"
-            AFBandFormula = r"$E_{\rm k}^{" + sign_symbol + r"}$ = 1/2 ($\epsilon_{\rm k}$ + $\epsilon_{\rm k+Q}$) " +\
+            AFBandFormula = r"$\epsilon_{\rm k}^{\rm 3D " + sign_symbol + r"}$ = 1/2 ($\epsilon_{\rm k}$ + $\epsilon_{\rm k+Q}$) " +\
                 sign_symbol + \
                 r" $\sqrt{1/4(\epsilon_{\rm k} - \epsilon_{\rm k+Q})^2 + \Delta_{\rm AF}^2}$ + $\epsilon_{\rm k}^{\rm z}$"
             fig.text(0.45, 0.15, AFBandFormula,
-                        fontsize=12, color="#FF0000")
+                        fontsize=10, color="#FF0000")
         except:
-            None
+            bandFormulaE3D = r"$\epsilon_{\rm k}^{\rm 3D}$   = $\epsilon_{\rm k}^{\rm 2D}$ + $\epsilon_{\rm k}^{\rm z}$"
+            fig.text(0.45, 0.15, bandFormulaE3D, fontsize=10)
+
 
         # Scattering Formula
         fig.text(0.45, 0.08, "Scattering formula",
                     fontsize=16, color='#A9A9A9', style="italic")
-        scatteringFormula = r"$\Gamma_{\rm tot}$ = $\Gamma_{\rm 0}$ + " + \
-            r"$\Gamma_{\rm k}$ |cos$^{\rm n}$(2$\phi$)| + $\Gamma_{\rm DOS}^{\rm max}$ (DOS / DOS$^{\rm max}$)"
-        fig.text(0.45, 0.03, scatteringFormula, fontsize=12)
+        scatteringFormula = r"$\Gamma_{\rm tot}$ = [ $\Gamma_{\rm 0}$ + " + \
+            r"$\Gamma_{\rm k}$ |cos$^{\rm n}$(2$\phi$)| + $\Gamma_{\rm DOS}^{\rm max}$ (DOS / DOS$^{\rm max}$) ] $A_{\rm arcs}$"
+        fig.text(0.45, 0.03, scatteringFormula, fontsize=10)
 
         # Parameters Bandstructure
         fig.text(0.45, 0.85, "Band Parameters", fontsize=16,
@@ -555,16 +679,17 @@ class Conductivity:
         fig.text(0.72, 0.77, "Scattering Parameters",
                     fontsize=16, color='#A9A9A9', style="italic")
         label_parameters = [
-            r"$\Gamma_{\rm 0}$     = " + "{0:.1f}".format(self.gamma_0) +
+            r"$\Gamma_{\rm 0}$       = " + "{0:.1f}".format(self.gamma_0) +
             "   THz",
             r"$\Gamma_{\rm DOS}^{\rm max}$   = " +
             "{0:.1f}".format(self.gamma_dos_max) + "   THz",
-            r"$\Gamma_{\rm k}$     = " + "{0:.1f}".format(self.gamma_k) +
+            r"$\Gamma_{\rm k}$       = " + "{0:.1f}".format(self.gamma_k) +
             "   THz",
-            r"$n$      = " + "{0:g}".format(self.power),
-            r"$\Gamma_{\rm tot}^{\rm max}$   = " +
+            r"$n$         = " + "{0:.1f}".format(self.power),
+            r"$A_{\rm arcs}$   = " + "{0:.1f}".format(self.factor_arcs),
+            r"$\Gamma_{\rm tot}^{\rm max}$    = " +
             "{0:.1f}".format(self.gamma_tot_max) + "   THz",
-            r"$\Gamma_{\rm tot}^{\rm min}$   = " +
+            r"$\Gamma_{\rm tot}^{\rm min}$     = " +
             "{0:.1f}".format(self.gamma_tot_min) + "   THz",
         ]
         h_label = 0.72
@@ -674,4 +799,3 @@ class Conductivity:
         #//////////////////////////////////////////////////////////////////////////////#
 
         return fig
-

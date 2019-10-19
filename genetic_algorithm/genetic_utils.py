@@ -28,9 +28,9 @@ def load_member_from_json(folder="", filename="member"):
 
 def save_member_to_json(member, folder=""):
     admr = produce_ADMR(member)
-    path = folder + "/fit_" + \
+    path = folder + "/data_" + \
            "p" + "{0:.2f}".format(member["data_p"]) + "_" + \
-           "T" + "{0:.1f}".format(member["data_T"]) + "_" + admr.fileNameFunc() + ".json"
+           "T" + "{0:.1f}".format(member["data_T"]) + "_fit_" + admr.fileNameFunc() + ".json"
     with open(path, 'w') as f:
         json.dump(member, f, indent=4)
     return path
@@ -182,10 +182,11 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
     axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
     #############################################
-    fig.text(0.84,0.89, r"$T$ = " + str(member["data_T"]) + " K", fontsize=14)
-    fig.text(0.84, 0.84, r"$B$ = " + str(member["Bamp"]) + " T", fontsize=14)
-    fig.text(0.84,0.79, r"$p$ (data) = " + "{0:.2f}".format(member["data_p"]), fontsize=14)
-    fig.text(0.84,0.74, r"$p$ (sim) = " + "{0:.3f}".format(admr.totalHoleDoping), fontsize=14)
+    fig.text(0.84, 0.89, r"$B$ = " + str(member["Bamp"]) + " T", fontsize=14)
+    fig.text(0.84,0.84, r"$T$ (data) = " + str(member["data_T"]) + " K", fontsize=14)
+    fig.text(0.84,0.79, r"$T$ (sim) = " + str(member["T"]) + " K", fontsize=14)
+    fig.text(0.84,0.74, r"$p$ (data) = " + "{0:.2f}".format(member["data_p"]), fontsize=14)
+    fig.text(0.84,0.69, r"$p$ (sim) = " + "{0:.3f}".format(admr.totalHoleDoping), fontsize=14)
     fig.text(0.84,0.59, r"$\chi^{\rm 2}$ = " + "{0:.3e}".format(member["chi2"]), fontsize=14)
     #############################################
 
@@ -232,9 +233,9 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
 
     ## Save figures list --------------
     if fig_save == True:
-        file_figures = PdfPages(folder + "/" +
-                                "fit_" + str(member["data_T"]) + "K_" +
-                                admr.fileNameFunc() + ".pdf")
+        file_figures = PdfPages(folder + "/data_" + \
+           "p" + "{0:.2f}".format(member["data_p"]) + "_" + \
+           "T" + "{0:.1f}".format(member["data_T"]) + "_fit_" + admr.fileNameFunc() + ".pdf")
         for fig in fig_list[::-1]:
             file_figures.savefig(fig)
         file_figures.close()

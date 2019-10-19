@@ -83,6 +83,7 @@ class ADMR:
 
         # Create the list of parameters for the filename
         file_parameters_list  = [r"p"   + "{0:.3f}".format(self.totalHoleDoping),
+                                 r"T"   + "{0:.0f}".format(CondObject0.T),
                                  r"B"   + "{0:.0f}".format(CondObject0.Bamp),
                                  r"t"   + "{0:.1f}".format(bandObject0.t),
                                  r"mu"  + "{0:.3f}".format(bandObject0.mu),
@@ -100,7 +101,8 @@ class ADMR:
                                          r"gzero" + "{0:.1f}".format(iniCondObject.gamma_0),
                                          r"gdos" + "{0:.1f}".format(iniCondObject.gamma_dos_max),
                                          r"gk"  + "{0:.1f}".format(iniCondObject.gamma_k),
-                                         r"pwr" + "{0:.1f}".format(iniCondObject.power)
+                                         r"pwr" + "{0:.1f}".format(iniCondObject.power),
+                                         r"arc" + "{0:.1f}".format(iniCondObject.factor_arcs)
                                         ])
 
         if bandAF == True:
@@ -210,8 +212,9 @@ class ADMR:
         CondObject0 = self.initialCondObjectDict[self.bandNamesList[0]]
 
         # Labels
-        fig.text(0.8, 0.9, r"$B$ = " + "{0:.0f}".format(CondObject0.Bamp) + " T")
-        fig.text(0.8, 0.84, r"$p$ = " + "{0:.3f}".format(self.totalHoleDoping))
+        fig.text(0.8, 0.9, r"$T$ = " + "{0:.0f}".format(CondObject0.T) + " K")
+        fig.text(0.8, 0.84, r"$B$ = " + "{0:.0f}".format(CondObject0.Bamp) + " T")
+        fig.text(0.8, 0.78, r"$p$ = " + "{0:.3f}".format(self.totalHoleDoping))
 
         ## Colors
         if self.Bphi_array.size > 4:
@@ -248,7 +251,7 @@ class ADMR:
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:
-            file_figures = PdfPages(folder + "/" + self.fileNameFunc() + ".pdf")
+            file_figures = PdfPages(folder + "/Rzz_" + self.fileNameFunc() + ".pdf")
             for fig in fig_list[::-1]:
                 file_figures.savefig(fig)
             file_figures.close()

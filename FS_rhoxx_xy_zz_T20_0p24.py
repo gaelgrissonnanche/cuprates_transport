@@ -15,7 +15,7 @@ e = 1.6e-19 # C
 ## Field parameters ------------------
 Bmin = 0.1
 Bmax = 40
-Bstep = 3
+Bstep = 10
 B_array = np.arange(Bmin, Bmax, Bstep)
 
 ## BandObject ------------------------
@@ -33,8 +33,8 @@ bandObject.doping()
 # # bandObject.figDiscretizeFS2D()
 
 ## Conductivity Object ---------------
-condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0, Btheta=0,
-                          gamma_0=14.1, gamma_k=75.7, power=12, gamma_dos_max=0) # T = 20K, p = 0.24 from fit ADMR
+condObject = Conductivity(bandObject, Bamp=Bmin, Bphi=0, Btheta=0, T=1,
+                          gamma_0=14.0, gamma_k=78.1, power=12, gamma_dos_max=0) # T = 20K, p = 0.24 from fit ADMR
 condObject.Ntime = 1000 # better for high magnetic field values
 
 
@@ -92,12 +92,6 @@ np.savetxt(file_name + ".dat", Data, fmt='%.7e',
 
 
 
-
-
-
-
-
-
 ## Figures ----------------------------------------------------------------------#
 
 fig_list = []
@@ -113,6 +107,7 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 #############################################
 # fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
+
 
 # Data @ 35T from Daou 2009 @ 20K
 line = axes.plot([35], [6.59], label=r"$p$ = 0.24, T = 20K (data)")

@@ -23,9 +23,10 @@ bandObject.densityOfState()
 # bandObject.figMultipleFS2D()
 
 ## Conductivity
-condObject = Conductivity(bandObject, Bamp=45,
-                          gamma_0=15.1, gamma_k=66, power=12, gamma_dos_max=0)
-condObject.solveMovementFunc()
+condObject = Conductivity(bandObject, Bamp=45, T=0,
+                          gamma_0=15.0, gamma_k=66, power=12, gamma_dos_max=0)
+# condObject.figdfdE()
+# condObject.solveMovementFunc()
 # condObject.figScatteringPhi(kz=0)
 # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
