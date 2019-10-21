@@ -208,7 +208,7 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
 
     for i, phi in enumerate(Bphi_array):
         line = axes.plot(admr.Btheta_array, admr.rzz_array[i,:])
-        plt.setp(line, ls ="", c = colors[i], lw = 3, marker = "o", mfc = colors[i], ms = 7, mec = colors[i], mew= 0)
+        plt.setp(line, ls ="-", c = colors[i], lw = 1, marker = "o", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)
 
     ######################################################
     plt.legend(loc = 0, fontsize = 14, frameon = False, numpoints=1, markerscale = 1, handletextpad=0.5)

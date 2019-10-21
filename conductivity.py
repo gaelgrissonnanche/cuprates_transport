@@ -27,7 +27,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meVolt * picosecond / Angstrom / hbar**2
 
 
 class Conductivity:
-    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0,
+    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, Ntime=500,
                  T=0, dfdE_cut=0.1,
                  gamma_0=15,
                  gamma_dos_max=0,
@@ -66,7 +66,7 @@ class Conductivity:
 
         # Time parameters
         self.tmax = 8 * self.tauTotMaxFunc()  # in picoseconds
-        self._Ntime = 500 # number of steps in time
+        self._Ntime = Ntime # number of steps in time
         self.dt = self.tmax / self.Ntime
         self.t = np.arange(0, self.tmax, self.dt)
         self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1] # integrand for tau_function

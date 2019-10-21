@@ -103,7 +103,7 @@ print("1 - n = ", np.round(p, 3))
 
 ## Fig / File name -------------------
 dummy = ADMR([condObject], Bphi_array=[0])
-file_name = "results_sim/TS_Rxx_xy_zz" + dummy.fileNameFunc()[3:]
+file_name = "sim/NdLSCO_0p25/TS_Rxx_xy_zz" + dummy.fileNameFunc()[3:]
 
 ## Save Data -------------------------
 Data = np.vstack((T_array, rhoxx_array*1e8, rhoxy_array*1e8, rhozz_array*1e8, RH_array*1e9))
@@ -135,7 +135,7 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 #############################################
 
 # Load data ####################
-data = np.loadtxt("data_NdLSCO_0p25/LNSCOp24c-rhoc-45T-sort.dat",
+data = np.loadtxt("data/NdLSCO_0p25/LNSCOp24c-rhoc-45T-sort.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
@@ -180,7 +180,7 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 #############################################
 
 # Load data ####################
-data = np.loadtxt("data_NdLSCO_0p25/rho_vs_T_NdLSCO_0p24_Daou_2009.dat",
+data = np.loadtxt("data/NdLSCO_0p25/rho_vs_T_NdLSCO_0p24_Daou_2009.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
@@ -228,7 +228,7 @@ axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
 #############################################
 
 ## Load data ####################
-data = np.loadtxt("data_NdLSCO_0p25/RH_vs_T_NdLSCO_0p24_Daou_2009.dat",
+data = np.loadtxt("data/NdLSCO_0p25/RH_vs_T_NdLSCO_0p24_Daou_2009.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
