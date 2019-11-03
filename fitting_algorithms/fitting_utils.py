@@ -144,6 +144,34 @@ def compute_chi2(member, data_dict):
     return member, admr
 
 
+def compute_diff(pars, member, ranges_dict, data_dict):
+    """Compute diff = sim - data matrix"""
+
+    ## Load data
+    Bphi_array, Btheta_array, rzz_data_matrix = load_and_interp_data(member, data_dict)
+
+    ## Update Btheta & Bphi function of the data
+    member["Bphi_array"]  = list(Bphi_array)
+    member["Btheta_min"]  = float(np.min(Btheta_array)) # float need for JSON
+    member["Btheta_max"]  = float(np.max(Btheta_array))
+    member["Btheta_step"] = float(Btheta_array[1] - Btheta_array[0])
+
+    ## Update member with fit parameters
+    for param_name in ranges_dict.keys():
+            member[param_name] = pars[param_name].value
+
+    ## Compute ADMR ------------------------------------------------------------
+    admr = produce_ADMR(member)
+    admr.runADMR()
+    print(admr.fileNameFunc())
+
+    ## Compute diff
+    diff_rzz_matrix = np.zeros_like(rzz_data_matrix)
+    for i in range(Bphi_array.size):
+        diff_rzz_matrix[i, :] = rzz_data_matrix[i, :] - admr.rzz_array[i, :]
+
+    return diff_rzz_matrix
+
 
 def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
     ## Run ADMR from member parameters -----------------------------------------
@@ -208,7 +236,7 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
 
     for i, phi in enumerate(Bphi_array):
         line = axes.plot(admr.Btheta_array, admr.rzz_array[i,:])
-        plt.setp(line, ls ="-", c = colors[i], lw = 1, marker = "o", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)
+        plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)
 
     ######################################################
     plt.legend(loc = 0, fontsize = 14, frameon = False, numpoints=1, markerscale = 1, handletextpad=0.5)

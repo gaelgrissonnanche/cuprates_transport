@@ -18,7 +18,8 @@ Angstrom = 1e-10  # 1 A in meters
 
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
-                 t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00, mu=-0.825,
+                 t=190, tp=-0.14, tpp=0.07,
+                 tz=0.07, tz2=0, mu=-0.825,
                  numberOfKz=7, mesh_ds=1/20, **trash):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
@@ -352,7 +353,7 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     e_2D += -4 * tp * cos(kx * a) * cos(ky * b)
     e_2D += -2 * tpp * (cos(2 * kx * a) + cos(2 * ky * b))
     e_2D += -mu
-    # Kz dispersion
+    # kz dispersion
     d = c / 2.
     e_z = -2 * tz * cos(kz * d)
     e_z = e_z * cos(kx * a / 2) * cos(ky * b / 2)

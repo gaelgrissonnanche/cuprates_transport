@@ -1,10 +1,14 @@
 import numpy as np
 import random
 from copy import deepcopy
-import genetic_utils as utils
+import fitting_utils as utils
+from lmfit import minimize, Parameters, fit_report
 import os
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+
+
+## Genetic algorithm ///////////////////////////////////////////////////////////
 
 def genetic_search(init_member, ranges_dict, data_dict, folder="",
         population_size=100, N_generation=20, mutation_s=0.1, crossing_p=0.9):
@@ -128,6 +132,41 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
     ## Print and Compute the BEST member
     print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
     utils.fig_compare(best_member, data_dict, folder=folder)
+
+
+
+
+
+## Fit search //////////////////////////////////////////////////////////////////
+
+def fit_search(init_member, ranges_dict, data_dict, folder=""):
+
+    ## Initialize
+    pars = Parameters()
+    final_member = deepcopy(init_member)
+
+    for param_name, param_range in ranges_dict.items():
+        pars.add(param_name, value = init_member[param_name], min = param_range[0], max = param_range[-1])
+
+    ## Run fit algorithm
+    out = minimize(utils.compute_diff, pars, args=(init_member, ranges_dict, data_dict))
+
+    ## Display fit report
+    print(fit_report(out.params))
+
+    ## Export final parameters from the fit
+    for param_name in ranges_dict.keys():
+            final_member[param_name] = out.params[param_name].value
+
+    ## Save BEST member to JSON
+    utils.save_member_to_json(final_member, folder=folder)
+
+    ## Compute the FINAL member
+    utils.fig_compare(final_member, data_dict, folder=folder)
+
+
+
+
 
 
 

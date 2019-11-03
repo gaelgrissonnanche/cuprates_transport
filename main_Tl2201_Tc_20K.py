@@ -1,4 +1,3 @@
-import time
 from numpy import pi
 from bandstructure import BandStructure, Pocket, setMuToDoping, doping
 from admr import ADMR
@@ -11,11 +10,13 @@ params = {
     "b": 5.46,
     "c": 23.2,
     "t": 181.25,
-    "tp": -0.4166,
-    "tpp": -0.02193,
-    "tz": 0.07,
+    "tp": -0.28,
+    "tpp": 0.14,
+    "tppp": 0,
+    "tpppp": 0,
+    "tz": 0.015,
     "tz2": 0.00,
-    "mu": -1.345,
+    "mu": -1.25,
     "fixdoping": -2,
     "numberOfKz": 7,
     "mesh_ds": 1 / 20,
@@ -25,9 +26,9 @@ params = {
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
-    "Bphi_array": [0], #[0, 20, 28, 36, 44],
-    "gamma_0": 2.5,
-    "gamma_k": 11,
+    "Bphi_array": [0, 20, 28, 36, 44],
+    "gamma_0": 2,
+    "gamma_k": 20,
     "gamma_dos_max": 0,
     "power": 2,
     "factor_arcs": 1,
