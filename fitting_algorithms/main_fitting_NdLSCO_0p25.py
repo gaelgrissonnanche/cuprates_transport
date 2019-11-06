@@ -27,9 +27,9 @@ init_member = {
     "Btheta_step": 5,
     "Bphi_array": [0, 45],
     "gamma_0": 15.1,
-    "gamma_k": 20,
+    "gamma_k": 71.5,
     "gamma_dos_max": 0,
-    "power": 8,
+    "power": 11.5,
     "factor_arcs": 1,
     "seed": 72,
     "data_T": 25,
@@ -83,13 +83,13 @@ data_dict[6, 45] = ["../data/NdLSCO_0p25/0p25_45degr_45T_6K.dat", 0, 1, 73.5]
 #                 population_size=100, N_generation=50, mutation_s=0.1, crossing_p=0.9)
 
 # Play
-fit_search(init_member, ranges_dict, data_dict, folder="../sim/NdLSCO_0p25")
+# fit_search(init_member, ranges_dict, data_dict, folder="../sim/NdLSCO_0p25")
 
 # utils.save_member_to_json(init_member, folder="../data/NdLSCO_0p25")
 # init_member = utils.load_member_from_json(
 #     "../sim/NdLSCO_0p25",
 #     "data_p0.24_T25.0_fit_p0.240_T0_B45_t320.9_mu-0.977_tp-0.168_tpp0.120_tz0.020_tzz0.000_LargePocket_gzero5.3_gdos338.2_gk0.0_pwr12.0_arc1.0"
 # )
-# utils.fig_compare(init_member, data_dict, folder="../sim/NdLSCO_0p25")
+utils.fig_compare(init_member, data_dict, folder="../sim/NdLSCO_0p25")
 
 

@@ -354,11 +354,9 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     e_2D += -2 * tpp * (cos(2 * kx * a) + cos(2 * ky * b))
     e_2D += -mu
     # kz dispersion
-    d = c / 2.
-    e_z = -2 * tz * cos(kz * d)
-    e_z = e_z * cos(kx * a / 2) * cos(ky * b / 2)
-    e_z = e_z * (cos(kx * a) - cos(ky * b))**2
-    e_z = e_z -2 * tz2 * cos(kz * d)
+    e_z = -2 * tz * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
+    e_z *= (cos(kx * a) - cos(ky * b))**2
+    e_z += -2 * tz2 * cos(kz * c / 2)
 
     return e_2D + e_z
 
