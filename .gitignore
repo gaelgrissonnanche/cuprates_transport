@@ -1,7 +1,7 @@
 # Files #############
-boltzmann_transport/__pycache__
-boltzmann_transport/__pycache__/*
-boltzmann_transport/tempCodeRunnerFile.py
+cuprates_transport/__pycache__
+cuprates_transport/__pycache__/*
+cuprates_transport/tempCodeRunnerFile.py
 
 examples/.ipynb_checkpoints
 examples/data/*

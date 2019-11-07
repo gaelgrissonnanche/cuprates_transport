@@ -5,6 +5,8 @@ from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 
+
+## ONE BAND Horio et al. ///////////////////////////////////////////////////////
 params = {
     "bandname": "LargePocket",
     "a": 3.74767,
@@ -19,7 +21,7 @@ params = {
     "fixdoping": 0.24,
     "numberOfKz": 7,
     "mesh_ds": 1/20,
-    "T" : 0,
+    "T" : 25,
     "Bamp": 45,
     "Btheta_min": 0,
     "Btheta_max": 90,
@@ -35,8 +37,6 @@ params = {
     "data_p": 0.24,
 }
 
-
-## ONE BAND Horio et al. /////////////////////////////////////////////////////////
 bandObject = BandStructure(**params)
 
 ## Discretize
@@ -50,18 +50,12 @@ bandObject.densityOfState()
 
 ## Conductivity
 condObject = Conductivity(bandObject, **params)
-# condObject.figdfdE()
+condObject.figdfdE()
 # condObject.solveMovementFunc()
 # condObject.figScatteringPhi(kz=0)
 # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
 # condObject.figArcs()
-# Best fit p = 0.25
-# condObject = Conductivity(bandObject, Bamp=45,
-#                           gamma_0=15, gamma_k=70, gamma_dos_max=0, power=12)
-
-# condObject = Conductivity(bandObject, Bamp=45,
-#                           gamma_0=10, gamma_k=5, gamma_dos_max=50, power=2)
 
 
 ## ADMR
