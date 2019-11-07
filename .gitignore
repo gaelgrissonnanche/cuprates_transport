@@ -1,11 +1,14 @@
-__pycache__
-.ipynb_checkpoints
-Readme_units_conversion_ADMR.pdf
-experimental_data
-equi-energ.nb
-readme_units_conversion_ADMR.pdf
-testInheritance.py
-trajectory_yawen_2018-11-28
-tempCodeRunnerFile.py
-RH_Gael.dat
+# Files #############
+boltzmann_transport/__pycache__
+boltzmann_transport/__pycache__/*
+boltzmann_transport/tempCodeRunnerFile.py
+
+examples/.ipynb_checkpoints
+examples/data/*
+examples/sim/*
+examples/tempCodeRunnerFile.py
+
+doc/readme_units_conversion_ADMR.pdf
+
 .vscode
+

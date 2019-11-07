@@ -2,9 +2,9 @@ import time
 from numpy import pi
 from copy import deepcopy
 
-from bandstructure import *
-from admr import ADMR
-from conductivity import Conductivity
+from cuprates_transport.bandstructure import *
+from cuprates_transport.admr import ADMR
+from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<><<<<<<<<<<<<<<<<<<<<
 
 # ONE Band AF ///////////////////////////////////////////////////////////////////

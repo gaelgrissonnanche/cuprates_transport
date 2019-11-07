@@ -1,8 +1,8 @@
 import numpy as np
 import random
 from copy import deepcopy
-from fitting import genetic_search, fit_search
-import fitting_utils as utils
+from cuprates_transport.fitting import genetic_search, fit_search
+import cuprates_transport.fitting_utils as utils
 import os
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
