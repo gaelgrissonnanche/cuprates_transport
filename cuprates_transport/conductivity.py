@@ -319,14 +319,12 @@ class Conductivity:
                             np.sum( self.bandObject.dos *
                                     self.bandObject.dkf *
                                     self.VelocitiesProduct(i=i, j=j) )
+
         else:
-
             sigma_tot = 0
-            mu_init = self.bandObject.mu
             for n in range(self._epsilon_N+1):
-
-                self.bandObject.mu = mu_init - self._epsilon_cut + n * self.d_epsilon
-                self.bandObject.discretize_FS()
+                epsilon = (- self._epsilon_cut + n * self.d_epsilon) * self.bandObject.t
+                self.bandObject.discretize_FS(epsilon=epsilon)
                 self.bandObject.densityOfState()
                 ## !!!!  Do not forget to update scattering rates !!! ##
                 ## Create properties for tmax, etc.
@@ -339,7 +337,6 @@ class Conductivity:
                 # Sum over the energie
                 sigma_tot += sigma_epsilon * self.d_epsilon * (- self.dfdE(-self._epsilon_cut + n * self.d_epsilon))
 
-            self.bandObject.mu = mu_init
             self.sigma[i, j] = sigma_tot
 
 

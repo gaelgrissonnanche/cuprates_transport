@@ -62,39 +62,55 @@ class BandStructure:
         self._tz2 = self.tz2 * t
         self._mu  = self.mu  * t
         self._t = t
+        self.erase_Fermi_surface()
     t = property(_get_t, _set_t)
 
     def _get_mu(self):
         return self._mu / self._t
     def _set_mu(self, mu):
         self._mu = mu * self._t
+        self.erase_Fermi_surface()
     mu = property(_get_mu, _set_mu)
 
     def _get_tp(self):
         return self._tp / self._t
     def _set_tp(self, tp):
         self._tp = tp * self._t
+        self.erase_Fermi_surface()
     tp = property(_get_tp, _set_tp)
 
     def _get_tpp(self):
         return self._tpp / self._t
     def _set_tpp(self, tpp):
         self._tpp = tpp * self._t
+        self.erase_Fermi_surface()
     tpp = property(_get_tpp, _set_tpp)
 
     def _get_tz(self):
         return self._tz / self._t
     def _set_tz(self, tz):
         self._tz = tz * self._t
+        self.erase_Fermi_surface()
     tz = property(_get_tz, _set_tz)
 
     def _get_tz2(self):
         return self._tz2 / self._t
     def _set_tz2(self, tz2):
         self._tz2 = tz2 * self._t
+        self.erase_Fermi_surface()
     tz2 = property(_get_tz2, _set_tz2)
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def erase_Fermi_surface(self):
+        self.kf  = None
+        self.vf  = None
+        self.dkf = None
+        self.p    = None
+        self.n    = None
+        self.dos  = None
+        self.vf_mean  = None
+        self.numberPointsPerKz_list = []
+
     def bandParameters(self):
         return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2]
 
@@ -109,13 +125,13 @@ class BandStructure:
         ky_a = np.linspace(-pi / self.b, pi / self.b, resY)
         kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, resZ)
         kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-        E = self.e_3D_func(kxx, kyy, kzz)
-        return E
+        epsilon = self.e_3D_func(kxx, kyy, kzz)
+        return epsilon
 
     def updateFilling(self, resX=500, resY=500, resZ=10):
-        E = self.dispersionMesh(resX, resY, resZ)
-        kVolume = E.shape[0] * E.shape[1] * E.shape[2]
-        self.n = 2 * np.sum(np.greater_equal(0, E)) / kVolume / self.numberOfBZ # 2 is for the spin
+        epsilon = self.dispersionMesh(resX, resY, resZ)
+        kVolume = epsilon.shape[0] * epsilon.shape[1] * epsilon.shape[2]
+        self.n = 2 * np.sum(np.greater_equal(0, epsilon)) / kVolume / self.numberOfBZ # 2 is for the spin
         self.p = 1 - self.n
         return self.n
 
@@ -131,11 +147,11 @@ class BandStructure:
         return self.n
 
     def dopingPerkz(self, resX=500, resY=500, resZ=10):
-        E = self.dispersionMesh(resX, resY, resZ)
+        epsilon = self.dispersionMesh(resX, resY, resZ)
         # Number of k in the Brillouin zone per plane
-        Nz = E.shape[0] * E.shape[1]
+        Nz = epsilon.shape[0] * epsilon.shape[1]
         # Number of electron in the Brillouin zone per plane
-        n_per_kz = 2 * np.sum(np.greater_equal(0, E), axis=(0, 1)) / Nz / self.numberOfBZ # 2 is for the spin
+        n_per_kz = 2 * np.sum(np.greater_equal(0, epsilon), axis=(0, 1)) / Nz / self.numberOfBZ # 2 is for the spin
         p_per_kz = 1 - n_per_kz
         return p_per_kz
 
@@ -146,7 +162,7 @@ class BandStructure:
     def setMuToDoping(self, pTarget, ptol=0.001):
         self.mu = optimize.brentq(self.diffDoping, -10, 10, args=(pTarget,), xtol=ptol)
 
-    def discretize_FS(self, mesh_xy_rough=501, PrintEnding=False):
+    def discretize_FS(self, epsilon=0, mesh_xy_rough=501, PrintEnding=False):
         """
         mesh_xy_rough: make denser rough meshgrid to interpolate after
         """
@@ -160,7 +176,7 @@ class BandStructure:
 
         for j, kz in enumerate(kz_a):
             bands = self.e_3D_func(kxx, kyy, kz)
-            contours = measure.find_contours(bands, 0)
+            contours = measure.find_contours(bands, epsilon)
             numberPointsPerKz = 0
 
             for i, contour in enumerate(contours):
@@ -352,13 +368,14 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     e_2D = -2 * t * (cos(kx * a) + cos(ky * b))
     e_2D += -4 * tp * cos(kx * a) * cos(ky * b)
     e_2D += -2 * tpp * (cos(2 * kx * a) + cos(2 * ky * b))
-    e_2D += -mu
     # kz dispersion
     e_z = -2 * tz * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
     e_z *= (cos(kx * a) - cos(ky * b))**2
     e_z += -2 * tz2 * cos(kz * c / 2)
 
-    return e_2D + e_z
+    epsilon = e_2D + e_z - mu
+
+    return epsilon
 
 
 @jit(nopython=True, cache=True, parallel=True)

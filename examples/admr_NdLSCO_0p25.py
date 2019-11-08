@@ -21,7 +21,7 @@ params = {
     "fixdoping": 0.24,
     "numberOfKz": 7,
     "mesh_ds": 1/20,
-    "T" : 25,
+    "T" : 0,
     "Bamp": 45,
     "Btheta_min": 0,
     "Btheta_max": 90,
@@ -50,8 +50,8 @@ bandObject.densityOfState()
 
 ## Conductivity
 condObject = Conductivity(bandObject, **params)
-condObject.figdfdE()
-# condObject.solveMovementFunc()
+# condObject.figdfdE()
+condObject.solveMovementFunc()
 # condObject.figScatteringPhi(kz=0)
 # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
