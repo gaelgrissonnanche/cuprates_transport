@@ -1,11 +1,10 @@
+import os
 import numpy as np
 import random
 from copy import deepcopy
-import fitting_utils as utils
 from lmfit import minimize, Parameters, fit_report
-import os
+import cuprates_transport.fitting_admr_utils as utils
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
 
 
 ## Genetic algorithm ///////////////////////////////////////////////////////////

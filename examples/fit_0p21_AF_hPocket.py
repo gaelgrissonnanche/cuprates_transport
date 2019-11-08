@@ -5,28 +5,31 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lmfit import minimize, Parameters, fit_report
 
-from bandstructure import BandStructure
-from conductivity import Conductivity
-from admr import ADMR
+from cuprates_transport.bandstructure import Pocket
+from cuprates_transport.conductivity import Conductivity
+from cuprates_transport.admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 sample_name = r"Nd-LSCO $p$ = 0.21"
 
 ## Initial parameters
-gamma_0_ini = 15  # in THZ
-gamma_0_vary = True
+gamma_0_ini = 24.17  # in THZ
+gamma_0_vary = False
 
 gamma_dos_ini = 0  # in THz
 gamma_dos_vary = False
 
-gamma_k_ini = 70  # in THz
-gamma_k_vary = True
+gamma_k_ini = 0  # in THz
+gamma_k_vary = False
 
 power_ini = 12
 power_vary = False
 
-mu_ini = -0.78
+mu_ini = -0.4938
 mu_vary = False
+
+M_ini = 0.0041
+M_vary = False
 
 ## Graph values
 T = 25  # in Kelvin
@@ -37,11 +40,12 @@ Btheta_array = np.arange(0, 95, 5)
 ## Fit >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## Initialize the BandStructure Object
-bandObject = BandStructure(bandname="hPocket",
-                           a=3.74767, b=3.74767, c=13.2,
-                           t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-                           mu=mu_ini,
-                           numberOfKz=7, mesh_ds=1/20)
+bandObject = Pocket(bandname="hPocket",
+                    a=3.74767, b=3.74767, c=13.2,
+                    t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
+                    M=M_ini,
+                    mu=mu_ini,
+                    numberOfKz=7, mesh_ds=1/40)
 
 ## Interpolate data over theta of simulation
 data = np.loadtxt(
@@ -74,18 +78,21 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
     gamma_k = pars["gamma_k"].value
     power = pars["power"].value
     mu = pars["mu"].value
+    M = pars["M"].value
 
     print("gamma_0 = ", gamma_0)
     print("gamma_dos = ", gamma_dos)
     print("gamma_k = ", gamma_k)
     print("power = ", power)
     print("mu = ", mu)
+    print("M = ", M)
 
     power = int(power)
     if power % 2 == 1:
         power += 1
     start_total_time = time.time()
     bandObject.mu = mu
+    bandObject.M = M
     bandObject.discretize_FS()
     bandObject.densityOfState()
     bandObject.doping()
@@ -111,6 +118,7 @@ pars.add("gamma_dos",      value=gamma_dos_ini, vary=gamma_dos_vary, min=0)
 pars.add("gamma_k", value=gamma_k_ini, vary=gamma_k_vary, min=0)
 pars.add("power",   value=power_ini, vary=power_vary, min=2)
 pars.add("mu",      value=mu_ini, vary=mu_vary)
+pars.add("M",      value=M_ini, vary=M_vary, min=0.001)
 
 ## Run fit algorithm
 out = minimize(residualFunc, pars, args=(
@@ -125,9 +133,11 @@ gamma_dos = out.params["gamma_dos"].value
 gamma_k = out.params["gamma_k"].value
 power = out.params["power"].value
 mu = out.params["mu"].value
+M = out.params["M"].value
 
 ## Compute ADMR with final parameters from the fit
 bandObject.mu = mu
+bandObject.M = M
 bandObject.discretize_FS()
 bandObject.densityOfState()
 bandObject.doping()
@@ -178,7 +188,7 @@ fig.text(0.84,0.82, r"$H$ = " + str(Bamp) + " T", ha = "left")
 
 #############################################
 axes.set_xlim(0,90)   # limit for xaxis
-axes.set_ylim(0.990,1.008) # leave the ymax auto, but fix ymin
+axes.set_ylim(0.990,1.003) # leave the ymax auto, but fix ymin
 axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
 axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
 #############################################
@@ -225,5 +235,5 @@ axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
 axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
 plt.show()
-fig.savefig("data_NdLSCO_0p21/fit_NdLSCO_0p21.pdf", bbox_inches = "tight")
+fig.savefig("data_NdLSCO_0p21/fit_NdLSCO_0p21_AF.pdf", bbox_inches = "tight")
 plt.close()

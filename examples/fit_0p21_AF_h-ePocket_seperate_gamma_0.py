@@ -4,17 +4,21 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lmfit import minimize, Parameters, fit_report
+from copy import deepcopy
 
-from bandstructure import Pocket
-from conductivity import Conductivity
-from admr import ADMR
+from cuprates_transport.bandstructure import Pocket
+from cuprates_transport.conductivity import Conductivity
+from cuprates_transport.admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 sample_name = r"Nd-LSCO $p$ = 0.21"
 
 ## Initial parameters
-gamma_0_ini = 24.17  # in THZ
-gamma_0_vary = False
+h_gamma_0_ini = 22  # in THZ
+h_gamma_0_vary = True
+
+e_gamma_0_ini = 22  # in THZ
+e_gamma_0_vary = True
 
 gamma_dos_ini = 0  # in THz
 gamma_dos_vary = False
@@ -26,10 +30,10 @@ power_ini = 12
 power_vary = False
 
 mu_ini = -0.4938
-mu_vary = False
+mu_vary = True
 
 M_ini = 0.0041
-M_vary = False
+M_vary = True
 
 ## Graph values
 T = 25  # in Kelvin
@@ -40,12 +44,16 @@ Btheta_array = np.arange(0, 95, 5)
 ## Fit >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 
 ## Initialize the BandStructure Object
-bandObject = Pocket(bandname="hPocket",
+hPocket = Pocket(bandname="hPocket",
                     a=3.74767, b=3.74767, c=13.2,
                     t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
                     M=M_ini,
                     mu=mu_ini,
-                    numberOfKz=7, mesh_ds=1/40)
+                    numberOfKz=7, mesh_ds=1/80)
+
+ePocket = deepcopy(hPocket)
+ePocket.electronPocket = True
+ePocket.bandname = "ePocket"
 
 ## Interpolate data over theta of simulation
 data = np.loadtxt(
@@ -71,16 +79,18 @@ rzz_45 = np.interp(Btheta_array, x, y)
 
 
 ## Function residual ########
-def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
+def residualFunc(pars, hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45):
 
-    gamma_0 = pars["gamma_0"].value
+    h_gamma_0 = pars["h_gamma_0"].value
+    e_gamma_0 = pars["e_gamma_0"].value
     gamma_dos = pars["gamma_dos"].value
     gamma_k = pars["gamma_k"].value
     power = pars["power"].value
     mu = pars["mu"].value
     M = pars["M"].value
 
-    print("gamma_0 = ", gamma_0)
+    print("h_gamma_0 = ", h_gamma_0)
+    print("e_gamma_0 = ", e_gamma_0)
     print("gamma_dos = ", gamma_dos)
     print("gamma_k = ", gamma_k)
     print("power = ", power)
@@ -91,17 +101,29 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
     if power % 2 == 1:
         power += 1
     start_total_time = time.time()
-    bandObject.mu = mu
-    bandObject.M = M
-    bandObject.discretize_FS()
-    bandObject.densityOfState()
-    bandObject.doping()
-    condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0,
+
+    # hPocket
+    hPocket.mu = mu
+    hPocket.M = M
+    hPocket.discretize_FS(mesh_xy_rough=501)
+    hPocket.densityOfState()
+    hPocket.doping()
+    hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=h_gamma_0,
                               gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
-    ADMRObject = ADMR([condObject])
+
+    # ePocket
+    ePocket.mu = mu
+    ePocket.M = M
+    ePocket.discretize_FS(mesh_xy_rough=501)
+    ePocket.densityOfState()
+    ePocket.doping()
+    ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=e_gamma_0,
+                              gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
+
+    ADMRObject = ADMR([hPocketCondObject, ePocketCondObject])
     ADMRObject.Btheta_array = Btheta_array
     ADMRObject.runADMR()
-    print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
+    print("ADMR time : %.6s seconds \n" % (time.time() - start_total_time))
 
     diff_0 = rzz_0 - ADMRObject.rzz_array[0, :]
     diff_15 = rzz_15 - ADMRObject.rzz_array[1, :]
@@ -113,22 +135,24 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
 
 ## Initialize
 pars = Parameters()
-pars.add("gamma_0", value=gamma_0_ini, vary=gamma_0_vary, min=0)
-pars.add("gamma_dos",      value=gamma_dos_ini, vary=gamma_dos_vary, min=0)
-pars.add("gamma_k", value=gamma_k_ini, vary=gamma_k_vary, min=0)
-pars.add("power",   value=power_ini, vary=power_vary, min=2)
-pars.add("mu",      value=mu_ini, vary=mu_vary)
-pars.add("M",      value=M_ini, vary=M_vary, min=0.001)
+pars.add("h_gamma_0", value=h_gamma_0_ini, vary=h_gamma_0_vary, min=0)
+pars.add("e_gamma_0", value=e_gamma_0_ini, vary=e_gamma_0_vary, min=0)
+pars.add("gamma_dos", value=gamma_dos_ini, vary=gamma_dos_vary, min=0)
+pars.add("gamma_k",   value=gamma_k_ini, vary=gamma_k_vary, min=0)
+pars.add("power",     value=power_ini, vary=power_vary, min=2)
+pars.add("mu",        value=mu_ini, vary=mu_vary)
+pars.add("M",         value=M_ini, vary=M_vary, min=0.001)
 
 ## Run fit algorithm
 out = minimize(residualFunc, pars, args=(
-    bandObject, rzz_0, rzz_15, rzz_30, rzz_45))
+    hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45), method='least_squares')
 
 ## Display fit report
 print(fit_report(out.params))
 
 ## Export final parameters from the fit
-gamma_0 = out.params["gamma_0"].value
+h_gamma_0 = out.params["h_gamma_0"].value
+e_gamma_0 = out.params["e_gamma_0"].value
 gamma_dos = out.params["gamma_dos"].value
 gamma_k = out.params["gamma_k"].value
 power = out.params["power"].value
@@ -136,14 +160,25 @@ mu = out.params["mu"].value
 M = out.params["M"].value
 
 ## Compute ADMR with final parameters from the fit
-bandObject.mu = mu
-bandObject.M = M
-bandObject.discretize_FS()
-bandObject.densityOfState()
-bandObject.doping()
-condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0,
-                          gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
-ADMRObject = ADMR([condObject])
+# hPocket
+hPocket.mu = mu
+hPocket.M = M
+hPocket.discretize_FS()
+hPocket.densityOfState()
+hPocket.doping()
+hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=h_gamma_0,
+                                 gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
+
+# ePocket
+ePocket.mu = mu
+ePocket.M = M
+ePocket.discretize_FS()
+ePocket.densityOfState()
+ePocket.doping()
+ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=e_gamma_0,
+                                 gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
+
+ADMRObject = ADMR([hPocketCondObject, ePocketCondObject])
 ADMRObject.Btheta_array = Btheta_array
 ADMRObject.runADMR()
 ADMRObject.fileADMR(folder="data_NdLSCO_0p21")

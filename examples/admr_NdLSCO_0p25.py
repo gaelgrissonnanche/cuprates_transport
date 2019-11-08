@@ -1,10 +1,12 @@
 from numpy import pi
-from bandstructure import BandStructure, Pocket, setMuToDoping, doping
-from admr import ADMR
-from conductivity import Conductivity
+from cuprates_transport.bandstructure import BandStructure, Pocket, setMuToDoping, doping
+from cuprates_transport.admr import ADMR
+from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 
+
+## ONE BAND Horio et al. ///////////////////////////////////////////////////////
 params = {
     "bandname": "LargePocket",
     "a": 3.74767,
@@ -35,8 +37,6 @@ params = {
     "data_p": 0.24,
 }
 
-
-## ONE BAND Horio et al. /////////////////////////////////////////////////////////
 bandObject = BandStructure(**params)
 
 ## Discretize
@@ -51,17 +51,11 @@ bandObject.densityOfState()
 ## Conductivity
 condObject = Conductivity(bandObject, **params)
 # condObject.figdfdE()
-# condObject.solveMovementFunc()
+condObject.solveMovementFunc()
 # condObject.figScatteringPhi(kz=0)
 # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
 # condObject.figArcs()
-# Best fit p = 0.25
-# condObject = Conductivity(bandObject, Bamp=45,
-#                           gamma_0=15, gamma_k=70, gamma_dos_max=0, power=12)
-
-# condObject = Conductivity(bandObject, Bamp=45,
-#                           gamma_0=10, gamma_k=5, gamma_dos_max=50, power=2)
 
 
 ## ADMR

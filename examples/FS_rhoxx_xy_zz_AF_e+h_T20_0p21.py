@@ -6,9 +6,9 @@ from matplotlib.ticker import AutoMinorLocator, MultipleLocator, FormatStrFormat
 from matplotlib.backends.backend_pdf import PdfPages
 from copy import deepcopy
 
-from bandstructure import BandStructure, Pocket, doping
-from conductivity import Conductivity
-from admr import ADMR
+from cuprates_transport.bandstructure import BandStructure, Pocket, doping
+from cuprates_transport.conductivity import Conductivity
+from cuprates_transport.admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 e = 1.6e-19 # C
@@ -18,7 +18,7 @@ c = 13.3e-10 # m
 ## Field parameters ------------------
 Bmin = 0.1
 Bmax = 40
-Bstep = 5
+Bstep = 1
 B_array = np.arange(Bmin, Bmax, Bstep)
 
 ## BandObject ------------------------
@@ -26,9 +26,9 @@ B_array = np.arange(Bmin, Bmax, Bstep)
 hPocket = Pocket(bandname="hPocket",
                  a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tz=0.07, tz2=0.00,
-                 M=0.004,
-                 mu=-0.494,
-                 numberOfKz=7, mesh_ds=1/100)
+                 M=0.001,
+                 mu=-0.636,
+                 numberOfKz=7, mesh_ds=1/80)
 
 ePocket = deepcopy(hPocket)
 ePocket.electronPocket = True
@@ -45,9 +45,10 @@ ePocket.doping()
 
 
 ## Conductivity Object ---------------
-hPocketCondObject = Conductivity(hPocket, Bamp=45,
-                    gamma_0=15, gamma_k=0, power=12, gamma_dos_max=0, factor_arcs=1)
+hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=18.7, gamma_k=0, power=12, gamma_dos=0)
+ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=17.9, gamma_k=0, power=12, gamma_dos=0)
 hPocketCondObject.Ntime = 1000  # better for high magnetic field values
+ePocketCondObject.Ntime = 1000  # better for high magnetic field values
 
 ## Transport coeffcients -------------
 
@@ -64,9 +65,22 @@ for i, B in enumerate(B_array):
     hPocketCondObject.chambersFunc(0, 0)
     hPocketCondObject.chambersFunc(0, 1)
     hPocketCondObject.chambersFunc(2, 2)
-    sigma_xx = hPocketCondObject.sigma[0, 0]
-    sigma_xy = hPocketCondObject.sigma[0, 1]
-    sigma_zz = hPocketCondObject.sigma[2, 2]
+    sigma_xx_h = hPocketCondObject.sigma[0, 0]
+    sigma_xy_h = hPocketCondObject.sigma[0, 1]
+    sigma_zz_h = hPocketCondObject.sigma[2, 2]
+
+    ePocketCondObject.Bamp = B
+    ePocketCondObject.solveMovementFunc()
+    ePocketCondObject.chambersFunc(0, 0)
+    ePocketCondObject.chambersFunc(0, 1)
+    ePocketCondObject.chambersFunc(2, 2)
+    sigma_xx_e = ePocketCondObject.sigma[0, 0]
+    sigma_xy_e = ePocketCondObject.sigma[0, 1]
+    sigma_zz_e = ePocketCondObject.sigma[2, 2]
+
+    sigma_xx = sigma_xx_h + sigma_xx_e
+    sigma_xy = sigma_xy_h + sigma_xy_e
+    sigma_zz = sigma_zz_h + sigma_zz_e
 
     rhoxx = sigma_xx / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
     rhoxy = sigma_xy / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
@@ -78,11 +92,11 @@ for i, B in enumerate(B_array):
     rhozz_array[i] = rhozz
     RH_array[i] = RH
 
-    print("{0:.0f}".format(i+1) + " / " + "{0:.0f}".format(len(B_array)))
+    print("{0:.0f}".format(i) + " / " + "{0:.0f}".format(len(B_array)))
 
 
 ## Doping
-dummy = ADMR([hPocketCondObject])
+dummy = ADMR([hPocketCondObject, ePocketCondObject])
 dummy.totalHoleDoping = doping([hPocket, ePocket])
 
 ## Info results ----------------------
@@ -119,6 +133,7 @@ np.savetxt(file_name + ".dat", Data, fmt='%.7e',
 fig_list = []
 
 ## Parameters ///////////////////////////////////////////////////////////////////#
+fig_list.append(ePocketCondObject.figParameters(fig_show=False))
 fig_list.append(hPocketCondObject.figParameters(fig_show=False))
 
 
@@ -130,16 +145,16 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 # fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
 #############################################
 
-## Data @ 16T from PPMS @ 20K for p = 0.21 c-axis Francis Report
-line = axes.plot([16], [40], label=r"$p$ = 0.22, T = 20K (data)")
+## Data @ 45T from PPMS @ 20K for p = 0.22 c-axis Cyr-Choinere 2010
+line = axes.plot([35], [27], label=r"$p$ = 0.22, T = 20K (data)")
 plt.setp(line, ls ="", c = '#c0c0c0', lw = 3, marker = "s", mfc = '#c0c0c0', ms = 9, mec = '#c0c0c0', mew= 0)
 
-line = axes.plot(B_array, rhozz_array*1e5, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping) + " (sim h AF)")
+line = axes.plot(B_array, rhozz_array*1e5, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping) + " (sim e+h AF)")
 plt.setp(line, ls ="-", c = '#ff6a6a', lw = 3, marker = "", mfc = '#ff6a6a', ms = 7, mec = '#ff6a6a', mew= 0)
 
 #############################################
 axes.set_xlim(0, Bmax)
-axes.set_ylim(0, 55)
+axes.set_ylim(0, 35)
 # axes.set_ylim(0, 1.25*np.max(rhozz_array*1e5))
 axes.tick_params(axis='x', which='major', pad=7)
 axes.tick_params(axis='y', which='major', pad=8)
@@ -180,7 +195,7 @@ rhoxx_data = data[:, 1]
 line = axes.plot(B_data, rhoxx_data, label=r"$p$ = 0.21, T = 20K (data)")
 plt.setp(line, ls ="-", c = '#c0c0c0', lw = 3, marker = "", mfc = '#c0c0c0', ms = 7, mec = '#c0c0c0', mew= 0)
 
-line = axes.plot(B_array, rhoxx_array*1e8, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping) + " (sim h AF)")
+line = axes.plot(B_array, rhoxx_array*1e8, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping) + " (sim e+h AF)")
 plt.setp(line, ls ="-", c = '#0080ff', lw = 3, marker = "", mfc = '#0080ff', ms = 7, mec = '#0080ff', mew= 0)
 
 #############################################
@@ -228,7 +243,7 @@ RH_data = data[:, 2]
 line = axes.plot(B_data, RH_data, label=r"$p$ = 0.21, T = 20K (data)")
 plt.setp(line, ls ="-", c = '#c0c0c0', lw = 3, marker = "", mfc = '#c0c0c0', ms = 7, mec = '#c0c0c0', mew= 0)
 
-line = axes.plot(B_array, RH_array * 1e9, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping)+ " (sim h AF)")
+line = axes.plot(B_array, RH_array * 1e9, label=r"$p$ = " + "{0:.3f}".format(dummy.totalHoleDoping)+ " (sim e+h AF)")
 plt.setp(line, ls="-", c='#00ff80', lw=3, marker="",
          mfc='#00ff80', ms=7, mec='#00ff80', mew=0)
 

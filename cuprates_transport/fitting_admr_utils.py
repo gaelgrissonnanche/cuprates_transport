@@ -9,14 +9,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
 
-# to get the parent dir in the path
-from inspect import getsourcefile
-current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
-sys.path.insert(0, current_dir[:current_dir.rfind(os.path.sep)])
-
-from bandstructure import BandStructure, Pocket, setMuToDoping, doping
-from admr import ADMR
-from conductivity import Conductivity
+from cuprates_transport.bandstructure import BandStructure, Pocket, setMuToDoping, doping
+from cuprates_transport.admr import ADMR
+from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
