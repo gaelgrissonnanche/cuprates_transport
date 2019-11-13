@@ -252,6 +252,11 @@ class BandStructure:
         # self.vf_mean = np.mean(sqrt( self.vf[0,:]**2+self.vf[1,:]**2+self.vf[2,:]**2 )) * units_vf
         return dos
 
+    # def dos_epsilon(self):
+
+    #     dos = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
+
+
     ## Figures ////////////////////////////////////////////////////////////////#
 
     #///// RC Parameters //////#

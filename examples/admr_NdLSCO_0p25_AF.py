@@ -1,4 +1,3 @@
-import time
 from numpy import pi
 from copy import deepcopy
 
@@ -45,11 +44,9 @@ h_condObject = Conductivity(hPocket, Bamp=45,
 # h_condObject.figLifeTime()
 
 ## ADMR
-start_total_time = time.time()
 ADMRObject = ADMR([h_condObject])
 ADMRObject.totalHoleDoping = doping([hPocket, ePocket])
 ADMRObject.runADMR()
-print("ADMR time : %.6s seconds" % (time.time() - start_total_time))
 ADMRObject.fileADMR(folder="results_sim")
 ADMRObject.figADMR(folder="results_sim")
 
@@ -85,12 +82,10 @@ ADMRObject.figADMR(folder="results_sim")
 
 # hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=18.7, gamma_k=0, power=12, gamma_dos=0)
 # ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=17.9, gamma_k=0, power=12, gamma_dos=0)
-# start_total_time = time.time()
 # amro2band = ADMR([ePocketCondObject, hPocketCondObject])
 # amro2band.totalHoleDoping = doping([hPocket, ePocket])
 # # amro2band = ADMR([hPocketCondObject])
 # # amro2band = ADMR([ePocketCondObject])
 # amro2band.runADMR()
-# print("amro2bands time : %.6s seconds" % (time.time() - start_total_time))
 # amro2band.fileADMR(folder="results_sim")
 # amro2band.figADMR(folder="results_sim")
