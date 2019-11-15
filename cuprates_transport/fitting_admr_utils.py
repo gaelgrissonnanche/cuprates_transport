@@ -4,6 +4,7 @@ import json
 import argparse
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.stats import chisquare
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
@@ -104,7 +105,7 @@ def load_and_interp_data(member, data_dict):
 
         data = np.loadtxt(filename, dtype="float", comments="#")
         theta = data[:, col_theta]
-        rzz = data[:, col_rzz]
+        rzz = data[:, col_rzz] / data[0, col_rzz]
         rzz_i = np.interp(Btheta_array, theta, rzz) # "i" is for interpolated
 
         rzz_data_matrix[i, :] = rzz_i
@@ -131,9 +132,7 @@ def compute_chi2(member, data_dict):
     print(admr.fileNameFunc())
 
     ## Compute Chi^2
-    chi2 = 0
-    for i in range(Bphi_array.size):
-        chi2 += np.sum(np.square(admr.rzz_array[i,:] - rzz_data_matrix[i,:]))
+    chi2 = np.sum((admr.rzz_array.flatten() - rzz_data_matrix.flatten())**2)
 
     member['chi2'] = float(chi2)
     return member, admr
