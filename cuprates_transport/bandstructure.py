@@ -18,7 +18,7 @@ Angstrom = 1e-10  # 1 A in meters
 
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
-                 t=190, tp=-0.14, tpp=0.07,
+                 t=190, tp=-0.14, tpp=0.07, tppp=0, tpppp=0,
                  tz=0.07, tz2=0, mu=-0.825,
                  numberOfKz=7, mesh_ds=1/20, **trash):
         self.a    = a  # in Angstrom
@@ -27,6 +27,8 @@ class BandStructure:
         self._t   = t  # meV
         self._tp  = tp  * t
         self._tpp = tpp * t
+        self._tppp = tppp * t
+        self._tpppp = tpppp * t
         self._tz  = tz  * t
         self._tz2 = tz2 * t
         self._mu  = mu  * t
@@ -86,6 +88,20 @@ class BandStructure:
         self.erase_Fermi_surface()
     tpp = property(_get_tpp, _set_tpp)
 
+    def _get_tppp(self):
+        return self._tppp / self._t
+    def _set_tppp(self, tppp):
+        self._tppp = tppp * self._t
+        self.erase_Fermi_surface()
+    tppp = property(_get_tppp, _set_tppp)
+
+    def _get_tppp(self):
+        return self._tppp / self._t
+    def _set_tppp(self, tppp):
+        self._tppp = tppp * self._t
+        self.erase_Fermi_surface()
+    tppp = property(_get_tppp, _set_tppp)
+
     def _get_tz(self):
         return self._tz / self._t
     def _set_tz(self, tz):
@@ -112,7 +128,7 @@ class BandStructure:
         self.numberPointsPerKz_list = []
 
     def bandParameters(self):
-        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tz, self._tz2]
+        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tppp, self._tpppp, self._tz, self._tz2]
 
     def e_3D_func(self, kx, ky, kz):
         return optimized_e_3D_func(kx, ky, kz, *self.bandParameters())
@@ -368,11 +384,13 @@ class BandStructure:
 # ABOUT JUST IN TIME (JIT) COMPILATION >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # jitclass do not work, the best option is to call a jit otimized function from inside the class.
 @jit(nopython=True, cache=True, parallel=True)
-def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
+def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2):
     # 2D Dispersion
     e_2D = -2 * t * (cos(kx * a) + cos(ky * b))
     e_2D += -4 * tp * cos(kx * a) * cos(ky * b)
     e_2D += -2 * tpp * (cos(2 * kx * a) + cos(2 * ky * b))
+    e_2D += -2 * tppp * (cos(2 * kx * a) * cos(ky * b) + cos(kx * a) * cos(2 * ky * b))
+    e_2D += -4 * tpppp * cos(2 * kx * a) * cos(2 * ky * b)
     # kz dispersion
     e_z = -2 * tz * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
     e_z *= (cos(kx * a) - cos(ky * b))**2
@@ -384,7 +402,7 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
 
 
 @jit(nopython=True, cache=True, parallel=True)
-def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
+def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2):
     d = c / 2
     kxa = kx * a
     kyb = ky * b
@@ -395,6 +413,8 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     sinkx = sin(kxa)
     sinky = sin(kyb)
     sinkz = sin(kzd)
+    cos2kx = cos(2 * kxa)
+    cos2ky = cos(2 * kyb)
     sin2kx = sin(2 * kxa)
     sin2ky = sin(2 * kyb)
     coskx_2 = cos(kxa / 2)
@@ -403,8 +423,18 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tz, tz2):
     sinky_2 = sin(kyb / 2)
 
     # Velocity from e_2D
-    d_e2D_dkx = 2 * t * a * sinkx + 4 * tp * a * sinkx * cosky + 4 * tpp * a * sin2kx
-    d_e2D_dky = 2 * t * b * sinky + 4 * tp * b * coskx * sinky + 4 * tpp * b * sin2ky
+    d_e2D_dkx  = 2 * t * a * sinkx
+    d_e2D_dkx += 4 * tp * a * sinkx * cosky
+    d_e2D_dkx += 4 * tpp * a * sin2kx
+    d_e2D_dkx += 2 * tppp * a * (2 * sin2kx * cosky + sinkx * cos2ky)
+    d_e2D_dkx += 8 * tpppp * a * sin(2 * kx * a) * cos(2 * ky * b)
+
+    d_e2D_dky  = 2 * t * b * sinky
+    d_e2D_dky += 4 * tp * b * coskx * sinky
+    d_e2D_dky += 4 * tpp * b * sin2ky
+    d_e2D_dky += 2 * tppp * b * (cos2kx * sinky + 2 * coskx * sin2ky)
+    d_e2D_dky += 8 * tpppp * b * cos(2 * kx * a) * sin(2 * ky * b)
+
     d_e2D_dkz = 0
 
     # Velocity from e_z

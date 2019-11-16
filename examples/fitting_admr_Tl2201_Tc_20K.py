@@ -48,6 +48,8 @@ init_member = {
     "t": 181,
     "tp": -0.28,
     "tpp": 0.14,
+    "tppp" : -0.10,
+    "tpppp" : -0.05,
     "tz": 0.015,
     "tz2": 0,
     "mu": -1.222,
@@ -114,7 +116,7 @@ data_dict[4.2, 44] = ["data/Tl2201_Tc_20K_Hussey_2003/rhozz_vs_theta_Tl2201_Tc_2
 #                 population_size=5, N_generation=2, mutation_s=0.3, crossing_p=0.9)
 
 # Play
-fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K")
+# fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K")
 
 
 # utils.save_member_to_json(init_member, folder="../data_NdLSCO_0p25")
@@ -122,4 +124,4 @@ fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K")
 #     "sim/Tl2201_Tc_20K",
 #     "data_p0.25_T4.2_fit_p0.250_T0_B45_t181.0_mu-1.480_tp-0.500_tpp0.200_tz0.015_tzz0.000_HolePocket_gzero6.4_gdos0.0_gk21.3_pwr39.5_arc1.0"
 # )
-# utils.fig_compare(init_member, data_dict, folder="sim/Tl2201_Tc_20K")
+utils.fig_compare(init_member, data_dict, folder="sim/Tl2201_Tc_20K")
