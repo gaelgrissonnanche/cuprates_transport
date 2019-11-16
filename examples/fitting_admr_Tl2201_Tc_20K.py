@@ -1,6 +1,7 @@
 import numpy as np
 import random
 from copy import deepcopy
+import matplotlib.pyplot as plt
 from cuprates_transport.fitting_admr import genetic_search, fit_search
 import cuprates_transport.fitting_admr_utils as utils
 import os
@@ -59,7 +60,7 @@ init_member = {
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
-    "Bphi_array": [28], #[0, 20, 28, 36, 44],
+    "Bphi_array": [0, 20, 28, 36, 44],
     "gamma_0": 4,
     "gamma_k": 0,
     "power": 2,
@@ -71,33 +72,33 @@ init_member = {
 }
 
 ## For GENETIC
-ranges_dict = {
-    # "t": [130,300],
-    "tp": [-0.5,0.5],
-    "tpp": [-0.2,0.2],
-    "tz": [-0.1,0.1],
-    # "mu": [-1.8,-1.0],
-    "gamma_0": [1,10],
-    "gamma_k": [0,30],
-    "power":[1, 100],
-    "gamma_dos_max": [0, 50],
-    # "factor_arcs" : [1, 300],
-}
+# ranges_dict = {
+#     # "t": [130,300],
+#     "tp": [-0.5,0.5],
+#     "tpp": [-0.2,0.2],
+#     "tz": [-0.1,0.1],
+#     # "mu": [-1.8,-1.0],
+#     "gamma_0": [1,10],
+#     # "gamma_k": [0,30],
+#     # "power":[1, 100],
+#     # "gamma_dos_max": [0, 50],
+#     # "factor_arcs" : [1, 300],
+# }
 
 
 ## For FIT
-# ranges_dict = {
-#     # "t": [130,300],
-#     "tp": [-0.5,-0.2],
-#     "tpp": [-0.14,0.14],
-#     # "tz": [-0.1,0.1],
-#     # "mu": [-1.8,-1.0],
-#     "gamma_0": [0.5,10],
-#     # "gamma_k": [0.1,30],
-#     # "power":[1, 20],
-#     # "gamma_dos_max": [0.1, 200],
-#     # "factor_arcs" : [1, 300],
-# }
+ranges_dict = {
+    # "t": [130,300],
+    # "tp": [-0.5,-0.2],
+    # "tpp": [-0.14,0.14],
+    # "tz": [-0.1,0.1],
+    # "mu": [-1.8,-1.0],
+    "gamma_0": [0.5,10],
+    "gamma_k": [0,30],
+    "power":[1, 100],
+    # "gamma_dos_max": [0.1, 200],
+    # "factor_arcs" : [1, 300],
+}
 
 ## Data Tl2201 Tc = 20K (Hussey et al. 2003)  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 data_dict = {}  # keys (T, phi), content [filename, theta, rzz, theta_cut]
@@ -109,16 +110,16 @@ data_dict[4.2, 44] = ["data/Tl2201_Tc_20K_Hussey_2003/rhozz_vs_theta_Tl2201_Tc_2
 
 
 # Play
-genetic_search(init_member,ranges_dict, data_dict, folder="../sim/Tl2201_Tc_20K",
-                population_size=100, N_generation=1000, mutation_s=0.3, crossing_p=0.9)
+# genetic_search(init_member,ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K",
+#                 population_size=5, N_generation=2, mutation_s=0.3, crossing_p=0.9)
 
 # Play
-# fit_search(init_member, ranges_dict, data_dict, folder="../sim/Tl2201_Tc_20K")
+fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K")
 
 
 # utils.save_member_to_json(init_member, folder="../data_NdLSCO_0p25")
 # init_member = utils.load_member_from_json(
 #     "sim/Tl2201_Tc_20K",
-#     "data_p0.25_T4.2_fit_p0.250_T0_B45_t181.0_mu-1.419_tp-0.434_tpp0.183_tz0.061_tzz0.000_HolePocket_gzero1.5_gdos1.9_gk1.0_pwr72.4_arc1.0"
+#     "data_p0.25_T4.2_fit_p0.250_T0_B45_t181.0_mu-1.480_tp-0.500_tpp0.200_tz0.015_tzz0.000_HolePocket_gzero6.4_gdos0.0_gk21.3_pwr39.5_arc1.0"
 # )
 # utils.fig_compare(init_member, data_dict, folder="sim/Tl2201_Tc_20K")

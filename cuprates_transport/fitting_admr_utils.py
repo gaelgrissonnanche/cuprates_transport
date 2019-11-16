@@ -153,11 +153,11 @@ def compute_diff(pars, member, ranges_dict, data_dict):
     ## Update member with fit parameters
     for param_name in ranges_dict.keys():
             member[param_name] = pars[param_name].value
+            print(param_name + " : " + "{0:g}".format(pars[param_name].value))
 
     ## Compute ADMR ------------------------------------------------------------
     admr = produce_ADMR(member)
     admr.runADMR()
-    print(admr.fileNameFunc())
 
     ## Compute diff
     diff_rzz_matrix = np.zeros_like(rzz_data_matrix)
@@ -191,11 +191,6 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
     ## Plot >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
     fig_list = []
-
-    ## Figure Parameters //////////////////////////////////////////////////////#
-    for iniCondObject in admr.initialCondObjectDict.values():
-        fig_list.append(iniCondObject.figParameters(fig_show=False))
-
 
     ## Plot Parameters
     fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
@@ -252,13 +247,19 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
 
     if fig_show == True:
         plt.show()
+    else:
+        plt.close(fig)
+
+    ## Figure Parameters //////////////////////////////////////////////////////#
+    for iniCondObject in admr.initialCondObjectDict.values():
+        fig_list.append(iniCondObject.figParameters(fig_show=fig_show))
 
     ## Save figures list --------------
     if fig_save == True:
         file_figures = PdfPages(folder + "/data_" + \
            "p" + "{0:.2f}".format(member["data_p"]) + "_" + \
            "T" + "{0:.1f}".format(member["data_T"]) + "_fit_" + admr.fileNameFunc() + ".pdf")
-        for fig in fig_list[::-1]:
+        for fig in fig_list:
             file_figures.savefig(fig)
         file_figures.close()
 

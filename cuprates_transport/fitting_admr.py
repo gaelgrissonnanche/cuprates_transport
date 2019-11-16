@@ -2,6 +2,7 @@ import os
 import numpy as np
 import random
 from copy import deepcopy
+import matplotlib.pyplot as plt
 from lmfit import minimize, Parameters, fit_report
 import cuprates_transport.fitting_admr_utils as utils
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -27,6 +28,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
     ## Initialize the BEST member
     best_member = deepcopy(init_member)
     best_member_path = utils.save_member_to_json(best_member, folder=folder)
+    utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False)
     n_improvements = 0
 
 
@@ -58,8 +60,10 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
             n_improvements += 1
             print(str(n_improvements)+' IMPROVEMENTS SO FAR!')
             ## Save BEST member to JSON
-            os.remove(best_member_path)
+            os.remove(best_member_path) # remove previous json
+            os.remove(best_member_path[:-4] + "pdf") # remove previous figure
             best_member_path = utils.save_member_to_json(best_member, folder=folder)
+            utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False)
         print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
 
 
@@ -112,8 +116,10 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
                 n_improvements += 1
                 print(str(n_improvements)+' IMPROVEMENTS SO FAR!')
                 ## Save BEST member to JSON
-                os.remove(best_member_path)
+                os.remove(best_member_path) # remove previous json
+                os.remove(best_member_path[:-4] + "pdf") # remove previous figure
                 best_member_path = utils.save_member_to_json(best_member, folder=folder)
+                utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False)
             print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
 
         generations_list.append(deepcopy(last_generation))
@@ -129,6 +135,9 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
     utils.save_member_to_json(best_member, folder=folder)
 
     ## Print and Compute the BEST member
+    plt.clf()
+    plt.cla()
+    plt.close()
     print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
     utils.fig_compare(best_member, data_dict, folder=folder)
 
