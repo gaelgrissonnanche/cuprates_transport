@@ -19,7 +19,7 @@ Angstrom = 1e-10  # 1 A in meters
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
                  t=190, tp=-0.14, tpp=0.07, tppp=0, tpppp=0,
-                 tz=0.07, tz2=0, mu=-0.825,
+                 tz=0.07, tz2=0, tz3=0, mu=-0.825,
                  numberOfKz=7, mesh_ds=1/20, **trash):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
@@ -31,6 +31,7 @@ class BandStructure:
         self._tpppp = tpppp * t
         self._tz  = tz  * t
         self._tz2 = tz2 * t
+        self._tz3 = tz3 * t
         self._mu  = mu  * t
         self.p    = None # hole doping, unknown at first
         self.n    = None # band filling (of electron), unknown at first
@@ -116,6 +117,13 @@ class BandStructure:
         self.erase_Fermi_surface()
     tz2 = property(_get_tz2, _set_tz2)
 
+    def _get_tz3(self):
+        return self._tz3 / self._t
+    def _set_tz3(self, tz3):
+        self._tz3 = tz3 * self._t
+        self.erase_Fermi_surface()
+    tz3 = property(_get_tz3, _set_tz3)
+
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def erase_Fermi_surface(self):
         self.kf  = None
@@ -128,7 +136,7 @@ class BandStructure:
         self.numberPointsPerKz_list = []
 
     def bandParameters(self):
-        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tppp, self._tpppp, self._tz, self._tz2]
+        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tppp, self._tpppp, self._tz, self._tz2, self._tz3]
 
     def e_3D_func(self, kx, ky, kz):
         return optimized_e_3D_func(kx, ky, kz, *self.bandParameters())
@@ -384,17 +392,29 @@ class BandStructure:
 # ABOUT JUST IN TIME (JIT) COMPILATION >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # jitclass do not work, the best option is to call a jit otimized function from inside the class.
 @jit(nopython=True, cache=True, parallel=True)
-def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2):
+def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3):
     # 2D Dispersion
     e_2D = -2 * t * (cos(kx * a) + cos(ky * b))
     e_2D += -4 * tp * cos(kx * a) * cos(ky * b)
     e_2D += -2 * tpp * (cos(2 * kx * a) + cos(2 * ky * b))
     e_2D += -2 * tppp * (cos(2 * kx * a) * cos(ky * b) + cos(kx * a) * cos(2 * ky * b))
     e_2D += -4 * tpppp * cos(2 * kx * a) * cos(2 * ky * b)
-    # kz dispersion
+
+    # kz dispersion v1
     e_z = -2 * tz * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
     e_z *= (cos(kx * a) - cos(ky * b))**2
     e_z += -2 * tz2 * cos(kz * c / 2)
+
+    # kz dispersion v2
+    # e_z  = -8 * tz  * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
+    # e_z += -8 * tz2 * cos(kz * c / 2) * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))
+    # e_z += -8 * tz3 * cos(kz * c / 2) * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
+
+    # kz dispersion v2
+    # e_z += -2 * tz2 * cos(kx * a) * cos(ky * b)
+    # e_z += -2 * tz3 * (cos(kx * a) + cos(ky * b) -1)
+    # e_z =  -2 * tz
+    # e_z *=  cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2) * (cos(kx * a) - cos(ky * b))**2
 
     epsilon = e_2D + e_z - mu
 
@@ -402,7 +422,7 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz
 
 
 @jit(nopython=True, cache=True, parallel=True)
-def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2):
+def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3):
     d = c / 2
     kxa = kx * a
     kyb = ky * b
@@ -437,7 +457,7 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz
 
     d_e2D_dkz = 0
 
-    # Velocity from e_z
+    # Velocity from e_z v1
     sigma = coskx_2 * cosky_2
     diff = (coskx - cosky)
     square = (diff)**2
@@ -449,6 +469,18 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz
     d_ez_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
     d_ez_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
     d_ez_dkz = - 2 * tz * sigma * square * (-d * sinkz) - 2 * tz2 * (-d) * sinkz
+
+    # Velocity from e_z v2
+    # d_ez_dkx  = -8 * tz * coskz * (-a/2) * sinkx_2 * cosky_2
+    # d_ez_dkx += -8 * tz2 * coskz * ((-3*a/2) * sin(3*kx*a/2) * cosky_2 + (-a/2) * sinkx_2 * cos(3*ky*b/2))
+    # d_ez_dkx += -8 * tz3 * coskz * (-3*a/2) * sin(3 * kx * a / 2) * cos(3 * ky * b / 2)
+    # d_ez_dky  = -8 * tz * coskz * coskx_2 * (-b/2) * sinky_2
+    # d_ez_dky += -8 * tz2 * coskz * (cos(3*kx*a/2) * (-b/2) * sinky_2 + coskx_2 * (-3*b/2) * sin(3*ky*b/2))
+    # d_ez_dky += -8 * tz3 * coskz * cos(3 * kx * a / 2) * (-3*b/2) * sin(3 * ky * b / 2)
+    # d_ez_dkz  = -8 * tz * (-c/2) * sinkz * coskx_2 * cosky_2
+    # d_ez_dkz += -8 * tz2 * (-c/2) * sinkz * (cos(3*kx*a/2) * cosky_2 + coskx_2 * cos(3*ky*b/2))
+    # d_ez_dkz += -8 * tz3 * (-c/2) * sinkz * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
+
 
     vx = (d_e2D_dkx + d_ez_dkx) / hbar
     vy = (d_e2D_dky + d_ez_dky) / hbar
@@ -495,7 +527,7 @@ class Pocket(BandStructure):
 
 ## These definition are only valid for (Qx,Qy)=(pi,pi) without coherence of the AF in z
 @jit(nopython=True, cache=True, parallel=True)
-def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tz, tz2, electronPocket=False):
+def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, electronPocket=False):
     d = c / 2
     kxa = kx * a
     kyb = ky * b

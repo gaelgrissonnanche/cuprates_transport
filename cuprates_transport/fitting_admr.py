@@ -11,7 +11,8 @@ import cuprates_transport.fitting_admr_utils as utils
 ## Genetic algorithm ///////////////////////////////////////////////////////////
 
 def genetic_search(init_member, ranges_dict, data_dict, folder="",
-        population_size=100, N_generation=20, mutation_s=0.1, crossing_p=0.9):
+        population_size=100, N_generation=20, mutation_s=0.1, crossing_p=0.9,
+        normalized_data=True):
     """init_params_dic is the inital set where we want the algorthim to start from"""
 
     ## Randomize the radom generator at first
@@ -22,13 +23,13 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
 
     ## Compute the ADMR for the initial set of parameters
     print('\nINITIAL PARAMETER SET')
-    init_member = utils.compute_chi2(init_member, data_dict)[0]
+    init_member = utils.compute_chi2(init_member, data_dict, normalized_data)[0]
     print('Initial chi2 = ' + "{0:.3e}".format(init_member["chi2"]))
 
     ## Initialize the BEST member
     best_member = deepcopy(init_member)
     best_member_path = utils.save_member_to_json(best_member, folder=folder)
-    utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False)
+    utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False, normalized_data=normalized_data)
     n_improvements = 0
 
 
@@ -49,7 +50,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
             this_member[gene_name] = random.uniform(gene_range[0], gene_range[-1])
 
         ## Compute the fitness of this MEMBER
-        this_member = utils.compute_chi2(this_member, data_dict)[0]
+        this_member = utils.compute_chi2(this_member, data_dict, normalized_data)[0]
         print('this chi2 = ' + "{0:.3e}".format(this_member["chi2"]))
 
         ## Just display if this member has a better ChiSquare than the Best Member so far
@@ -63,7 +64,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
             os.remove(best_member_path) # remove previous json
             os.remove(best_member_path[:-4] + "pdf") # remove previous figure
             best_member_path = utils.save_member_to_json(best_member, folder=folder)
-            utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False)
+            utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False, normalized_data=normalized_data)
         print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
 
 
@@ -100,7 +101,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
                     child[gene_name] = np.clip(new_gene, gene_range[0], gene_range[-1])
 
             ## Compute the fitness of the CHILD
-            child = utils.compute_chi2(child, data_dict)[0]
+            child = utils.compute_chi2(child, data_dict, normalized_data)[0]
             print('this chi2 = ' + "{0:.3e}".format(child["chi2"]))
 
             # If the CHILD has a better fitness than the PARENT, then keep CHILD
@@ -119,7 +120,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
                 os.remove(best_member_path) # remove previous json
                 os.remove(best_member_path[:-4] + "pdf") # remove previous figure
                 best_member_path = utils.save_member_to_json(best_member, folder=folder)
-                utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False)
+                utils.fig_compare(best_member, data_dict, folder=folder, fig_show=False, normalized_data=normalized_data)
             print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
 
         generations_list.append(deepcopy(last_generation))
@@ -139,7 +140,7 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
     plt.cla()
     plt.close()
     print('BEST CHI2 = ' + "{0:.3e}".format(best_member["chi2"]))
-    utils.fig_compare(best_member, data_dict, folder=folder)
+    utils.fig_compare(best_member, data_dict, folder=folder, normalized_data=normalized_data)
 
 
 
@@ -147,7 +148,8 @@ def genetic_search(init_member, ranges_dict, data_dict, folder="",
 
 ## Fit search //////////////////////////////////////////////////////////////////
 
-def fit_search(init_member, ranges_dict, data_dict, folder=""):
+def fit_search(init_member, ranges_dict, data_dict, folder="",
+               normalized_data=True):
 
     ## Initialize
     pars = Parameters()
@@ -157,7 +159,7 @@ def fit_search(init_member, ranges_dict, data_dict, folder=""):
         pars.add(param_name, value = init_member[param_name], min = param_range[0], max = param_range[-1])
 
     ## Run fit algorithm
-    out = minimize(utils.compute_diff, pars, args=(init_member, ranges_dict, data_dict))
+    out = minimize(utils.compute_diff, pars, args=(init_member, ranges_dict, data_dict, normalized_data), method="differential_evolution")
 
     ## Display fit report
     print(fit_report(out.params))
@@ -170,7 +172,7 @@ def fit_search(init_member, ranges_dict, data_dict, folder=""):
     utils.save_member_to_json(final_member, folder=folder)
 
     ## Compute the FINAL member
-    utils.fig_compare(final_member, data_dict, folder=folder)
+    utils.fig_compare(final_member, data_dict, folder=folder, normalized_data=normalized_data)
 
 
 

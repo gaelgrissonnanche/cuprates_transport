@@ -614,7 +614,7 @@ class Conductivity:
         fig.text(0.45, 0.27, bandFormulaE2D, fontsize=10)
 
         bandFormulaEz = r"$\epsilon_{\rm k}^{\rm z}$   =" +\
-            r" - 2$t_{\rm z}$ cos($k_{\rm z}c/2$) cos($k_{\rm x}a/2$) cos(2$k_{\rm y}b/2$) (cos($k_{\rm x}a$) - cos($k_{\rm y}b$))$^2$" + "\n" +\
+            r" - 2$t_{\rm z}$ cos($k_{\rm z}c/2$) cos($k_{\rm x}a/2$) cos($k_{\rm y}b/2$) (cos($k_{\rm x}a$) - cos($k_{\rm y}b$))$^2$" + "\n" +\
             r"          - 2$t_{\rm z}^{'}$ cos($k_{\rm z}c/2$)"
         fig.text(0.45, 0.21, bandFormulaEz, fontsize=10)
 

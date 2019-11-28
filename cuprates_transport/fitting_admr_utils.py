@@ -38,6 +38,7 @@ def produce_ADMR(member):
 
     if member["fixdoping"] >=-1 and member["fixdoping"] <=1  :
         bandObject.setMuToDoping(member["fixdoping"])
+
     bandObject.discretize_FS(PrintEnding=False)
     bandObject.densityOfState()
     bandObject.doping(printDoping=False)
@@ -98,27 +99,30 @@ def load_and_interp_data(member, data_dict):
 
     ## Interpolate data over theta of simulation
     rzz_data_matrix = np.zeros((len(Bphi_array), len(Btheta_array)))
+    rhozz_data_matrix = np.zeros((len(Bphi_array), len(Btheta_array)))
     for i, phi in enumerate(Bphi_array):
         filename = data_dict[member["data_T"], phi][0]
         col_theta = data_dict[member["data_T"], phi][1]
         col_rzz = data_dict[member["data_T"], phi][2]
+        factor_to_SI = data_dict[member["data_T"], phi][4]
 
         data = np.loadtxt(filename, dtype="float", comments="#")
         theta = data[:, col_theta]
-        rzz = data[:, col_rzz] / data[0, col_rzz]
-        rzz_i = np.interp(Btheta_array, theta, rzz) # "i" is for interpolated
+        rhozz = data[:, col_rzz] * factor_to_SI
+        rhozz_i = np.interp(Btheta_array, theta, rhozz) # "i" is for interpolated
 
-        rzz_data_matrix[i, :] = rzz_i
+        rhozz_data_matrix[i, :] = rhozz_i
+        rzz_data_matrix[i, :] = rhozz_i / rhozz_i[0]
 
-    return Bphi_array, Btheta_array, rzz_data_matrix
+    return Bphi_array, Btheta_array, rhozz_data_matrix, rzz_data_matrix
 
 
 
-def compute_chi2(member, data_dict):
+def compute_chi2(member, data_dict, normalized_data=True):
     """Compute chi^2"""
 
     ## Load data
-    Bphi_array, Btheta_array, rzz_data_matrix = load_and_interp_data(member, data_dict)
+    Bphi_array, Btheta_array, rhozz_data_matrix, rzz_data_matrix = load_and_interp_data(member, data_dict)
 
     ## Update Btheta & Bphi function of the data
     member["Bphi_array"]  = list(Bphi_array)
@@ -129,20 +133,24 @@ def compute_chi2(member, data_dict):
     ## Compute ADMR ------------------------------------------------------------
     admr = produce_ADMR(member)
     admr.runADMR()
+    member["mu"] = admr.initialCondObjectDict[admr.bandNamesList[0]].bandObject.mu
     print(admr.fileNameFunc())
 
     ## Compute Chi^2
-    chi2 = np.sum((admr.rzz_array.flatten() - rzz_data_matrix.flatten())**2)
+    if normalized_data==True:
+        chi2 = np.sum((admr.rzz_array.flatten() - rzz_data_matrix.flatten())**2)
+    else:
+        chi2 = np.sum((admr.rhozz_array.flatten() - rhozz_data_matrix.flatten())**2)
 
     member['chi2'] = float(chi2)
     return member, admr
 
 
-def compute_diff(pars, member, ranges_dict, data_dict):
+def compute_diff(pars, member, ranges_dict, data_dict, normalized_data=True):
     """Compute diff = sim - data matrix"""
 
     ## Load data
-    Bphi_array, Btheta_array, rzz_data_matrix = load_and_interp_data(member, data_dict)
+    Bphi_array, Btheta_array, rhozz_data_matrix, rzz_data_matrix = load_and_interp_data(member, data_dict)
 
     ## Update Btheta & Bphi function of the data
     member["Bphi_array"]  = list(Bphi_array)
@@ -160,32 +168,40 @@ def compute_diff(pars, member, ranges_dict, data_dict):
     admr.runADMR()
 
     ## Compute diff
-    diff_rzz_matrix = np.zeros_like(rzz_data_matrix)
+    diff_matrix = np.zeros_like(rzz_data_matrix)
     for i in range(Bphi_array.size):
-        diff_rzz_matrix[i, :] = rzz_data_matrix[i, :] - admr.rzz_array[i, :]
+        if normalized_data==True:
+            diff_matrix[i, :] = rzz_data_matrix[i, :] - admr.rzz_array[i, :]
+        else:
+            diff_matrix[i, :] = rhozz_data_matrix[i, :] - admr.rhozz_array[i, :]
 
-    return diff_rzz_matrix
+    return diff_matrix
 
 
-def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
+def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder="",
+                normalized_data=True):
     ## Run ADMR from member parameters -----------------------------------------
-    member, admr = compute_chi2(member, data_dict)
+    member, admr = compute_chi2(member, data_dict, normalized_data=normalized_data)
     print('this chi2 = ' + "{0:.3e}".format(member["chi2"]))
 
     ## Load data ---------------------------------------------------------------
     Bphi_array = admr.Bphi_array
     Btheta_cut = np.max(admr.Btheta_array)
     Btheta_data_dict = {}
+    rhozz_data_dict = {}
     rzz_data_dict = {}
     for i, phi in enumerate(Bphi_array):
         filename = data_dict[member["data_T"], phi][0]
         col_theta = data_dict[member["data_T"], phi][1]
         col_rzz = data_dict[member["data_T"], phi][2]
+        factor_to_SI = data_dict[member["data_T"], phi][4]
 
-        data = np.loadtxt(filename, dtype="float", comments="#")
+        data  = np.loadtxt(filename, dtype="float", comments="#")
         theta = data[:, col_theta]
-        rzz = data[:, col_rzz] / data[0, col_rzz]
+        rhozz = data[:, col_rzz] * factor_to_SI
+        rzz   = data[:, col_rzz] / data[0, col_rzz]
         Btheta_data_dict[phi] = theta[theta<=Btheta_cut]
+        rhozz_data_dict[phi] = rhozz[theta<=Btheta_cut]
         rzz_data_dict[phi] = rzz[theta<=Btheta_cut]
 
     ## Plot >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -196,7 +212,8 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
     fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
     fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 
-    axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
+    if normalized_data==True:
+        axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
     #############################################
     fig.text(0.84, 0.89, r"$B$ = " + str(member["Bamp"]) + " T", fontsize=14)
@@ -219,13 +236,24 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
 
     colors = ['#000000', '#3B528B', '#FF0000', '#C7E500', '#ff0080', '#dfdf00']
 
-    for i, phi in enumerate(Bphi_array):
-        line = axes.plot(Btheta_data_dict[phi], rzz_data_dict[phi], label = r"$\phi$ = " + str(phi))
-        plt.setp(line, ls ="-", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 7, mec = colors[i], mew= 0)
+    if normalized_data==True:
+        axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
+        for i, phi in enumerate(Bphi_array):
+            line = axes.plot(Btheta_data_dict[phi], rzz_data_dict[phi], label = r"$\phi$ = " + str(phi))
+            plt.setp(line, ls ="-", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 7, mec = colors[i], mew= 0)
 
-    for i, phi in enumerate(Bphi_array):
-        line = axes.plot(admr.Btheta_array, admr.rzz_array[i,:])
-        plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)
+        for i, phi in enumerate(Bphi_array):
+            line = axes.plot(admr.Btheta_array, admr.rzz_array[i,:])
+            plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)
+    else:
+        axes.set_ylabel(r"$\rho_{\rm zz}$ ( m$\Omega$ cm )", labelpad = 8)
+        for i, phi in enumerate(Bphi_array):
+            line = axes.plot(Btheta_data_dict[phi], rhozz_data_dict[phi] * 1e5, label = r"$\phi$ = " + str(phi))
+            plt.setp(line, ls ="-", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 7, mec = colors[i], mew= 0)
+
+        for i, phi in enumerate(Bphi_array):
+            line = axes.plot(admr.Btheta_array, admr.rhozz_array[i,:] * 1e5)
+            plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)
 
     ######################################################
     plt.legend(loc = 0, fontsize = 14, frameon = False, numpoints=1, markerscale = 1, handletextpad=0.5)
@@ -240,7 +268,11 @@ def fig_compare(member, data_dict, fig_show=True, fig_save=True, folder=""):
     axes.xaxis.set_major_locator(MultipleLocator(xtics))
     axes.xaxis.set_major_formatter(majorFormatter)
     axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
-    axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+
+    if normalized_data==True:
+        axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+    else:
+        axes.yaxis.set_major_formatter(FormatStrFormatter('%g'))
 
     fig_list.append(fig)
     #///////////////////////////////////////////////////////////////////////////////

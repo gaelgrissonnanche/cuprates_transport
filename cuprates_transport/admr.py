@@ -33,14 +33,16 @@ class ADMR:
         self.kftDict = {}
         self.vftDict = {}
 
-        # Resistivity rray rho_zz / rho_zz(0)
+        # Resistivity array rho_zz
+        self.rhozz_array = None
+        # Resistivity array rho_zz / rho_zz(0)
         self.rzz_array = None
 
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
 
-        rho_zz_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
+        rhozz_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
 
         for l, phi in enumerate(tqdm(self.Bphi_array, ncols=80, unit="phi", desc="ADMR")):
             for m, theta in enumerate(self.Btheta_array):
@@ -62,10 +64,11 @@ class ADMR:
                     self.vftDict[bandname, phi, theta] = iniCondObject.vft
                     # self.vproduct_dict[phi, theta] = condObject.VelocitiesProduct(i=2, j=2)
 
-                rho_zz_array[l, m] = 1 / sigma_zz
+                rhozz_array[l, m] = 1 / sigma_zz
 
-        rho_zz_0_array = np.outer(rho_zz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
-        self.rzz_array = rho_zz_array / rho_zz_0_array
+        rhozz_0_array = np.outer(rhozz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
+        self.rhozz_array = rhozz_array
+        self.rzz_array = rhozz_array / rhozz_0_array
 
     #---------------------------------------------------------------------------
     def fileNameFunc(self):
@@ -133,16 +136,16 @@ class ADMR:
 
         # Build Data 2D-array
         Ones = np.ones_like(self.Btheta_array) # column of 1 with same size of Btheta_array
-        rzzMatrix = self.rzz_array[0,:] # initialize with first phi value
-        rzzHeader = "rzz(phi=" + str(self.Bphi_array[0])+ ")\t"
+        rhozzMatrix = self.rhozz_array[0,:] # initialize with first phi value
+        rhozzHeader = "rhozz(phi=" + str(self.Bphi_array[0])+ ")[Ohm.m]\t"
         for l in range(self.Bphi_array.size):
             if l==0:
-                pass # because we already have rzz_array for the inital value of phi
+                pass # because we already have rhozz_array for the inital value of phi
             else:
-                rzzMatrix = np.vstack((rzzMatrix, self.rzz_array[l,:]))
-                rzzHeader += "rzz(phi=" + str(self.Bphi_array[l])+ ")\t"
+                rhozzMatrix = np.vstack((rhozzMatrix, self.rhozz_array[l,:]))
+                rhozzHeader += "rho_zz(phi=" + str(self.Bphi_array[l])+ ")[Ohm.m]\t"
 
-        Data = np.vstack((self.Btheta_array, rzzMatrix,
+        Data = np.vstack((self.Btheta_array, rhozzMatrix,
                           CondObject0.Bamp * Ones,
                           bandObject0.t    * Ones, bandObject0.tp * Ones,
                           bandObject0.tpp  * Ones, bandObject0.tz * Ones,
@@ -167,7 +170,7 @@ class ADMR:
         Data = Data.transpose()
 
         # Build header
-        DataHeader = "theta[deg]\t" + rzzHeader + \
+        DataHeader = "theta[deg]\t" + rhozzHeader + \
                      "B[T]\tt[meV]\ttp\ttpp\ttz\ttz2\tmu\tmesh_ds\tmesh_z\t" + \
                      condHeader
 
@@ -203,7 +206,7 @@ class ADMR:
 
         ## ADMR figure ////////////////////////////////////////////////////////#
         fig, axes = plt.subplots(1, 1, figsize = (10.5, 5.8)) # (1,1) means one plot, and figsize is w x h in inch of figure
-        fig.subplots_adjust(left = 0.15, right = 0.75, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
+        fig.subplots_adjust(left = 0.15, right = 0.70, bottom = 0.18, top = 0.92) # adjust the box of axes regarding the figure size
 
         axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
@@ -212,9 +215,9 @@ class ADMR:
         CondObject0 = self.initialCondObjectDict[self.bandNamesList[0]]
 
         # Labels
-        fig.text(0.8, 0.9, r"$T$ = " + "{0:.0f}".format(CondObject0.T) + " K")
-        fig.text(0.8, 0.84, r"$B$ = " + "{0:.0f}".format(CondObject0.Bamp) + " T")
-        fig.text(0.8, 0.78, r"$p$ = " + "{0:.3f}".format(self.totalHoleDoping))
+        fig.text(0.99, 0.9, r"$T$ = " + "{0:.0f}".format(CondObject0.T) + " K", ha="right")
+        fig.text(0.99, 0.84, r"$B$ = " + "{0:.0f}".format(CondObject0.Bamp) + " T", ha="right")
+        fig.text(0.99, 0.78, r"$p$ = " + "{0:.3f}".format(self.totalHoleDoping), ha="right")
 
         ## Colors
         if self.Bphi_array.size > 4:
@@ -222,6 +225,9 @@ class ADMR:
             colors = cmap(np.arange(self.Bphi_array.size))
         else:
             colors = ['#000000', '#3B528B', '#FF0000', '#C7E500']
+
+        axes2 = axes.twinx()
+        axes2.set_axisbelow(True)
 
         ## Plot ADMR
         for i, B_phi in enumerate(self.Bphi_array):
@@ -233,8 +239,12 @@ class ADMR:
         axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
         axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
+        ymin, ymax = axes.axis()[2:]
+        axes2.set_ylim(ymin * self.rhozz_array[0, 0] * 1e5, ymax * self.rhozz_array[0, 0] * 1e5)
+        axes2.set_ylabel(r"$\rho_{\rm zz}$ ( m$\Omega$ cm )", labelpad = 40, rotation = 270)
 
-        plt.legend(loc = 0, fontsize = 14, frameon = False, numpoints = 1, markerscale = 1, handletextpad = 0.5)
+
+        axes.legend(loc = 0, fontsize = 14, frameon = False, numpoints = 1, markerscale = 1, handletextpad = 0.5)
 
         ## Set ticks space and minor ticks
         xtics = 30. # space between two ticks

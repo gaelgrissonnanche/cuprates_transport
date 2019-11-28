@@ -6,8 +6,8 @@ from cuprates_transport.conductivity import Conductivity
 
 params = {
     "bandname": "HolePocket",
-    "a": 5.46,
-    "b": 5.46,
+    "a": 3.87,
+    "b": 3.87,
     "c": 23.2,
     "t": 181.25,
     "tp": -0.28,
@@ -16,7 +16,7 @@ params = {
     "tpppp": 0,
     "tz": 0.015,
     "tz2": 0.00,
-    "mu": -1.25,
+    "mu": -1.222,
     "fixdoping": -2,
     "numberOfKz": 7,
     "mesh_ds": 1 / 20,
@@ -27,8 +27,8 @@ params = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 20, 28, 36, 44],
-    "gamma_0": 2,
-    "gamma_k": 20,
+    "gamma_0": 5,
+    "gamma_k": 0,
     "gamma_dos_max": 0,
     "power": 2,
     "factor_arcs": 1,
@@ -60,5 +60,5 @@ condObject = Conductivity(bandObject, **params)
 ## ADMR
 amro1band = ADMR([condObject], **params)
 amro1band.runADMR()
-amro1band.fileADMR(folder="sim")
-amro1band.figADMR(folder="sim")
+amro1band.fileADMR(folder="sim/Tl2201_Tc_20K/")
+amro1band.figADMR(folder="sim/Tl2201_Tc_20K/")
