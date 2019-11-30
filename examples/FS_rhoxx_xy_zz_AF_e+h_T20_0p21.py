@@ -36,11 +36,11 @@ ePocket.bandname = "ePocket"
 
 ## Discretize >>>>>>>>>>>>>>>>>>>>>>>#
 hPocket.discretize_FS(mesh_xy_rough=2001)
-hPocket.densityOfState()
+hPocket.dos_k_func()
 hPocket.doping()
 
 ePocket.discretize_FS(mesh_xy_rough=2001)
-ePocket.densityOfState()
+ePocket.dos_k_func()
 ePocket.doping()
 
 

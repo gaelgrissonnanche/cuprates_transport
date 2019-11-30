@@ -19,7 +19,7 @@ print('discretizing fermi surface')
 band = BandStructure(mu = -0.83)
 # band.setMuToDoping(0.30)
 band.discretize_FS()
-band.densityOfState()
+band.dos_k_func()
 band.doping()
 print("discretizing time : %.6s s\n" % (time.time() - startTime))
 

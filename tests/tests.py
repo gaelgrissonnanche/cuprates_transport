@@ -50,7 +50,7 @@ class TestTransport(unittest.TestCase):
         ## Discretize
         bandObject.doping()
         bandObject.discretize_FS()
-        bandObject.densityOfState()
+        bandObject.dos_k_func()
 
         ## Conductivity
         condObject = Conductivity(bandObject, **TestTransport.params)
@@ -71,7 +71,7 @@ class TestTransport(unittest.TestCase):
         ## Discretize
         bandObject.doping()
         bandObject.discretize_FS()
-        bandObject.densityOfState()
+        bandObject.dos_k_func()
 
         ## Conductivity
         condObject = Conductivity(bandObject, **params)

@@ -44,7 +44,7 @@ bandObject = BandStructure(bandname="LargePocket",
                            numberOfKz=7, mesh_ds=1/40)
 
 bandObject.discretize_FS()
-bandObject.densityOfState()
+bandObject.dos_k_func()
 bandObject.doping()
 
 # # bandObject.figMultipleFS2D()
@@ -81,13 +81,13 @@ for i, T in enumerate(T_array):
     sigma_zz = condObject.sigma[2, 2]
 
     rhoxx = sigma_xx / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
-    rhoxy = sigma_xy / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
     rhozz = 1 / sigma_zz # Ohm.m
+    rhoxy = sigma_xy / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
     RH = rhoxy / B # m^3/C
 
     rhoxx_array[i] = rhoxx
-    rhoxy_array[i] = rhoxy
     rhozz_array[i] = rhozz
+    rhoxy_array[i] = rhoxy
     RH_array[i] = RH
 
 

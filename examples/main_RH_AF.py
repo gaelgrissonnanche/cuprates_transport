@@ -26,7 +26,7 @@ bandObject = Pocket(bandname="hPocket",
                  numberOfKz=7, mesh_ds=1/80)
 
 bandObject.discretize_FS()
-bandObject.densityOfState()
+bandObject.dos_k_func()
 bandObject.doping()
 
 # # bandObject.figMultipleFS2D()

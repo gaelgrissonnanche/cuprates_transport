@@ -35,7 +35,7 @@ class BandStructure:
         self._mu  = mu  * t
         self.p    = None # hole doping, unknown at first
         self.n    = None # band filling (of electron), unknown at first
-        self.dos  = None
+        self.dos_k  = None
         self.vf_mean  = None
         self.numberOfBZ = 1 # number of BZ we intregrate on
         self.bandname = bandname # a string to designate the band
@@ -131,7 +131,7 @@ class BandStructure:
         self.dkf = None
         self.p    = None
         self.n    = None
-        self.dos  = None
+        self.dos_k  = None
         self.vf_mean  = None
         self.numberPointsPerKz_list = []
 
@@ -267,14 +267,14 @@ class BandStructure:
             print("Band: " + self.bandname + ": discretized")
 
 
-    def densityOfState(self):
+    def dos_k_func(self):
         # Density of State
-        dos = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
+        dos_k = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
         # dos = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
-        self.dos = dos
+        self.dos_k = dos_k
         # units_vf = meVolt * Angstrom / 1.0545718e-34 # J.s
         # self.vf_mean = np.mean(sqrt( self.vf[0,:]**2+self.vf[1,:]**2+self.vf[2,:]**2 )) * units_vf
-        return dos
+        return dos_k
 
     # def dos_epsilon(self):
 

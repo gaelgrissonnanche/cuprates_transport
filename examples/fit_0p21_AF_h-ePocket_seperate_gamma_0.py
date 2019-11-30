@@ -106,7 +106,7 @@ def residualFunc(pars, hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45):
     hPocket.mu = mu
     hPocket.M = M
     hPocket.discretize_FS(mesh_xy_rough=501)
-    hPocket.densityOfState()
+    hPocket.dos_k_func()
     hPocket.doping()
     hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=h_gamma_0,
                               gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
@@ -115,7 +115,7 @@ def residualFunc(pars, hPocket, ePocket, rzz_0, rzz_15, rzz_30, rzz_45):
     ePocket.mu = mu
     ePocket.M = M
     ePocket.discretize_FS(mesh_xy_rough=501)
-    ePocket.densityOfState()
+    ePocket.dos_k_func()
     ePocket.doping()
     ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=e_gamma_0,
                               gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
@@ -164,7 +164,7 @@ M = out.params["M"].value
 hPocket.mu = mu
 hPocket.M = M
 hPocket.discretize_FS()
-hPocket.densityOfState()
+hPocket.dos_k_func()
 hPocket.doping()
 hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=h_gamma_0,
                                  gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
@@ -173,7 +173,7 @@ hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=h_gamma_0,
 ePocket.mu = mu
 ePocket.M = M
 ePocket.discretize_FS()
-ePocket.densityOfState()
+ePocket.dos_k_func()
 ePocket.doping()
 ePocketCondObject = Conductivity(ePocket, Bamp=45, gamma_0=e_gamma_0,
                                  gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)

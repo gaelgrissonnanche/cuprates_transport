@@ -27,7 +27,7 @@ doping([hPocket, ePocket], printDoping=True)
 
 ## Discretize
 hPocket.discretize_FS(mesh_xy_rough=2001)
-hPocket.densityOfState()
+hPocket.dos_k_func()
 hPocket.doping()
 # hPocket.setMuToDoping(pTarget = 0.21)
 # hPocket.discretize_FS()
@@ -73,11 +73,11 @@ ADMRObject.figADMR(folder="results_sim")
 
 # ## Discretize >>>>>>>>>>>>>>>>>>>>>>>#
 # hPocket.discretize_FS(mesh_xy_rough=2001)
-# hPocket.densityOfState()
+# hPocket.dos_k_func()
 # hPocket.doping()
 
 # ePocket.discretize_FS(mesh_xy_rough=2001)
-# ePocket.densityOfState()
+# ePocket.dos_k_func()
 # ePocket.doping()
 
 # hPocketCondObject = Conductivity(hPocket, Bamp=45, gamma_0=18.7, gamma_k=0, power=12, gamma_dos=0)

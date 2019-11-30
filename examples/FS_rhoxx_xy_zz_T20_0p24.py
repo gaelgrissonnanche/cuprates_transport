@@ -49,7 +49,7 @@ params = {
 bandObject = BandStructure(**params)
 
 bandObject.discretize_FS()
-bandObject.densityOfState()
+bandObject.dos_k_func()
 bandObject.doping()
 
 

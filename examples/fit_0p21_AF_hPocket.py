@@ -94,7 +94,7 @@ def residualFunc(pars, bandObject, rzz_0, rzz_15, rzz_30, rzz_45):
     bandObject.mu = mu
     bandObject.M = M
     bandObject.discretize_FS()
-    bandObject.densityOfState()
+    bandObject.dos_k_func()
     bandObject.doping()
     condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0,
                               gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)
@@ -139,7 +139,7 @@ M = out.params["M"].value
 bandObject.mu = mu
 bandObject.M = M
 bandObject.discretize_FS()
-bandObject.densityOfState()
+bandObject.dos_k_func()
 bandObject.doping()
 condObject = Conductivity(bandObject, Bamp=45, gamma_0=gamma_0,
                           gamma_k=gamma_k, power=power, gamma_dos=gamma_dos)

@@ -316,7 +316,7 @@ class Conductivity:
         if self._T == 0:
             # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
             self.sigma[i, j] = units_chambers / self.bandObject.numberOfBZ * \
-                            np.sum( self.bandObject.dos *
+                            np.sum( self.bandObject.dos_k *
                                     self.bandObject.dkf *
                                     self.VelocitiesProduct(i=i, j=j) )
 
@@ -325,13 +325,13 @@ class Conductivity:
             for n in range(self._epsilon_N+1):
                 epsilon = (- self._epsilon_cut + n * self.d_epsilon) * self.bandObject.t
                 self.bandObject.discretize_FS(epsilon=epsilon)
-                self.bandObject.densityOfState()
+                self.bandObject.dos_k_func()
                 ## !!!!  Do not forget to update scattering rates !!! ##
                 ## Create properties for tmax, etc.
                 if self.Bamp !=0:
                     self.solveMovementFunc()
                 sigma_epsilon = units_chambers / self.bandObject.numberOfBZ * \
-                                np.sum( self.bandObject.dos *
+                                np.sum( self.bandObject.dos_k *
                                         self.bandObject.dkf *
                                         self.VelocitiesProduct(i=i, j=j) )
                 # Sum over the energie

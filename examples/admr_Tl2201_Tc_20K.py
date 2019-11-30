@@ -44,7 +44,7 @@ bandObject = BandStructure(**params)
 # bandObject.setMuToDoping(0.22)
 bandObject.doping(printDoping=True)
 bandObject.discretize_FS()
-bandObject.densityOfState()
+bandObject.dos_k_func()
 
 # bandObject.figDiscretizeFS2D()
 # bandObject.figMultipleFS2D()

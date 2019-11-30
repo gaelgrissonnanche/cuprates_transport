@@ -40,7 +40,7 @@ def produce_ADMR(member):
         bandObject.setMuToDoping(member["fixdoping"])
 
     bandObject.discretize_FS(PrintEnding=False)
-    bandObject.densityOfState()
+    bandObject.dos_k_func()
     bandObject.doping(printDoping=False)
 
     condObject = Conductivity(bandObject, **member)
