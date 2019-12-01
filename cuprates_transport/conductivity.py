@@ -226,7 +226,7 @@ class Conductivity:
 
     def gamma_DOS_Func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
-        dos_max = np.max(self.bandObject.dos)  # value to normalize the DOS to a quantity without units
+        dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (dos / dos_max)
 
 

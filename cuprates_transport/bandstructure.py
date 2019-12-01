@@ -33,10 +33,6 @@ class BandStructure:
         self._tz2 = tz2 * t
         self._tz3 = tz3 * t
         self._mu  = mu  * t
-        self.p    = None # hole doping, unknown at first
-        self.n    = None # band filling (of electron), unknown at first
-        self.dos_k  = None
-        self.vf_mean  = None
         self.numberOfBZ = 1 # number of BZ we intregrate on
         self.bandname = bandname # a string to designate the band
 
@@ -46,10 +42,14 @@ class BandStructure:
             numberOfKz += 1
         self.numberOfKz = numberOfKz  # between 0 and 2*pi / c
 
-        ## Fermi surface arrays
-        self.kf  = None
-        self.vf  = None
-        self.dkf = None
+        ## Fermi surface
+        self.kf  = None # in Angstrom^-1
+        self.vf  = None # in meV Angstrom (because hbar=1)
+        self.dkf = None # in Angstrom^-1
+        self.dos_k  = None # in meV^-1 Angstrom^-1
+        self.dos_epsilon = None # in meV^-1
+        self.p = None # hole doping, unknown at first
+        self.n = None # band filling (of electron), unknown at first
 
         ## Save number of points in each kz plane
         self.numberPointsPerKz_list = []
@@ -132,6 +132,7 @@ class BandStructure:
         self.p    = None
         self.n    = None
         self.dos_k  = None
+        self.dos_epsilon = None
         self.vf_mean  = None
         self.numberPointsPerKz_list = []
 
@@ -268,18 +269,22 @@ class BandStructure:
 
 
     def dos_k_func(self):
-        # Density of State
-        dos_k = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
-        # dos = 1 / (hbar * |grad(E)|), here hbar is integrated in units_chambers
-        self.dos_k = dos_k
-        # units_vf = meVolt * Angstrom / 1.0545718e-34 # J.s
-        # self.vf_mean = np.mean(sqrt( self.vf[0,:]**2+self.vf[1,:]**2+self.vf[2,:]**2 )) * units_vf
-        return dos_k
+        # Density of State of k
+        # dos_k = 1 / (|grad(E)|) here = 1 / (|v|), because in the def of vf, hbar = 1
+        # dos_k units meV^1 Angstrom^-1
+        self.dos_k = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
 
-    # def dos_epsilon(self):
+    def dos_k_func(self):
+        # Density of State of k
+        # dos_k = 1 / |grad(E(k))| here = 1 / (|v|), because in the def of vf, hbar = 1
+        # dos_k units meV^1 Angstrom^-1
+        self.dos_k = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
 
-    #     dos = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
-    #
+    def dos_epsilon_func(self):
+        # Density of State integrated at the Fermi level
+        # dos_k = int( dkf / |grad(E(k))| )
+        # dos_epsilon units meV^-1
+        self.dos_epsilon = np.sum(self.dkf * self.dos_k)
 
     ## Figures ////////////////////////////////////////////////////////////////#
 
