@@ -2,7 +2,7 @@ import numpy as np
 from numpy import cos, sin, pi, sqrt
 from scipy import optimize
 from skimage import measure
-from numba import jit, jitclass
+from numba import jit
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -18,8 +18,9 @@ Angstrom = 1e-10  # 1 A in meters
 
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
+                 mu=-0.825,
                  t=190, tp=-0.14, tpp=0.07, tppp=0, tpppp=0,
-                 tz=0.07, tz2=0, tz3=0, mu=-0.825,
+                 tz=0.07, tz2=0, tz3=0, tz4=0,
                  numberOfKz=7, mesh_ds=1/20, **trash):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
@@ -32,6 +33,7 @@ class BandStructure:
         self._tz  = tz  * t
         self._tz2 = tz2 * t
         self._tz3 = tz3 * t
+        self._tz4 = tz4 * t
         self._mu  = mu  * t
         self.numberOfBZ = 1 # number of BZ we intregrate on
         self.bandname = bandname # a string to designate the band
@@ -45,7 +47,9 @@ class BandStructure:
         ## Fermi surface
         self.kf  = None # in Angstrom^-1
         self.vf  = None # in meV Angstrom (because hbar=1)
-        self.dkf = None # in Angstrom^-1
+        self.dkf = None # in Angstrom^-2
+        self.dks = None # in Angstrom^-1
+        self.dkz = None # in Angstrom^-1
         self.dos_k  = None # in meV^-1 Angstrom^-1
         self.dos_epsilon = None # in meV^-1
         self.p = None # hole doping, unknown at first
@@ -124,11 +128,20 @@ class BandStructure:
         self.erase_Fermi_surface()
     tz3 = property(_get_tz3, _set_tz3)
 
+    def _get_tz4(self):
+        return self._tz4 / self._t
+    def _set_tz4(self, tz4):
+        self._tz4 = tz4 * self._t
+        self.erase_Fermi_surface()
+    tz4 = property(_get_tz4, _set_tz4)
+
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def erase_Fermi_surface(self):
         self.kf  = None
         self.vf  = None
         self.dkf = None
+        self.dks = None
+        self.dkz = None
         self.p    = None
         self.n    = None
         self.dos_k  = None
@@ -137,7 +150,7 @@ class BandStructure:
         self.numberPointsPerKz_list = []
 
     def bandParameters(self):
-        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tppp, self._tpppp, self._tz, self._tz2, self._tz3]
+        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tppp, self._tpppp, self._tz, self._tz2, self._tz3, self._tz4]
 
     def e_3D_func(self, kx, ky, kz):
         return optimized_e_3D_func(kx, ky, kz, *self.bandParameters())
@@ -245,13 +258,17 @@ class BandStructure:
                     kyf = y_int / self.a
                     # self.a (and not b) because anisotropy is taken into account earlier
                     kzf = kz * np.ones_like(x_int)
-                    self.dkf = 2 * dks * dkz * np.ones_like(x_int)
-                    # factor 2 because integrate only half kz.
+                    self.dks = dks * np.ones_like(x_int)
+                    self.dkz = (2 * dkz) * np.ones_like(x_int)
+                    self.dkf = dks * (2 * dkz) * np.ones_like(x_int)
+                    # factor 2 for dkz is because integratation is only over half kz.
                 else:
                     kxf = np.append(kxf, x_int / self.a)
                     kyf = np.append(kyf, y_int / self.a)
                     kzf = np.append(kzf, kz * np.ones_like(x_int))
-                    self.dkf = np.append(self.dkf, 2 * dks * dkz * np.ones_like(x_int))
+                    self.dks = np.append(self.dks, dks * np.ones_like(x_int))
+                    self.dkz = np.append(self.dkz, (2 * dkz) * np.ones_like(x_int))
+                    self.dkf = np.append(self.dkf, dks * (2 * dkz) * np.ones_like(x_int))
 
             self.numberPointsPerKz_list.append(4 * numberPointsPerKz)
 
@@ -260,7 +277,7 @@ class BandStructure:
 
         # Compute Velocity at t = 0 on Fermi Surface
         vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
-        # dim -> (i, i0) = (xyz, position on FS)
+        # dim -> (n, i0) = (xyz, position on FS)
         self.vf = np.vstack([vx, vy, vz])
 
         ## Output message
@@ -269,22 +286,23 @@ class BandStructure:
 
 
     def dos_k_func(self):
-        # Density of State of k
-        # dos_k = 1 / (|grad(E)|) here = 1 / (|v|), because in the def of vf, hbar = 1
-        # dos_k units meV^1 Angstrom^-1
-        self.dos_k = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
-
-    def dos_k_func(self):
-        # Density of State of k
-        # dos_k = 1 / |grad(E(k))| here = 1 / (|v|), because in the def of vf, hbar = 1
-        # dos_k units meV^1 Angstrom^-1
+        """
+        Density of State of k
+        dos_k = 1 / (|grad(E)|) here = 1 / (|v|), because in the def of vf, hbar = 1
+        dos_k in  meV^1 Angstrom^-1
+        """
         self.dos_k = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
 
     def dos_epsilon_func(self):
-        # Density of State integrated at the Fermi level
-        # dos_k = int( dkf / |grad(E(k))| )
-        # dos_epsilon units meV^-1
-        self.dos_epsilon = np.sum(self.dkf * self.dos_k)
+        """
+        Density of State integrated at the Fermi level
+            dos_k = int( dkf / |grad(E(k))| )
+        Units :
+            - dos_epsilon in meV^-1 Angstrom^-3
+            - dkf in Angstrom^-2
+        """
+        prefactor =  2 / (2*pi)**3 # factor 2 for the spin
+        self.dos_epsilon = prefactor * np.sum(self.dkf * self.dos_k)
 
     ## Figures ////////////////////////////////////////////////////////////////#
 
@@ -397,7 +415,7 @@ class BandStructure:
 # ABOUT JUST IN TIME (JIT) COMPILATION >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # jitclass do not work, the best option is to call a jit otimized function from inside the class.
 @jit(nopython=True, cache=True, parallel=True)
-def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3):
+def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4):
     # 2D Dispersion
     e_2D = -2 * t * (cos(kx * a) + cos(ky * b))
     e_2D += -4 * tp * cos(kx * a) * cos(ky * b)
@@ -411,15 +429,10 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz
     e_z += -2 * tz2 * cos(kz * c / 2)
 
     # kz dispersion v2
-    # e_z  = -8 * tz  * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
-    # e_z += -8 * tz2 * cos(kz * c / 2) * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))
-    # e_z += -8 * tz3 * cos(kz * c / 2) * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
-
-    # kz dispersion v2
-    # e_z += -2 * tz2 * cos(kx * a) * cos(ky * b)
-    # e_z += -2 * tz3 * (cos(kx * a) + cos(ky * b) -1)
-    # e_z =  -2 * tz
-    # e_z *=  cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2) * (cos(kx * a) - cos(ky * b))**2
+    # e_z  = - tz  * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
+    # e_z += - tz2 * cos(kz * c / 2) * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))
+    # e_z += - tz3 * cos(kz * c / 2) * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
+    # e_z += - tz4 * cos(kz * c / 2) * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))
 
     epsilon = e_2D + e_z - mu
 
@@ -427,7 +440,7 @@ def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz
 
 
 @jit(nopython=True, cache=True, parallel=True)
-def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3):
+def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4):
     d = c / 2
     kxa = kx * a
     kyb = ky * b
@@ -476,15 +489,18 @@ def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz
     d_ez_dkz = - 2 * tz * sigma * square * (-d * sinkz) - 2 * tz2 * (-d) * sinkz
 
     # Velocity from e_z v2
-    # d_ez_dkx  = -8 * tz * coskz * (-a/2) * sinkx_2 * cosky_2
-    # d_ez_dkx += -8 * tz2 * coskz * ((-3*a/2) * sin(3*kx*a/2) * cosky_2 + (-a/2) * sinkx_2 * cos(3*ky*b/2))
-    # d_ez_dkx += -8 * tz3 * coskz * (-3*a/2) * sin(3 * kx * a / 2) * cos(3 * ky * b / 2)
-    # d_ez_dky  = -8 * tz * coskz * coskx_2 * (-b/2) * sinky_2
-    # d_ez_dky += -8 * tz2 * coskz * (cos(3*kx*a/2) * (-b/2) * sinky_2 + coskx_2 * (-3*b/2) * sin(3*ky*b/2))
-    # d_ez_dky += -8 * tz3 * coskz * cos(3 * kx * a / 2) * (-3*b/2) * sin(3 * ky * b / 2)
-    # d_ez_dkz  = -8 * tz * (-c/2) * sinkz * coskx_2 * cosky_2
-    # d_ez_dkz += -8 * tz2 * (-c/2) * sinkz * (cos(3*kx*a/2) * cosky_2 + coskx_2 * cos(3*ky*b/2))
-    # d_ez_dkz += -8 * tz3 * (-c/2) * sinkz * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
+    # d_ez_dkx  = - tz * coskz * (-a/2) * sinkx_2 * cosky_2
+    # d_ez_dkx += - tz2 * coskz * ((-3*a/2) * sin(3*kx*a/2) * cosky_2 + (-a/2) * sinkx_2 * cos(3*ky*b/2))
+    # d_ez_dkx += - tz3 * coskz * (-3*a/2) * sin(3 * kx * a / 2) * cos(3 * ky * b / 2)
+    # d_ez_dkx += - tz4 * coskz * ((-5*a/2) * sin(5*kx*a/2) * cosky_2 + (-a/2) * sinkx_2 * cos(5*ky*b/2))
+    # d_ez_dky  = - tz * coskz * coskx_2 * (-b/2) * sinky_2
+    # d_ez_dky += - tz2 * coskz * (cos(3*kx*a/2) * (-b/2) * sinky_2 + coskx_2 * (-3*b/2) * sin(3*ky*b/2))
+    # d_ez_dky += - tz3 * coskz * cos(3 * kx * a / 2) * (-3*b/2) * sin(3 * ky * b / 2)
+    # d_ez_dky += - tz4 * coskz * (cos(5*kx*a/2) * (-b/2) * sinky_2 + coskx_2 * (-5*b/2) * sin(5*ky*b/2))
+    # d_ez_dkz  = - tz * (-c/2) * sinkz * coskx_2 * cosky_2
+    # d_ez_dkz += - tz2 * (-c/2) * sinkz * (cos(3*kx*a/2) * cosky_2 + coskx_2 * cos(3*ky*b/2))
+    # d_ez_dkz += - tz3 * (-c/2) * sinkz * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
+    # d_ez_dkz += - tz4 * (-c/2) * sinkz * (cos(5*kx*a/2) * cosky_2 + coskx_2 * cos(5*ky*b/2))
 
 
     vx = (d_e2D_dkx + d_ez_dkx) / hbar

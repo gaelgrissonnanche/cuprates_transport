@@ -18,7 +18,7 @@ params = {
     "tz": 0.07,
     "tz2": 0.00,
     "mu": -0.826,
-    "fixdoping": 0.24,
+    "fixdoping": 0.1,
     "numberOfKz": 7,
     "mesh_ds": 1/20,
     "T" : 0,
@@ -40,7 +40,8 @@ params = {
 bandObject = BandStructure(**params)
 
 ## Discretize
-# bandObject.setMuToDoping(0.22)
+# bandObject.setMuToDoping(0.4)
+# print(bandObject.mu)
 bandObject.doping(printDoping=True)
 bandObject.discretize_FS()
 bandObject.dos_k_func()
@@ -52,6 +53,10 @@ bandObject.dos_k_func()
 condObject = Conductivity(bandObject, **params)
 # condObject.figdfdE()
 condObject.solveMovementFunc()
+condObject.omegac_tau_func()
+print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
+condObject.mc_func()
+print("mc = " + "{:.3f}".format(condObject.mc))
 # condObject.figScatteringPhi(kz=0)
 # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # condObject.figScatteringPhi(kz=2*pi/bandObject.c)

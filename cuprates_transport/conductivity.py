@@ -17,6 +17,7 @@ hbar = 1.05e-34 # m2 kg / s
 e = 1.6e-19 # C
 kB = 1.380649e-23 # J / K
 kB = kB / meVolt # meV / K
+m0 = 9.109e-31 # in kg (the bare electron mass)
 
 
 ## This coefficient takes into accound all units and constant to prefactor the movement equation
@@ -43,6 +44,7 @@ class Conductivity:
         self._Btheta = Btheta
         self._Bphi   = Bphi
         self._B_vector = self.BFunc() # np array fo Bx,By,Bz
+        self.omegac_tau = None
 
         # Temperature and energy integration
         self._T = T # in Kelvin
@@ -223,6 +225,29 @@ class Conductivity:
         factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
         return factor_out_of_FBZ_AF
 
+    def omegac_tau_func(self):
+        dks = self.bandObject.dks / Angstrom # in m^-1
+        kf = self.bandObject.kf
+        vf = self.bandObject.vf * meVolt * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
+        vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
+        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
+        inverse_omegac_tau = \
+            prefactor * np.sum(dks / vf_perp / (picosecond * self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
+                                                                             vf[0, :], vf[1, :], vf[2, :])))
+        self.omegac_tau = 1 / inverse_omegac_tau
+
+
+    def mc_func(self):
+        """
+        The cyclotronic mass in units of m0 (the bare electron mass)
+        """
+        dks = self.bandObject.dks / Angstrom # in m^-1
+        vf = self.bandObject.vf * meVolt * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
+        vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
+        prefactor = (hbar)**2 / (2 * pi) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
+        self.mc = prefactor * np.sum(dks / vf_perp) / m0
+
+
 
     def gamma_DOS_Func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
@@ -246,7 +271,7 @@ class Conductivity:
                                                      self.vft[2, :, :]
                                                      )
                                                       )
-                         , axis = 1)
+                                    , axis = 1)
 
 
     def tauTotFunc(self, kx, ky, kz, vx, vy, vz):
