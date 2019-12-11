@@ -14,8 +14,10 @@ params = {
     "tpp": 0.14,
     "tppp": 0,
     "tpppp": 0,
-    "tz": 0.015,
-    "tz2": 0.00,
+    "tz": 0.0285,
+    "tz2": -0.0070,
+    "tz3": -0.0224,
+    "tz4": 0.0068,
     "mu": -1.222,
     "fixdoping": -2,
     "numberOfKz": 7,
@@ -27,7 +29,7 @@ params = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 20, 28, 36, 44],
-    "gamma_0": 5,
+    "gamma_0": 4.2,
     "gamma_k": 0,
     "gamma_dos_max": 0,
     "power": 2,
@@ -52,7 +54,11 @@ bandObject.dos_k_func()
 ## Conductivity
 condObject = Conductivity(bandObject, **params)
 # condObject.figdfdE()
-# condObject.solveMovementFunc()
+condObject.solveMovementFunc()
+condObject.omegac_tau_func()
+print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
+condObject.mc_func()
+print("mc = " + "{:.3f}".format(condObject.mc))
 # condObject.figScatteringPhi(kz=0)
 # condObject.solveMovementFunc()
 # condObject.figCumulativevft()

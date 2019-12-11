@@ -8,11 +8,14 @@ init_member = {
     "a": 3.74767,
     "b": 3.74767,
     "c": 13.2,
-    "t": 170,
+    "t": 190,
     "tp": -0.14,
     "tpp": 0.07,
     "tz": 0.07,
-    "tz2": 0.00,
+    # "tz": 0.0285*8,
+    "tz2": -0.002,
+    "tz3": -0.05,
+    "tz4": 0.002,
     "mu": -0.826,
     "fixdoping": 0.24,
     "numberOfKz": 7,
@@ -37,17 +40,18 @@ init_member = {
 
 ## For FIT
 ranges_dict = {
-    "t": [130,300],
-    "tp": [-0.2,-0.1],
-    "tpp": [-0.10,0.04],
+    # "t": [130,300],
+    # "tp": [-0.2,-0.1],
+    # "tpp": [-0.10,0.04],
     # "tppp": [-0.1,0.1],
     # "tpppp": [-0.05,0.05],
-    "tz": [0.0001,0.12],
-    # "tz2": [-0.2,0.2],
-    # "tz3": [-0.2,0.2],
+    # "tz": [0,0.2],
+    "tz2": [-0.2,0],
+    "tz3": [-0.2,0],
+    "tz4": [0,0.2],
     # "mu": [-1.8,-1.0],
-    "gamma_0": [5,30],
-    "gamma_k": [10,100],
+    "gamma_0": [5,20],
+    "gamma_k": [0,100],
     "power":[1, 20],
     # "gamma_dos_max": [0.1, 200],
     # "factor_arcs" : [1, 300],
@@ -83,16 +87,16 @@ data_dict[6, 45] = ["data/NdLSCO_0p25/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 1]
 
 
 ## Play
-# genetic_search(init_member,ranges_dict, data_dict, folder="data/NdLSCO_0p25",
-#                 population_size=100, N_generation=50, mutation_s=0.3, crossing_p=0.7, normalized_data=False)
+# genetic_search(init_member,ranges_dict, data_dict, folder="sim/NdLSCO_0p25",
+#                 population_size=200, N_generation=1000, mutation_s=0.3, crossing_p=0.7, normalized_data=True)
 
 # Play
-fit_search(init_member, ranges_dict, data_dict, folder="sim/NdLSCO_0p25", normalized_data=False)
+# fit_search(init_member, ranges_dict, data_dict, folder="sim/NdLSCO_0p25", normalized_data=False)
 
 # utils.save_member_to_json(init_member, folder="data/NdLSCO_0p25")
 # init_member = utils.load_member_from_json(
 #     "sim/NdLSCO_0p25",
 #     "data_p0.24_T25.0_fit_p0.240_T0_B45_t320.9_mu-0.977_tp-0.168_tpp0.120_tz0.020_tzz0.000_LargePocket_gzero5.3_gdos338.2_gk0.0_pwr12.0_arc1.0"
 # )
-# utils.fig_compare(init_member, data_dict, folder="sim/NdLSCO_0p25", normalized_data=False)
+utils.fig_compare(init_member, data_dict, folder="sim/NdLSCO_0p25", normalized_data=True)
 
