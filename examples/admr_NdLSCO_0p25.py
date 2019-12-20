@@ -4,8 +4,6 @@ from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-
-
 ## ONE BAND Horio et al. ///////////////////////////////////////////////////////
 params = {
     "bandname": "LargePocket",
@@ -46,6 +44,9 @@ bandObject.doping(printDoping=True)
 bandObject.discretize_FS()
 bandObject.dos_k_func()
 
+bandObject.mc_func()
+print("mc = " + "{:.3f}".format(bandObject.mc))
+
 # bandObject.figDiscretizeFS2D()
 # bandObject.figMultipleFS2D()
 
@@ -55,8 +56,6 @@ condObject = Conductivity(bandObject, **params)
 condObject.solveMovementFunc()
 condObject.omegac_tau_func()
 print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
-condObject.mc_func()
-print("mc = " + "{:.3f}".format(condObject.mc))
 # condObject.figScatteringPhi(kz=0)
 # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # condObject.figScatteringPhi(kz=2*pi/bandObject.c)

@@ -158,6 +158,18 @@ class BandStructure:
     def v_3D_func(self, kx, ky, kz):
         return optimized_v_3D_func(kx, ky, kz, *self.bandParameters())
 
+    def mc_func(self):
+        """
+        The cyclotronic mass in units of m0 (the bare electron mass)
+        """
+        hbar = 1.05e-34 # m2 kg / s
+        m0 = 9.109e-31 # in kg (the bare electron mass)
+        dks = self.dks / Angstrom # in m^-1
+        vf = self.vf * meVolt * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
+        vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
+        prefactor = (hbar)**2 / (2 * pi) / self.numberOfKz # divide by the number of kz to average over all kz
+        self.mc = prefactor * np.sum(dks / vf_perp) / m0
+
     def dispersionMesh(self, resX=500, resY=500, resZ=10):
         kx_a = np.linspace(-pi / self.a, pi / self.a, resX)
         ky_a = np.linspace(-pi / self.b, pi / self.b, resY)

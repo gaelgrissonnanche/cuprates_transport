@@ -236,19 +236,6 @@ class Conductivity:
                                                                              vf[0, :], vf[1, :], vf[2, :])))
         self.omegac_tau = 1 / inverse_omegac_tau
 
-
-    def mc_func(self):
-        """
-        The cyclotronic mass in units of m0 (the bare electron mass)
-        """
-        dks = self.bandObject.dks / Angstrom # in m^-1
-        vf = self.bandObject.vf * meVolt * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
-        vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
-        prefactor = (hbar)**2 / (2 * pi) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
-        self.mc = prefactor * np.sum(dks / vf_perp) / m0
-
-
-
     def gamma_DOS_Func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
         dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units

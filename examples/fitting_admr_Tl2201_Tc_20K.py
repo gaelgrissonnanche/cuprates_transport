@@ -67,7 +67,7 @@ init_member = {
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
-    "Bphi_array": [0, 20, 28, 36, 44],
+    "Bphi_array": [0, 44], #[0, 20, 28, 36, 44],
     "gamma_0": 4.2,
     "gamma_k": 0,
     "power": 2,
@@ -98,7 +98,7 @@ init_member = {
 
 ## For FIT
 ranges_dict = {
-    # "t": [130,300],
+    "t": [130,300],
     # "tp": [-0.5,-0.2],
     # "tpp": [-0.14,0.14],
     # "tppp": [-0.1,0.1],
@@ -108,7 +108,7 @@ ranges_dict = {
     "tz3": [-0.2,0],
     "tz4": [0, 0.2],
     # "mu": [-1.8,-1.0],
-    "gamma_0": [2,10],
+    # "gamma_0": [2,10],
     # "gamma_k": [0,30],
     # "power":[1, 100],
     # "gamma_dos_max": [0.1, 200],
@@ -129,7 +129,7 @@ data_dict[4.2, 44] = ["data/Tl2201_Tc_20K_Hussey_2003/rhozz_vs_theta_Tl2201_Tc_2
 #                 population_size=100, N_generation=1000, mutation_s=0.3, crossing_p=0.7, normalized_data=False)
 
 # Play
-# fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K", normalized_data=False)
+fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K", normalized_data=False)
 
 
 # utils.save_member_to_json(init_member, folder="../data_NdLSCO_0p25")
@@ -137,4 +137,4 @@ data_dict[4.2, 44] = ["data/Tl2201_Tc_20K_Hussey_2003/rhozz_vs_theta_Tl2201_Tc_2
 #     "sim/Tl2201_Tc_20K",
 #     "data_p0.25_T4.2_fit_p0.200_T0_B45_t181.0_mu-1.375_tp-0.535_tpp0.300_tz0.015_tzz0.000_HolePocket_gzero6.5_gdos0.0_gk0.0_pwr2.0_arc1.0"
 # )
-utils.fig_compare(init_member, data_dict, folder="sim/Tl2201_Tc_20K", normalized_data=True)
+# utils.fig_compare(init_member, data_dict, folder="sim/Tl2201_Tc_20K", normalized_data=True)

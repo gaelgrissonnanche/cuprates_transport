@@ -159,7 +159,7 @@ def fit_search(init_member, ranges_dict, data_dict, folder="",
         pars.add(param_name, value = init_member[param_name], min = param_range[0], max = param_range[-1])
 
     ## Run fit algorithm
-    out = minimize(utils.compute_diff, pars, args=(init_member, ranges_dict, data_dict, normalized_data), method="differential_evolution")
+    out = minimize(utils.compute_diff, pars, args=(init_member, ranges_dict, data_dict, normalized_data))#, method="differential_evolution")
 
     ## Display fit report
     print(fit_report(out.params))
