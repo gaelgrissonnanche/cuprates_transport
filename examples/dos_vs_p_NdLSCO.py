@@ -50,7 +50,7 @@ def dos_to_gamma(dos, V_molar):
 
 ## Array of parameters
 tz_array = np.array([0, 0.07]) # in units of t
-mu_array = np.linspace(-1.2, -0.54, 500) # in units of t
+mu_array = np.linspace(-1.2, -0.54, 2000) # in units of t
 
 ## Bandstructure
 bandObject = BandStructure(**params)
@@ -59,7 +59,7 @@ bandObject = BandStructure(**params)
 p_matrix = np.empty((len(tz_array), len(mu_array)))
 dos_epsilon_matrix = np.empty((len(tz_array), len(mu_array)))
 gamma_matrix = np.empty((len(tz_array), len(mu_array)))
-
+mc_matrix = np.empty((len(tz_array), len(mu_array)))
 
 for i, tz in enumerate(tqdm(tz_array, ncols=80, unit="tz", desc="total tz")):
     bandObject.tz = tz
@@ -74,6 +74,7 @@ for i, tz in enumerate(tqdm(tz_array, ncols=80, unit="tz", desc="total tz")):
         bandObject.discretize_FS()
         bandObject.dos_k_func()
         bandObject.dos_epsilon_func()
+        bandObject.mc_func()
 
         p_matrix[i,j] = bandObject.p
 
@@ -82,31 +83,32 @@ for i, tz in enumerate(tqdm(tz_array, ncols=80, unit="tz", desc="total tz")):
         dos_epsilon_matrix[i,j] = bandObject.dos_epsilon * V_cell / 2 * 1e3 # in eV^-1 for one mole of CuO2 in V_cell / 2
 
         gamma_matrix[i,j] = dos_to_gamma(bandObject.dos_epsilon, V_molar) # in mJ/K^2/mol
+        mc_matrix[i,j] = bandObject.mc # in units of m0
 
 
     index = np.argsort(p_matrix[i,:])
     p_matrix[i, :] = p_matrix[i, index]
     dos_epsilon_matrix[i, :] = dos_epsilon_matrix[i, index]
     gamma_matrix[i, :] = gamma_matrix[i, index]
+    mc_matrix[i, :] = mc_matrix[i, index]
 
 
 
 
 ## Save data
-file_path = "sim/NdLSCO_0p25/" + os.path.basename(__file__)[0:-3] + ".dat"
+file_path = "sim/Tl2201_Tc_20K/" + os.path.basename(__file__)[0:-3] + ".dat"
 Data_list = []
 DataHeader = ""
 for i, tz in enumerate(tz_array):
     Data_list.append(p_matrix[i, :])
     Data_list.append(dos_epsilon_matrix[i, :])
     Data_list.append(gamma_matrix[i, :])
-    DataHeader = "p[tz=" + str(tz) + "]\tDOS(eV^-1)\tgamma(mJ/K^2mol)\t"
+    Data_list.append(mc_matrix[i, :])
+    DataHeader = "p[tz=" + str(tz) + "]\tDOS(eV^-1)\tgamma(mJ/K^2mol)\tmc(per m0)\t"
 
 Data = np.vstack(Data_list)
 Data = Data.transpose()
 np.savetxt(file_path, Data, fmt='%.7e', header = DataHeader, comments = "#")
-
-
 
 
 
@@ -153,8 +155,11 @@ colors[-1] = (1, 0, 0, 1)
 ### Load and Plot Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 for i, tz in enumerate(tz_array):
-    line = axes.plot(p_matrix[i,:], dos_epsilon_matrix[i,:], label=r"$t_{\rm z}$ = " + "{:.2f}".format(tz))
-    plt.setp(line, ls ="-", c = colors[i], lw = 3, marker = "", mfc = colors[i], ms = 7, mec = colors[i], mew= 0)
+    line = axes.plot(p_matrix[i,:], gamma_matrix[i,:], label=r"$\gamma$ ($t_{\rm z}$ = " + "{:.3f}".format(tz) + ")")
+    plt.setp(line, ls ="-", c = colors[i], lw = 2, marker = "")
+
+    line = axes2.plot(p_matrix[i,:], mc_matrix[i,:], label=r"$m_{\rm c}$")
+    plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "")
 
 
 #############################################
@@ -163,15 +168,16 @@ axes.tick_params(axis='x', which='major', pad=15)
 axes.tick_params(axis='y', which='major', pad=8)
 axes2.tick_params(axis='y', which='major', pad=8)
 axes.set_xlabel(r"$p$", labelpad = 8)
-axes.set_ylabel(r"DOS ( eV$^{-1}$ )")
-axes.set_ylim(0, 7)
-dosmin, dosmax = axes.axis()[2:]
-axes2.set_ylim(0, dos_to_gamma(dosmax / (1e3 * V_cell / 2), V_molar))
-axes2.set_ylabel(r"$\gamma$ ( mJ / K$^2$ mol )", labelpad = 40, rotation = 270)
+axes.set_ylabel(r"$\gamma$ ( mJ / K$^2$ mol )")
+axes.set_ylim(0, 20)
+axes2.set_ylim(bottom=0)
+axes2.set_ylabel(r"$m_{\rm c}$", labelpad = 40, rotation = 270)
 #############################################
 
 
-axes.legend(loc = 0, fontsize = 14, frameon = False, numpoints=1, markerscale=1.0, handletextpad=0.5)
+axes.legend(loc = 2, fontsize = 14, frameon = False, numpoints=1, markerscale=1.0, handletextpad=0.5)
+axes2.legend(loc = 1, fontsize = 14, frameon = False, numpoints=1, markerscale=1.0, handletextpad=0.5)
+
 
 # ## Set ticks space and minor ticks space ############
 # #####################################################.
@@ -188,4 +194,46 @@ axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
 
 plt.show()
 fig.savefig(figures_path, bbox_inches = "tight")
+
+
+
+
+# ### Load and Plot Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+# for i, tz in enumerate(tz_array):
+#     line = axes.plot(p_matrix[i,:], dos_epsilon_matrix[i,:], label=r"$t_{\rm z}$ = " + "{:.2f}".format(tz))
+#     plt.setp(line, ls ="-", c = colors[i], lw = 3, marker = "", mfc = colors[i], ms = 7, mec = colors[i], mew= 0)
+
+
+# #############################################
+# axes.set_xlim(0.1,0.4)
+# axes.tick_params(axis='x', which='major', pad=15)
+# axes.tick_params(axis='y', which='major', pad=8)
+# axes2.tick_params(axis='y', which='major', pad=8)
+# axes.set_xlabel(r"$p$", labelpad = 8)
+# axes.set_ylabel(r"DOS ( eV$^{-1}$ )")
+# axes.set_ylim(0, 7)
+# dosmin, dosmax = axes.axis()[2:]
+# axes2.set_ylim(0, dos_to_gamma(dosmax / (1e3 * V_cell / 2), V_molar))
+# axes2.set_ylabel(r"$\gamma$ ( mJ / K$^2$ mol )", labelpad = 40, rotation = 270)
+# #############################################
+
+
+# axes.legend(loc = 0, fontsize = 14, frameon = False, numpoints=1, markerscale=1.0, handletextpad=0.5)
+
+# # ## Set ticks space and minor ticks space ############
+# # #####################################################.
+
+# xtics = 0.1 # space between two ticks
+# mxtics = xtics / 2.  # space between two minor ticks
+# majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
+
+# axes.xaxis.set_major_locator(MultipleLocator(xtics))
+# axes.xaxis.set_major_formatter(majorFormatter)
+# axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
+# ######################################################
+
+
+# plt.show()
+# fig.savefig(figures_path, bbox_inches = "tight")
 

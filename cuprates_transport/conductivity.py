@@ -17,8 +17,6 @@ hbar = 1.05e-34 # m2 kg / s
 e = 1.6e-19 # C
 kB = 1.380649e-23 # J / K
 kB = kB / meVolt # meV / K
-m0 = 9.109e-31 # in kg (the bare electron mass)
-
 
 ## This coefficient takes into accound all units and constant to prefactor the movement equation
 units_move_eq =  e * Angstrom**2 * picosecond * meVolt / hbar**2
@@ -335,7 +333,7 @@ class Conductivity:
         else:
             sigma_tot = 0
             for n in range(self._epsilon_N+1):
-                epsilon = (- self._epsilon_cut + n * self.d_epsilon) * self.bandObject.t
+                epsilon = - self._epsilon_cut + n * self.d_epsilon
                 self.bandObject.discretize_FS(epsilon=epsilon)
                 self.bandObject.dos_k_func()
                 ## !!!!  Do not forget to update scattering rates !!! ##
@@ -354,12 +352,12 @@ class Conductivity:
 
     def dfdE(self, epsilon):
         """Returns in fact dfdE * t in order to get epsilon unitless"""
-        return -self.bandObject.t / (4 * kB * self._T) / (cosh((epsilon * self.bandObject.t) / (2*kB * self._T)))**2
+        return -1 / (4 * kB * self._T) / (cosh(epsilon / (2*kB * self._T)))**2
 
 
     def energyCutOff(self, dfdE_cut):
         if self._T != 0:
-            return 2*kB*self._T / (self.bandObject.t) * arccosh(1/sqrt(dfdE_cut/self.bandObject.t * 4*kB*self._T))
+            return 2*kB*self._T * arccosh(1/sqrt(dfdE_cut * 4*kB*self._T))
         else:
             return 0
 
