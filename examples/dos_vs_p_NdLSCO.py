@@ -96,7 +96,7 @@ for i, tz in enumerate(tqdm(tz_array, ncols=80, unit="tz", desc="total tz")):
 
 
 ## Save data
-file_path = "sim/Tl2201_Tc_20K/" + os.path.basename(__file__)[0:-3] + ".dat"
+file_path = "sim/NdLSCO_0p25/" + os.path.basename(__file__)[0:-3] + ".dat"
 Data_list = []
 DataHeader = ""
 for i, tz in enumerate(tz_array):

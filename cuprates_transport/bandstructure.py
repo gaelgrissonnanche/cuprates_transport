@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import cos, sin, pi, sqrt
 from scipy import optimize
+import sympy as sp
 from skimage import measure
 from numba import jit
 import matplotlib as mpl
@@ -424,102 +425,102 @@ class BandStructure:
 
 
 
-# ABOUT JUST IN TIME (JIT) COMPILATION >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# jitclass do not work, the best option is to call a jit otimized function from inside the class.
-@jit(nopython=True, cache=True, parallel=True)
-def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4):
-    # 2D Dispersion
-    e_2D = -2 * t * (cos(kx * a) + cos(ky * b))
-    e_2D += -4 * tp * cos(kx * a) * cos(ky * b)
-    e_2D += -2 * tpp * (cos(2 * kx * a) + cos(2 * ky * b))
-    e_2D += -2 * tppp * (cos(2 * kx * a) * cos(ky * b) + cos(kx * a) * cos(2 * ky * b))
-    e_2D += -4 * tpppp * cos(2 * kx * a) * cos(2 * ky * b)
+# # ABOUT JUST IN TIME (JIT) COMPILATION >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# # jitclass do not work, the best option is to call a jit otimized function from inside the class.
+# @jit(nopython=True, cache=True, parallel=True)
+# def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4):
+#     # 2D Dispersion
+#     e_2D = -2 * t * (cos(kx * a) + cos(ky * b))
+#     e_2D += -4 * tp * cos(kx * a) * cos(ky * b)
+#     e_2D += -2 * tpp * (cos(2 * kx * a) + cos(2 * ky * b))
+#     e_2D += -2 * tppp * (cos(2 * kx * a) * cos(ky * b) + cos(kx * a) * cos(2 * ky * b))
+#     e_2D += -4 * tpppp * cos(2 * kx * a) * cos(2 * ky * b)
 
-    # kz dispersion v1
-    e_z = -2 * tz * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
-    e_z *= (cos(kx * a) - cos(ky * b))**2
-    e_z += -2 * tz2 * cos(kz * c / 2)
+#     # kz dispersion v1
+#     e_z = -2 * tz * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
+#     e_z *= (cos(kx * a) - cos(ky * b))**2
+#     e_z += -2 * tz2 * cos(kz * c / 2)
 
-    # kz dispersion v2
-    # e_z  = - tz  * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
-    # e_z += - tz2 * cos(kz * c / 2) * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))
-    # e_z += - tz3 * cos(kz * c / 2) * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
-    # e_z += - tz4 * cos(kz * c / 2) * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))
+#     # kz dispersion v2
+#     # e_z  = - tz  * cos(kx * a / 2) * cos(ky * b / 2) * cos(kz * c / 2)
+#     # e_z += - tz2 * cos(kz * c / 2) * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))
+#     # e_z += - tz3 * cos(kz * c / 2) * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
+#     # e_z += - tz4 * cos(kz * c / 2) * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))
 
-    epsilon = e_2D + e_z - mu
+#     epsilon = e_2D + e_z - mu
 
-    return epsilon
-
-
-@jit(nopython=True, cache=True, parallel=True)
-def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4):
-    d = c / 2
-    kxa = kx * a
-    kyb = ky * b
-    kzd = kz * d
-    coskx = cos(kxa)
-    cosky = cos(kyb)
-    coskz = cos(kzd)
-    sinkx = sin(kxa)
-    sinky = sin(kyb)
-    sinkz = sin(kzd)
-    cos2kx = cos(2 * kxa)
-    cos2ky = cos(2 * kyb)
-    sin2kx = sin(2 * kxa)
-    sin2ky = sin(2 * kyb)
-    coskx_2 = cos(kxa / 2)
-    cosky_2 = cos(kyb / 2)
-    sinkx_2 = sin(kxa / 2)
-    sinky_2 = sin(kyb / 2)
-
-    # Velocity from e_2D
-    d_e2D_dkx  = 2 * t * a * sinkx
-    d_e2D_dkx += 4 * tp * a * sinkx * cosky
-    d_e2D_dkx += 4 * tpp * a * sin2kx
-    d_e2D_dkx += 2 * tppp * a * (2 * sin2kx * cosky + sinkx * cos2ky)
-    d_e2D_dkx += 8 * tpppp * a * sin(2 * kx * a) * cos(2 * ky * b)
-
-    d_e2D_dky  = 2 * t * b * sinky
-    d_e2D_dky += 4 * tp * b * coskx * sinky
-    d_e2D_dky += 4 * tpp * b * sin2ky
-    d_e2D_dky += 2 * tppp * b * (cos2kx * sinky + 2 * coskx * sin2ky)
-    d_e2D_dky += 8 * tpppp * b * cos(2 * kx * a) * sin(2 * ky * b)
-
-    d_e2D_dkz = 0
-
-    # Velocity from e_z v1
-    sigma = coskx_2 * cosky_2
-    diff = (coskx - cosky)
-    square = (diff)**2
-    d_sigma_dkx = - a / 2 * sinkx_2 * cosky_2
-    d_sigma_dky = - b / 2 * coskx_2 * sinky_2
-    d_square_dkx = 2 * (diff) * (-a * sinkx)
-    d_square_dky = 2 * (diff) * (+b * sinky)
-
-    d_ez_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
-    d_ez_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
-    d_ez_dkz = - 2 * tz * sigma * square * (-d * sinkz) - 2 * tz2 * (-d) * sinkz
-
-    # Velocity from e_z v2
-    # d_ez_dkx  = - tz * coskz * (-a/2) * sinkx_2 * cosky_2
-    # d_ez_dkx += - tz2 * coskz * ((-3*a/2) * sin(3*kx*a/2) * cosky_2 + (-a/2) * sinkx_2 * cos(3*ky*b/2))
-    # d_ez_dkx += - tz3 * coskz * (-3*a/2) * sin(3 * kx * a / 2) * cos(3 * ky * b / 2)
-    # d_ez_dkx += - tz4 * coskz * ((-5*a/2) * sin(5*kx*a/2) * cosky_2 + (-a/2) * sinkx_2 * cos(5*ky*b/2))
-    # d_ez_dky  = - tz * coskz * coskx_2 * (-b/2) * sinky_2
-    # d_ez_dky += - tz2 * coskz * (cos(3*kx*a/2) * (-b/2) * sinky_2 + coskx_2 * (-3*b/2) * sin(3*ky*b/2))
-    # d_ez_dky += - tz3 * coskz * cos(3 * kx * a / 2) * (-3*b/2) * sin(3 * ky * b / 2)
-    # d_ez_dky += - tz4 * coskz * (cos(5*kx*a/2) * (-b/2) * sinky_2 + coskx_2 * (-5*b/2) * sin(5*ky*b/2))
-    # d_ez_dkz  = - tz * (-c/2) * sinkz * coskx_2 * cosky_2
-    # d_ez_dkz += - tz2 * (-c/2) * sinkz * (cos(3*kx*a/2) * cosky_2 + coskx_2 * cos(3*ky*b/2))
-    # d_ez_dkz += - tz3 * (-c/2) * sinkz * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
-    # d_ez_dkz += - tz4 * (-c/2) * sinkz * (cos(5*kx*a/2) * cosky_2 + coskx_2 * cos(5*ky*b/2))
+#     return epsilon
 
 
-    vx = (d_e2D_dkx + d_ez_dkx) / hbar
-    vy = (d_e2D_dky + d_ez_dky) / hbar
-    vz = (d_e2D_dkz + d_ez_dkz) / hbar
+# @jit(nopython=True, cache=True, parallel=True)
+# def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4):
+#     d = c / 2
+#     kxa = kx * a
+#     kyb = ky * b
+#     kzd = kz * d
+#     coskx = cos(kxa)
+#     cosky = cos(kyb)
+#     coskz = cos(kzd)
+#     sinkx = sin(kxa)
+#     sinky = sin(kyb)
+#     sinkz = sin(kzd)
+#     cos2kx = cos(2 * kxa)
+#     cos2ky = cos(2 * kyb)
+#     sin2kx = sin(2 * kxa)
+#     sin2ky = sin(2 * kyb)
+#     coskx_2 = cos(kxa / 2)
+#     cosky_2 = cos(kyb / 2)
+#     sinkx_2 = sin(kxa / 2)
+#     sinky_2 = sin(kyb / 2)
 
-    return vx, vy, vz
+#     # Velocity from e_2D
+#     d_e2D_dkx  = 2 * t * a * sinkx
+#     d_e2D_dkx += 4 * tp * a * sinkx * cosky
+#     d_e2D_dkx += 4 * tpp * a * sin2kx
+#     d_e2D_dkx += 2 * tppp * a * (2 * sin2kx * cosky + sinkx * cos2ky)
+#     d_e2D_dkx += 8 * tpppp * a * sin(2 * kx * a) * cos(2 * ky * b)
+
+#     d_e2D_dky  = 2 * t * b * sinky
+#     d_e2D_dky += 4 * tp * b * coskx * sinky
+#     d_e2D_dky += 4 * tpp * b * sin2ky
+#     d_e2D_dky += 2 * tppp * b * (cos2kx * sinky + 2 * coskx * sin2ky)
+#     d_e2D_dky += 8 * tpppp * b * cos(2 * kx * a) * sin(2 * ky * b)
+
+#     d_e2D_dkz = 0
+
+#     # Velocity from e_z v1
+#     sigma = coskx_2 * cosky_2
+#     diff = (coskx - cosky)
+#     square = (diff)**2
+#     d_sigma_dkx = - a / 2 * sinkx_2 * cosky_2
+#     d_sigma_dky = - b / 2 * coskx_2 * sinky_2
+#     d_square_dkx = 2 * (diff) * (-a * sinkx)
+#     d_square_dky = 2 * (diff) * (+b * sinky)
+
+#     d_ez_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
+#     d_ez_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
+#     d_ez_dkz = - 2 * tz * sigma * square * (-d * sinkz) - 2 * tz2 * (-d) * sinkz
+
+#     # Velocity from e_z v2
+#     # d_ez_dkx  = - tz * coskz * (-a/2) * sinkx_2 * cosky_2
+#     # d_ez_dkx += - tz2 * coskz * ((-3*a/2) * sin(3*kx*a/2) * cosky_2 + (-a/2) * sinkx_2 * cos(3*ky*b/2))
+#     # d_ez_dkx += - tz3 * coskz * (-3*a/2) * sin(3 * kx * a / 2) * cos(3 * ky * b / 2)
+#     # d_ez_dkx += - tz4 * coskz * ((-5*a/2) * sin(5*kx*a/2) * cosky_2 + (-a/2) * sinkx_2 * cos(5*ky*b/2))
+#     # d_ez_dky  = - tz * coskz * coskx_2 * (-b/2) * sinky_2
+#     # d_ez_dky += - tz2 * coskz * (cos(3*kx*a/2) * (-b/2) * sinky_2 + coskx_2 * (-3*b/2) * sin(3*ky*b/2))
+#     # d_ez_dky += - tz3 * coskz * cos(3 * kx * a / 2) * (-3*b/2) * sin(3 * ky * b / 2)
+#     # d_ez_dky += - tz4 * coskz * (cos(5*kx*a/2) * (-b/2) * sinky_2 + coskx_2 * (-5*b/2) * sin(5*ky*b/2))
+#     # d_ez_dkz  = - tz * (-c/2) * sinkz * coskx_2 * cosky_2
+#     # d_ez_dkz += - tz2 * (-c/2) * sinkz * (cos(3*kx*a/2) * cosky_2 + coskx_2 * cos(3*ky*b/2))
+#     # d_ez_dkz += - tz3 * (-c/2) * sinkz * cos(3 * kx * a / 2) * cos(3 * ky * b / 2)
+#     # d_ez_dkz += - tz4 * (-c/2) * sinkz * (cos(5*kx*a/2) * cosky_2 + coskx_2 * cos(5*ky*b/2))
+
+
+#     vx = (d_e2D_dkx + d_ez_dkx) / hbar
+#     vy = (d_e2D_dky + d_ez_dky) / hbar
+#     vz = (d_e2D_dkz + d_ez_dkz) / hbar
+
+#     return vx, vy, vz
 
 
 @jit(nopython=True, cache=True, parallel=True)
@@ -527,6 +528,108 @@ def rotation(x, y, angle):
     xp = cos(angle) * x + sin(angle) * y
     yp = -sin(angle) * x + cos(angle) * y
     return xp, yp
+
+
+
+
+def e_3D_sympy(tp_num, tpp_num, tppp_num, tpppp_num, tz_num):
+
+    kx  = sp.Symbol('kx')
+    ky  = sp.Symbol('ky')
+    kz  = sp.Symbol('kz')
+    a   = sp.Symbol('a')
+    b   = sp.Symbol('b')
+    c   = sp.Symbol('c')
+    mu  = sp.Symbol('mu')
+    t   = sp.Symbol('t')
+    tp    = sp.Symbol('tp')
+    tpp   = sp.Symbol('tpp')
+    tppp  = sp.Symbol('tppp')
+    tpppp = sp.Symbol('tpppp')
+    tz    = sp.Symbol('tz')
+    tz2    = sp.Symbol('tz2')
+    tz3    = sp.Symbol('tz3')
+    tz4    = sp.Symbol('tz4')
+
+    # 2D Dispersion
+    e_2D = -2 * t * (sp.cos(kx * a) + sp.cos(ky * b))
+
+    if tp_num != 0:
+        e_2D += -4 * tp * sp.cos(kx * a) * sp.cos(ky * b)
+    if tpp_num != 0:
+        e_2D += -2 * tpp * (sp.cos(2 * kx * a) + sp.cos(2 * ky * b))
+    if tppp_num != 0:
+        e_2D += -2 * tppp * (sp.cos(2 * kx * a) * sp.cos(ky * b) + sp.cos(kx * a) * sp.cos(2 * ky * b))
+    if tpppp_num != 0:
+        e_2D += -4 * tpppp * sp.cos(2 * kx * a) * sp.cos(2 * ky * b)
+
+    # kz dispersion v1
+    e_z = 0
+    if tz_num != 0:
+        e_z  = -2 * tz * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2)
+        e_z *= (sp.cos(kx * a) - sp.cos(ky * b))**2
+
+    epsilon    = e_2D + e_z - mu
+    epsilon_num = sp.lambdify((kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4), epsilon, 'numpy')
+
+    # Velocity
+    vx = sp.diff(epsilon, kx)
+    vy = sp.diff(epsilon, ky)
+    vz = sp.diff(epsilon, kz)
+    vx_num = sp.lambdify((kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4), vx, 'numpy')
+    vy_num = sp.lambdify((kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4), vy, 'numpy')
+    vz_num = sp.lambdify((kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4), vz, 'numpy')
+
+    return epsilon, vx, vy, vz, epsilon_num, vx_num, vy_num, vz_num
+
+epsilon, vx, vy, vz, epsilon_num, vx_num, vy_num, vz_num = e_3D_sympy(tp_num=-0.14, tpp_num=0.07, tppp_num=0, tpppp_num=0, tz_num=0.07)
+
+optimized_e_3D_func = jit(epsilon_num, nopython=True)
+
+vx_func = jit(vx_num, nopython=True, parallel=True)
+vy_func = jit(vy_num, nopython=True, parallel=True)
+vz_func = jit(vz_num, nopython=True, parallel=True)
+
+# @jit(nopython=True) #, cache=True, parallel=True)
+def optimized_v_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4):
+    vx = vx_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4)
+    vy = vy_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4)
+    vz = vz_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4)
+
+    return vx, vy, vz
+
+
+# @jit(nopython=True) #, cache=True, parallel=True)
+# def optimized_e_3D_func(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4):
+#     epsilon = jit(epsilon_num)
+#     return epsilon(kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz)
+
+
+# print(optimized_e_3D_func(kx=0,ky=0,kz=0, a=3.74767, b=3.74767, c=13.2,
+#                  mu=-0.825,
+#                  t=190, tp=-0.14, tpp=0.07, tppp=0, tpppp=0, tz=0.07))
+
+
+# print(optimized_e_3D_func(kx=0,ky=0,kz=0, a=3.74767, b=3.74767, c=13.2,
+#                  mu=-0.825,
+#                  t=190, tp=-0.14, tpp=0.07, tppp=0, tpppp=0, tz=0.07, tz2=0, tz3=0, tz4=0))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
