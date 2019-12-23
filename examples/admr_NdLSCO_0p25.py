@@ -2,6 +2,7 @@ from numpy import pi
 from cuprates_transport.bandstructure import BandStructure, Pocket, setMuToDoping, doping
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
+import sympy as sp
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## ONE BAND Horio et al. ///////////////////////////////////////////////////////
@@ -15,6 +16,7 @@ params = {
     "tpp": 0.07,
     "tz": 0.07,
     "tz2": 0.00,
+    "tz3": 0.00,
     "mu": -0.826,
     "fixdoping": 0.1,
     "numberOfKz": 7,
@@ -37,6 +39,7 @@ params = {
 
 bandObject = BandStructure(**params)
 
+sp.pprint(bandObject.epsilon_sym)
 ## Discretize
 # bandObject.setMuToDoping(0.4)
 # print(bandObject.mu)
@@ -47,8 +50,8 @@ bandObject.dos_k_func()
 bandObject.mc_func()
 print("mc = " + "{:.3f}".format(bandObject.mc))
 
-# bandObject.figDiscretizeFS2D()
 # bandObject.figMultipleFS2D()
+# bandObject.figDiscretizeFS2D()
 
 ## Conductivity
 condObject = Conductivity(bandObject, **params)
@@ -67,3 +70,6 @@ amro1band = ADMR([condObject], **params)
 amro1band.runADMR()
 amro1band.fileADMR(folder="sim/NdLSCO_0p25")
 amro1band.figADMR(folder="sim/NdLSCO_0p25")
+
+
+# %%
