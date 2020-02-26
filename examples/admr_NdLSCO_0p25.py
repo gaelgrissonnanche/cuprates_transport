@@ -39,7 +39,6 @@ params = {
 
 bandObject = BandStructure(**params)
 
-sp.pprint(bandObject.epsilon_sym)
 ## Discretize
 # bandObject.setMuToDoping(0.4)
 # print(bandObject.mu)
@@ -50,7 +49,7 @@ bandObject.dos_k_func()
 bandObject.mc_func()
 print("mc = " + "{:.3f}".format(bandObject.mc))
 
-# bandObject.figMultipleFS2D()
+bandObject.figMultipleFS2D()
 # bandObject.figDiscretizeFS2D()
 
 ## Conductivity

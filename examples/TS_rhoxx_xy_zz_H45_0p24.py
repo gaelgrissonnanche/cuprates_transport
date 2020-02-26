@@ -14,7 +14,7 @@ e = 1.6e-19 # C
 a = 3.74e-10 #m
 c = 13.3e-10 # m
 
-B = 45 # Tesla
+B = 15 # Tesla
 
 ## Scattering parameters -------------
 T_array = np.array([6,12,20,25])
@@ -57,8 +57,9 @@ bandObject.doping()
 ## Empty arrays
 rhoxx_array = np.empty_like(T_array, dtype=np.float64)
 rhoxy_array = np.empty_like(T_array, dtype=np.float64)
-rhozz_array = np.empty_like(T_array, dtype=np.float64)
 RH_array = np.empty_like(T_array, dtype=np.float64)
+rhozz_array = np.empty_like(T_array, dtype=np.float64)
+rhozy_array = np.empty_like(T_array, dtype=np.float64)
 
 for i, T in enumerate(T_array):
 
@@ -67,28 +68,39 @@ for i, T in enumerate(T_array):
     power = scattering[T][2]
     gdos_max = scattering[T][3]
 
-    ## Conductivity Object ---------------
+    ## rho_xy, rho_xx velocity
     condObject = Conductivity(bandObject, Bamp=B, Bphi=0,
-                          Btheta=0, gamma_0=g0, gamma_k=gk, power=power, gamma_dos_max=gdos_max) # T = 20K, p = 0.24 from fit ADMR
+                          Btheta=0, gamma_0=g0, gamma_k=gk, power=power, gamma_dos_max=gdos_max)
     condObject.Ntime = 1000 # better for high magnetic field values
 
     condObject.solveMovementFunc()
     condObject.chambersFunc(0, 0)
-    condObject.chambersFunc(0, 1)
-    condObject.chambersFunc(2, 2)
     sigma_xx = condObject.sigma[0, 0]
+    condObject.chambersFunc(0, 1)
     sigma_xy = condObject.sigma[0, 1]
+    condObject.chambersFunc(2, 2)
     sigma_zz = condObject.sigma[2, 2]
 
+    ## rho_zy velocity
+    condObject = Conductivity(bandObject, Bamp=B, Bphi=0,
+                          Btheta=90, gamma_0=g0, gamma_k=gk, power=power, gamma_dos_max=gdos_max)
+    condObject.Ntime = 1000 # better for high magnetic field values
+
+    condObject.chambersFunc(2, 1)
+    sigma_zy = condObject.sigma[2, 1]
+
+    ## Resistivity
     rhoxx = sigma_xx / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
     rhozz = 1 / sigma_zz # Ohm.m
     rhoxy = sigma_xy / ( sigma_xx**2 + sigma_xy**2) # Ohm.m
     RH = rhoxy / B # m^3/C
+    rhozy = sigma_zy / ( 2*sigma_zy**2 + sigma_xy**2*sigma_zz/sigma_xx + sigma_xx*sigma_zz) # Ohm.m
 
     rhoxx_array[i] = rhoxx
     rhozz_array[i] = rhozz
     rhoxy_array[i] = rhoxy
     RH_array[i] = RH
+    rhozy_array[i] = rhozy
 
 
 ## Info results ----------------------
@@ -130,12 +142,8 @@ fig_list = []
 fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
 fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 
-#############################################
-# fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
-#############################################
-
 # Load data ####################
-data = np.loadtxt("data/NdLSCO_0p25/LNSCOp24c-rhoc-45T-sort.dat",
+data = np.loadtxt("data/NdLSCO_0p25/rho_c_vs_T_NdLSCO_0p24_H_35T_Daou_et_al_Nat_phys_2009.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
@@ -175,12 +183,8 @@ fig_list.append(fig)
 fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
 fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 
-#############################################
-# fig.text(0.79,0.22, r"$1 - n$ = " + "{0:.3f}".format(p) , ha = "right")
-#############################################
-
 # Load data ####################
-data = np.loadtxt("data/NdLSCO_0p25/rho_vs_T_NdLSCO_0p24_Daou_2009.dat",
+data = np.loadtxt("data/NdLSCO_0p25/rho_a_vs_T_NdLSCO_0p24_Daou_2009.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
@@ -212,6 +216,73 @@ majorFormatter = FormatStrFormatter('%g') # put the format of the number of tick
 axes.xaxis.set_major_locator(MultipleLocator(xtics))
 axes.xaxis.set_major_formatter(majorFormatter)
 axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
+
+fig_list.append(fig)
+#///////////////////////////////////////////////////////////////////////////////
+
+## rhozy ///////////////////////////////////////////////////////////////////////////#
+fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
+fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
+
+axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
+
+## Load data ####################
+data = np.loadtxt("data/NdLSCO_0p25/RH_vs_T_NdLSCO_0p24_Daou_2009.dat",
+                  dtype="float",
+                  comments="#")
+T_data = data[:, 0]
+RH_data = data[:, 1]
+rhoxy_data = RH_data * B / 10
+
+line = axes.plot(T_data, rhoxy_data, label=r"$\rho_{\rm xy}$ data, $p$ = 0.24")
+plt.setp(line, ls ="-", c = '#0000ff', lw = 3, marker = "", mfc = '#0000ff', ms = 7, mec = '#0000ff', mew= 0)
+
+line = axes.plot(T_array, rhoxy_array * 1e8, label=r"$\rho_{\rm xy}$ sim, $p$ = " + "{0:.3f}".format(bandObject.p))
+plt.setp(line, ls="", c='#0000ff', lw=3, marker="o",
+         mfc='#0000ff', ms=10, mec='k', mew=2)
+
+data = np.loadtxt("data/NdLSCO_0p25/rho_zy_Nd-LSCO-0p24-c-axis_1601-T-2019-10-19.dat",
+                  dtype="float",
+                  comments="#")
+T_data = data[:, 0]
+rhozy_data = data[:, 1]
+
+line = axes.plot(T_data, rhozy_data, label=r"$\rho_{\rm zy}$ data, $p$ = 0.24")
+plt.setp(line, ls ="-", c = '#ff0000', lw = 3, marker = "", mfc = '#ff0000', ms = 7, mec = '#ff0000', mew= 0)
+
+line = axes.plot(T_array, rhozy_array * 1e8, label=r"$\rho_{\rm zy}$ sim, $p$ = " + "{0:.3f}".format(bandObject.p))
+plt.setp(line, ls="", c='#ff0000', lw=3, marker="o",
+         mfc='#ff0000', ms=10, mec='k', mew=2)
+
+
+
+#############################################
+axes.set_xlim(0, 60)
+# axes.set_ylim(0, 1.25*np.max(RH_array*1e9))
+# axes.set_ylim(0, 0.8)
+axes.tick_params(axis='x', which='major', pad=7)
+axes.tick_params(axis='y', which='major', pad=8)
+axes.set_xlabel(r"$T$ ( K )", labelpad=8)
+axes.set_ylabel(r"$\rho_{\rm ny}$ ( $\mu\Omega$ cm )", labelpad=8)
+#############################################
+
+plt.legend(loc=1, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
+
+## Set ticks space and minor ticks space ############
+xtics = 20  # space between two ticks
+mxtics = xtics / 2.  # space between two minor ticks
+# ytics = 1
+# mytics = ytics / 2. # or "AutoMinorLocator(2)" if ytics is not fixed, just put 1 minor tick per interval
+# put the format of the number of ticks
+majorFormatter = FormatStrFormatter('%g')
+
+axes.xaxis.set_major_locator(MultipleLocator(xtics))
+axes.xaxis.set_major_formatter(majorFormatter)
+axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
+
+# axes.yaxis.set_major_locator(MultipleLocator(ytics))
+# axes.yaxis.set_major_formatter(majorFormatter)
+# axes.yaxis.set_minor_locator(MultipleLocator(mytics))
 
 fig_list.append(fig)
 #///////////////////////////////////////////////////////////////////////////////
