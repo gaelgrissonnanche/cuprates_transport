@@ -48,6 +48,7 @@ class BandStructure:
         if numberOfKz % 2 == 0:  # make sure it is an odd number
             numberOfKz += 1
         self.numberOfKz = numberOfKz  # between 0 and 2*pi / c
+        self.half_FS = True # if True, kz 0 -> 2pi, if False, kz -2pi to 2pi
 
         ## Fermi surface
         self.kf  = None # in Angstrom^-1
@@ -313,9 +314,17 @@ class BandStructure:
 
         kx_a = np.linspace(0, pi / self.a, mesh_xy_rough)
         ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
-        kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
-        # half of FBZ, 2*pi/c because bodycentered unit cell
-        dkz = 2 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
+
+        if self.half_FS==True:
+            kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
+            # half of FBZ, 2*pi/c because bodycentered unit cell
+            dkz = 2 * (2 * pi / self.c / self.numberOfKz) # integrand along z, in A^-1
+            # factor 2 for dkz is because integratation is only over half kz,
+            # so the final integral needs to be multiplied by 2.
+        else:
+            kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.numberOfKz)
+            dkz = 4 * pi / self.c / self.numberOfKz # integrand along z, in A^-1
+
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
         for j, kz in enumerate(kz_a):
@@ -365,16 +374,15 @@ class BandStructure:
                     # self.a (and not b) because anisotropy is taken into account earlier
                     kzf = kz * np.ones_like(x_int)
                     self.dks = dks * np.ones_like(x_int)
-                    self.dkz = (2 * dkz) * np.ones_like(x_int)
-                    self.dkf = dks * (2 * dkz) * np.ones_like(x_int)
-                    # factor 2 for dkz is because integratation is only over half kz.
+                    self.dkz = dkz * np.ones_like(x_int)
+                    self.dkf = dks * dkz * np.ones_like(x_int)
                 else:
                     kxf = np.append(kxf, x_int / self.a)
                     kyf = np.append(kyf, y_int / self.a)
                     kzf = np.append(kzf, kz * np.ones_like(x_int))
                     self.dks = np.append(self.dks, dks * np.ones_like(x_int))
-                    self.dkz = np.append(self.dkz, (2 * dkz) * np.ones_like(x_int))
-                    self.dkf = np.append(self.dkf, dks * (2 * dkz) * np.ones_like(x_int))
+                    self.dkz = np.append(self.dkz, dkz * np.ones_like(x_int))
+                    self.dkf = np.append(self.dkf, dks * dkz * np.ones_like(x_int))
 
             self.numberPointsPerKz_list.append(4 * numberPointsPerKz)
 
@@ -525,146 +533,146 @@ class BandStructure:
 
 
 
-## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-class Pocket(BandStructure):
-    def __init__(self, M=0.2, electronPocket=False, **kwargs):
-        super().__init__(**kwargs)
-        self._M = M*self.t
-        self.electronPocket = electronPocket
-        self.numberOfBZ = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
+# ## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# class Pocket(BandStructure):
+#     def __init__(self, M=0.2, electronPocket=False, **kwargs):
+#         super().__init__(**kwargs)
+#         self._M = M*self.t
+#         self.electronPocket = electronPocket
+#         self.numberOfBZ = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
 
-    def _get_M(self):
-        return self._M / self._t
-    def _set_M(self, M):
-        self._M = M * self._t
-    M = property(_get_M, _set_M)
+#     def _get_M(self):
+#         return self._M / self._t
+#     def _set_M(self, M):
+#         self._M = M * self._t
+#     M = property(_get_M, _set_M)
 
-    def e_3D_func(self, kx, ky, kz):
-        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters(), self.electronPocket)[0]
+#     def e_3D_func(self, kx, ky, kz):
+#         return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters(), self.electronPocket)[0]
 
-    def v_3D_func(self, kx, ky, kz):
-        return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters(), self.electronPocket)[1:]
-
-
-
-## These definition are only valid for (Qx,Qy)=(pi,pi) without coherence of the AF in z
-@jit(nopython=True, cache=True, parallel=True)
-def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, electronPocket=False):
-    d = c / 2
-    kxa = kx * a
-    kyb = ky * b
-    kzd = kz * d
-    coskx = cos(kxa)
-    cosky = cos(kyb)
-    coskz = cos(kzd)
-    sinkx = sin(kxa)
-    sinky = sin(kyb)
-    sinkz = sin(kzd)
-    cos2kx = cos(2 * kxa)
-    cos2ky = cos(2 * kyb)
-    sin2kx = sin(2 * kxa)
-    sin2ky = sin(2 * kyb)
-    coskx_2 = cos(kxa / 2)
-    cosky_2 = cos(kyb / 2)
-    sinkx_2 = sin(kxa / 2)
-    sinky_2 = sin(kyb / 2)
-
-    # Decomposition: epsilon(k) = zeta(k) + xi(k)  to take advantage of zeta(k+Q) = zeta(k)
-    zeta_k      = -4.*tp*coskx*cosky - 2.*tpp*(cos2kx + cos2ky) - mu
-    dzeta_k_dkx =  4.*a*tp*sinkx*cosky + 4.*a*tpp*sin2kx
-    dzeta_k_dky =  4.*b*tp*coskx*sinky + 4.*b*tpp*sin2ky
-    xi_k      =   -2.*t*(coskx + cosky)
-    dxi_k_dkx =    2.*a*t*sinkx
-    dxi_k_dky =    2.*b*t*sinky
-
-    epsilon_k      = xi_k           + zeta_k
-    depsilon_k_dkx = dxi_k_dkx      + dzeta_k_dkx
-    depsilon_k_dky = dxi_k_dky      + dzeta_k_dky
-
-    epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2 -2 * tz2 * cos(kz * d)
-
-    # kz dispersion and its derivatives (won't be affected by Q)
-    # Full simplified with mathematica
-    # depz_dkx = tz*cosky_2*(-4-5*coskx+cosky)*(-coskx+cosky)*coskz*a*sinkx_2
-    # depz_dky = tz*coskx_2*(-4+coskx-5*cosky)*(coskx-cosky)*coskz*b*sinky_2
-    # depz_dkz = tz*coskx_2*cosky_2*(coskx-cosky)*(coskx-cosky)*c*sinkz  +tz2*d*sinkz
-
-    sigma = coskx_2 * cosky_2
-    diff = (coskx - cosky)
-    square = (diff)**2
-    d_sigma_dkx = - a/2 * sinkx_2 * cosky_2
-    d_sigma_dky = - b/2 * coskx_2 * sinky_2
-    d_square_dkx = 2 * (diff) * (-a * sinkx)
-    d_square_dky = 2 * (diff) * (+b * sinky)
-    depz_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
-    depz_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
-    depz_dkz = - 2 * tz * sigma * square * (-d * sinkz) - 2 * tz2 * (-d) * sinkz
-
-    # AF EIGENVALUES
-    #epsilon(k+Q) and its derivatives
-    epsilon_kQ           = -xi_k           + zeta_k
-    depsilon_kQ_dkx      = -dxi_k_dkx      + dzeta_k_dkx
-    depsilon_kQ_dky      = -dxi_k_dky      + dzeta_k_dky
-
-    #precalculate sum, diff and radical:
-    Sk          = 0.5*(  epsilon_k         +   epsilon_kQ)
-    dSk_dkx     = 0.5*( depsilon_k_dkx     +  depsilon_kQ_dkx)
-    dSk_dky     = 0.5*( depsilon_k_dky     +  depsilon_kQ_dky)
-    Dk          = 0.5*(  epsilon_k         -   epsilon_kQ)
-    dDk_dkx     = 0.5*( depsilon_k_dkx     -  depsilon_kQ_dkx)
-    dDk_dky     = 0.5*( depsilon_k_dky     -  depsilon_kQ_dky)
-
-    if M<=0.00001:
-        Rk = Dk
-        dRk_dkx = dDk_dkx
-        dRk_dky = dDk_dky
-    else:
-        Rk          = sqrt( Dk*Dk + M*M )
-        dRk_dkx     = Dk*dDk_dkx/Rk
-        dRk_dky     = Dk*dDk_dky/Rk
-
-    #finally calculate the eigenvalues and their derivatives (vertices):
-    if electronPocket:
-        Ek          =   Sk         +   Rk
-        dEk_dkx     =  dSk_dkx     +  dRk_dkx
-        dEk_dky     =  dSk_dky     +  dRk_dky
-    else: #holePocket
-        Ek          =   Sk         -   Rk
-        dEk_dkx     =  dSk_dkx     -  dRk_dkx
-        dEk_dky     =  dSk_dky     -  dRk_dky
-
-    return Ek+epz_k, (dEk_dkx+depz_dkx)/hbar, (dEk_dky+depz_dky)/hbar, depz_dkz/hbar
+#     def v_3D_func(self, kx, ky, kz):
+#         return optimizedAFfuncs(kx, ky, kz, self._M, *self.bandParameters(), self.electronPocket)[1:]
 
 
+
+# ## These definition are only valid for (Qx,Qy)=(pi,pi) without coherence of the AF in z
+# @jit(nopython=True, cache=True, parallel=True)
+# def optimizedAFfuncs(kx, ky, kz, M, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, electronPocket=False):
+#     d = c / 2
+#     kxa = kx * a
+#     kyb = ky * b
+#     kzd = kz * d
+#     coskx = cos(kxa)
+#     cosky = cos(kyb)
+#     coskz = cos(kzd)
+#     sinkx = sin(kxa)
+#     sinky = sin(kyb)
+#     sinkz = sin(kzd)
+#     cos2kx = cos(2 * kxa)
+#     cos2ky = cos(2 * kyb)
+#     sin2kx = sin(2 * kxa)
+#     sin2ky = sin(2 * kyb)
+#     coskx_2 = cos(kxa / 2)
+#     cosky_2 = cos(kyb / 2)
+#     sinkx_2 = sin(kxa / 2)
+#     sinky_2 = sin(kyb / 2)
+
+#     # Decomposition: epsilon(k) = zeta(k) + xi(k)  to take advantage of zeta(k+Q) = zeta(k)
+#     zeta_k      = -4.*tp*coskx*cosky - 2.*tpp*(cos2kx + cos2ky) - mu
+#     dzeta_k_dkx =  4.*a*tp*sinkx*cosky + 4.*a*tpp*sin2kx
+#     dzeta_k_dky =  4.*b*tp*coskx*sinky + 4.*b*tpp*sin2ky
+#     xi_k      =   -2.*t*(coskx + cosky)
+#     dxi_k_dkx =    2.*a*t*sinkx
+#     dxi_k_dky =    2.*b*t*sinky
+
+#     epsilon_k      = xi_k           + zeta_k
+#     depsilon_k_dkx = dxi_k_dkx      + dzeta_k_dkx
+#     depsilon_k_dky = dxi_k_dky      + dzeta_k_dky
+
+#     epz_k    = -2*tz*coskz* (coskx-cosky)**2 *coskx_2*cosky_2 -2 * tz2 * cos(kz * d)
+
+#     # kz dispersion and its derivatives (won't be affected by Q)
+#     # Full simplified with mathematica
+#     # depz_dkx = tz*cosky_2*(-4-5*coskx+cosky)*(-coskx+cosky)*coskz*a*sinkx_2
+#     # depz_dky = tz*coskx_2*(-4+coskx-5*cosky)*(coskx-cosky)*coskz*b*sinky_2
+#     # depz_dkz = tz*coskx_2*cosky_2*(coskx-cosky)*(coskx-cosky)*c*sinkz  +tz2*d*sinkz
+
+#     sigma = coskx_2 * cosky_2
+#     diff = (coskx - cosky)
+#     square = (diff)**2
+#     d_sigma_dkx = - a/2 * sinkx_2 * cosky_2
+#     d_sigma_dky = - b/2 * coskx_2 * sinky_2
+#     d_square_dkx = 2 * (diff) * (-a * sinkx)
+#     d_square_dky = 2 * (diff) * (+b * sinky)
+#     depz_dkx = - 2 * tz * d_sigma_dkx * square * coskz - 2 * tz * sigma * d_square_dkx * coskz
+#     depz_dky = - 2 * tz * d_sigma_dky * square * coskz - 2 * tz * sigma * d_square_dky * coskz
+#     depz_dkz = - 2 * tz * sigma * square * (-d * sinkz) - 2 * tz2 * (-d) * sinkz
+
+#     # AF EIGENVALUES
+#     #epsilon(k+Q) and its derivatives
+#     epsilon_kQ           = -xi_k           + zeta_k
+#     depsilon_kQ_dkx      = -dxi_k_dkx      + dzeta_k_dkx
+#     depsilon_kQ_dky      = -dxi_k_dky      + dzeta_k_dky
+
+#     #precalculate sum, diff and radical:
+#     Sk          = 0.5*(  epsilon_k         +   epsilon_kQ)
+#     dSk_dkx     = 0.5*( depsilon_k_dkx     +  depsilon_kQ_dkx)
+#     dSk_dky     = 0.5*( depsilon_k_dky     +  depsilon_kQ_dky)
+#     Dk          = 0.5*(  epsilon_k         -   epsilon_kQ)
+#     dDk_dkx     = 0.5*( depsilon_k_dkx     -  depsilon_kQ_dkx)
+#     dDk_dky     = 0.5*( depsilon_k_dky     -  depsilon_kQ_dky)
+
+#     if M<=0.00001:
+#         Rk = Dk
+#         dRk_dkx = dDk_dkx
+#         dRk_dky = dDk_dky
+#     else:
+#         Rk          = sqrt( Dk*Dk + M*M )
+#         dRk_dkx     = Dk*dDk_dkx/Rk
+#         dRk_dky     = Dk*dDk_dky/Rk
+
+#     #finally calculate the eigenvalues and their derivatives (vertices):
+#     if electronPocket:
+#         Ek          =   Sk         +   Rk
+#         dEk_dkx     =  dSk_dkx     +  dRk_dkx
+#         dEk_dky     =  dSk_dky     +  dRk_dky
+#     else: #holePocket
+#         Ek          =   Sk         -   Rk
+#         dEk_dkx     =  dSk_dkx     -  dRk_dkx
+#         dEk_dky     =  dSk_dky     -  dRk_dky
+
+#     return Ek+epz_k, (dEk_dkx+depz_dkx)/hbar, (dEk_dky+depz_dky)/hbar, depz_dkz/hbar
 
 
 
 
 
-## Functions to compute the doping of a two bands system and more >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-def doping(bandIterable, printDoping=False):
-    totalFilling=0
-    if printDoping == True:
-        print("------------------------------------------------")
-    for band in bandIterable:
-        band.updateFilling()
-        totalFilling += band.n
-        if printDoping == True:
-            print(band.bandname + ": band filling = " + "{0:.3f}".format(band.n))
-    doping = 1-totalFilling
-    if printDoping == True:
-        print("total hole doping = " + "{0:.3f}".format(doping))
-        print("------------------------------------------------")
-    return doping
 
-def dopingCondition(mu,ptarget,bandIterable):
-    print("mu = " + "{0:.3f}".format(mu))
-    for band in bandIterable:
-        band.mu = mu
-    return doping(bandIterable) - ptarget
 
-def setMuToDoping(bandIterable, pTarget, ptol=0.001):
-    print("Computing mu for hole doping = " + "{0:.3f}".format(pTarget))
-    mu = optimize.brentq(dopingCondition, -10, 10, args=(pTarget ,bandIterable), xtol=ptol)
-    for band in bandIterable:
-        band.mu = mu
+# ## Functions to compute the doping of a two bands system and more >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# def doping(bandIterable, printDoping=False):
+#     totalFilling=0
+#     if printDoping == True:
+#         print("------------------------------------------------")
+#     for band in bandIterable:
+#         band.updateFilling()
+#         totalFilling += band.n
+#         if printDoping == True:
+#             print(band.bandname + ": band filling = " + "{0:.3f}".format(band.n))
+#     doping = 1-totalFilling
+#     if printDoping == True:
+#         print("total hole doping = " + "{0:.3f}".format(doping))
+#         print("------------------------------------------------")
+#     return doping
+
+# def dopingCondition(mu,ptarget,bandIterable):
+#     print("mu = " + "{0:.3f}".format(mu))
+#     for band in bandIterable:
+#         band.mu = mu
+#     return doping(bandIterable) - ptarget
+
+# def setMuToDoping(bandIterable, pTarget, ptol=0.001):
+#     print("Computing mu for hole doping = " + "{0:.3f}".format(pTarget))
+#     mu = optimize.brentq(dopingCondition, -10, 10, args=(pTarget ,bandIterable), xtol=ptol)
+#     for band in bandIterable:
+#         band.mu = mu

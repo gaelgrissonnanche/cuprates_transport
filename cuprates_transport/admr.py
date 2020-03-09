@@ -29,9 +29,10 @@ class ADMR:
         self.Bphi_array = np.array(Bphi_array)
 
         # Conductivity dictionaries
-        self.condObjectDict = {}        # will implicitely contain all results of runADMR
+        self.condObjectDict = {} # will implicitely contain all results of runADMR
         self.kftDict = {}
         self.vftDict = {}
+        self.vproductDict = {}
 
         # Resistivity array rho_zz
         self.rhozz_array = None
@@ -62,7 +63,7 @@ class ADMR:
                     self.condObjectDict[bandname, phi, theta] = iniCondObject
                     self.kftDict[bandname, phi, theta] = iniCondObject.kft
                     self.vftDict[bandname, phi, theta] = iniCondObject.vft
-                    # self.vproduct_dict[phi, theta] = condObject.VelocitiesProduct(i=2, j=2)
+                    self.vproductDict[bandname, phi, theta] = iniCondObject.v_product
 
                 rhozz_array[l, m] = 1 / sigma_zz
 

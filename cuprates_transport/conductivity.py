@@ -77,6 +77,9 @@ class Conductivity:
         self.t_over_tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
         # i_t index of the time from the starting position
 
+        # Product of [vf x int(vft*exp(-t/tau))]
+        self.v_product = np.empty(1)
+
         # Electrical conductivity tensor: x, y, z = 0, 1, 2
         self.sigma = np.empty((3,3), dtype= np.float64)
 
@@ -311,12 +314,12 @@ class Conductivity:
             # Integral over t
             vj_sum_over_t = np.sum(vft[j, :, :] * exp(-self.t_over_tau) * self.dt, axis=1)
             # Product of velocities
-            v_product = vf[i, :] * vj_sum_over_t
+            self.v_product = vf[i, :] * vj_sum_over_t
         else:
             kf = self.bandObject.kf
-            v_product = vf[i, :] * vf[j, :] * self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
+            self.v_product = vf[i, :] * vf[j, :] * self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
                                                               vf[0, :], vf[1, :], vf[2, :])
-        return v_product
+        return self.v_product
 
 
     def chambersFunc(self, i = 2, j = 2):
