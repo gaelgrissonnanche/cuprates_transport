@@ -2,13 +2,13 @@ from distutils.core import setup
 setup(
   name = 'cuprates_transport',         # How you named your package folder (MyLib)
   packages = ['cuprates_transport'],   # Chose the same as "name"
-  version = '0.1',      # Start with a small number and increase it with every change you make
+  version = '0.2',      # Start with a small number and increase it with every change you make
   license='gpl-3.0',        # Chose a license from here: https://help.github.com/articles/licensing-a-repository
   description = 'Computes Boltzmann transport from a tight binding model',   # Give a short description about your library
   author = 'Gael Grissonnanche',                   # Type in your name
   author_email = 'gael.phys@gmail.com',      # Type in your E-Mail
-  url = 'https://github.com/gaelgrissonnanche/admr',   # Provide either the link to your github or to your website
-  download_url = 'https://github.com/gaelgrissonnanche/admr/archive/v_01.tar.gz',    # I explain this later on
+  url = 'https://github.com/gaelgrissonnanche/cuprates_transport',   # Provide either the link to your github or to your website
+  download_url = 'https://github.com/gaelgrissonnanche/cuprates_transport/archive/v_02.tar.gz',    # I explain this later on
   keywords = ['Fermi Surface', 'Boltzmann', 'Solid State', 'Condensed Matter', 'Resistivity'],   # Keywords that define your package best
   install_requires=[            # I get to this in a second
           'numpy',
