@@ -248,20 +248,6 @@ class Conductivity:
         return self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
 
 
-    def tOverTauFunc(self):
-        # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
-        self.t_over_tau = np.cumsum( self.dt_array / (
-                                     self.tauTotFunc(self.kft[0, :, :],
-                                                     self.kft[1, :, :],
-                                                     self.kft[2, :, :],
-                                                     self.vft[0, :, :],
-                                                     self.vft[1, :, :],
-                                                     self.vft[2, :, :]
-                                                     )
-                                                      )
-                                    , axis = 1)
-
-
     def tauTotFunc(self, kx, ky, kz, vx, vy, vz):
         """Computes the total lifetime based on the input model
         for the scattering rate"""
@@ -275,6 +261,20 @@ class Conductivity:
             gammaTot *= self.factor_arcs_Func(kx, ky, kz)
 
         return 1/gammaTot
+
+
+    def tOverTauFunc(self):
+        # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
+        self.t_over_tau = np.cumsum( self.dt_array / (
+                                     self.tauTotFunc(self.kft[0, :, :],
+                                                     self.kft[1, :, :],
+                                                     self.kft[2, :, :],
+                                                     self.vft[0, :, :],
+                                                     self.vft[1, :, :],
+                                                     self.vft[2, :, :]
+                                                     )
+                                                      )
+                                    , axis = 1)
 
 
     def tauTotMaxFunc(self):
