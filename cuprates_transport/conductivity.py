@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import cos, sin, pi, exp, sqrt, arctan2, cosh, arccosh
 from scipy.integrate import odeint
+from scipy.constants import Boltzmann, hbar, elementary_charge, physical_constants
 from skimage import measure
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -8,26 +9,26 @@ from matplotlib.collections import LineCollection
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Units ////////
-meVolt = 1.602e-22 # 1 meV in Joule
+meV = physical_constants["electron volt"][0] * 1e-3 # 1 meV in Joule
 Angstrom = 1e-10 # 1 A in meters
 picosecond = 1e-12 # 1 ps in seconds
 
 ## Constant //////
-hbar = 1.05e-34 # m2 kg / s
-e = 1.6e-19 # C
-kB = 1.380649e-23 # J / K
-kB = kB / meVolt # meV / K
+hbar = hbar # m2 kg / s
+e = elementary_charge # C
+kB = Boltzmann # J / K
+kB = kB / meV # meV / K
 
 ## This coefficient takes into accound all units and constant to prefactor the movement equation
-units_move_eq =  e * Angstrom**2 * picosecond * meVolt / hbar**2
+units_move_eq =  e * Angstrom**2 * picosecond * meV / hbar**2
 
 ## This coefficient takes into accound all units and constant to prefactor Chambers formula
-units_chambers = 2 * e**2 / (2*pi)**3 * meVolt * picosecond / Angstrom / hbar**2
+units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
 
 
 class Conductivity:
-    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, Ntime=500,
-                 T=0, dfdE_cut=0.1,
+    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
+                 T=0, dfdE_cut_percent=0.01, N_epsilon = 6,
                  gamma_0=15,
                  gamma_dos_max=0,
                  gamma_k=0, power=2, az=0,
@@ -46,13 +47,12 @@ class Conductivity:
 
         # Temperature and energy integration
         self._T = T # in Kelvin
-        self._epsilon_N = 10
-        if self._epsilon_N % 2 != 0:  # make sure it is an even number
-            self._epsilon_N += 1
-        if T != 0:
-            self._dfdE_cut = dfdE_cut * np.abs(self.dfdE(0)) # factor of the max amplitude of dfdE for cut off
-            self._epsilon_cut = self.energyCutOff(self._dfdE_cut)
-            self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
+        self._N_epsilon = N_epsilon
+        self._dfdE_cut_percent = dfdE_cut_percent
+        if self._T != 0:
+            self.epsilon_array = np.linspace(-self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
+                                              self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
+                                              self._N_epsilon)
 
 
         # Scattering rate
@@ -66,8 +66,8 @@ class Conductivity:
 
         # Time parameters
         self.tmax = 8 * self.tauTotMaxFunc()  # in picoseconds
-        self._Ntime = Ntime # number of steps in time
-        self.dt = self.tmax / self.Ntime
+        self._N_time = N_time # number of steps in time
+        self.dt = self.tmax / self.N_time
         self.t = np.arange(0, self.tmax, self.dt)
         self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1] # integrand for tau_function
 
@@ -80,8 +80,12 @@ class Conductivity:
         # Product of [vf x int(vft*exp(-t/tau))]
         self.v_product = np.empty(1)
 
-        # Electrical conductivity tensor: x, y, z = 0, 1, 2
+        # Electric tensor: x, y, z = 0, 1, 2
         self.sigma = np.empty((3,3), dtype= np.float64)
+        # Thermoelectric tensor: x, y, z = 0, 1, 2
+        self.alpha = np.empty((3,3), dtype= np.float64)
+        # Thermal tensor: x, y, z = 0, 1, 2
+        self.beta = np.empty((3,3), dtype= np.float64)
 
 
 
@@ -113,62 +117,67 @@ class Conductivity:
         self._B_vector = self.BFunc()
     Btheta = property(_get_Btheta, _set_Btheta)
 
-    def _get_Ntime(self):
-        return self._Ntime
-    def _set_Ntime(self, Ntime):
-        self._Ntime = Ntime
-        self.dt = self.tmax / self._Ntime
+    def _get_N_time(self):
+        return self._N_time
+    def _set_N_time(self, N_time):
+        self._N_time = N_time
+        self.dt = self.tmax / self._N_time
         self.t = np.arange(0, self.tmax, self.dt) # integrand for tau_function
         self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1]
-    Ntime = property(_get_Ntime, _set_Ntime)
+    N_time = property(_get_N_time, _set_N_time)
 
     def _get_T(self):
         return self._T
     def _set_T(self, T):
         self._T = T
-        self._dfdE_cut = self.dfdE_cut * np.abs(self.dfdE(0)) # amplitude for cut off
-        self._epsilon_cut = self.energyCutOff(self._dfdE_cut)
-        self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
+        if self._T != 0:
+            self.epsilon_array = np.linspace(-self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
+                                              self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
+                                              self._N_epsilon)
     T = property(_get_T, _set_T)
 
-    def _get_epsilon_N(self):
-        return self._epsilon_N
-    def _set_epsilon_N(self, epsilon_N):
-        self._epsilon_N = epsilon_N
-        if self._epsilon_N % 2 != 0:  # make sure it is an even number
-            self._epsilon_N += 1
-        self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
-    epsilon_N = property(_get_epsilon_N, _set_epsilon_N)
+    def _get_N_epsilon(self):
+        return self._N_epsilon
+    def _set_N_epsilon(self, N_epsilon):
+        self._N_epsilon = N_epsilon
+        self.epsilon_array = np.linspace(-self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
+                                          self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
+                                          self._N_epsilon)
+    N_epsilon = property(_get_N_epsilon, _set_N_epsilon)
 
-    def _get_dfdE_cut(self):
-        return self._dfdE_cut / np.abs(self.dfdE(0))
-    def _set_dfdE_cut(self, dfdE_cut):
-        self._dfdE_cut  = dfdE_cut * np.abs(self.dfdE(0))
-        self._epsilon_cut = self.energyCutOff(self._dfdE_cut)
-        self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
-    dfdE_cut = property(_get_dfdE_cut, _set_dfdE_cut)
-
-    def _get_epsilon_cut(self):
-        return self._epsilon_cut
-    def _set_epsilon_cut(self, epsilon_cut):
-        self._epsilon_cut  = epsilon_cut
-        self.d_epsilon = 2 * self._epsilon_cut / self._epsilon_N
-    epsilon_cut = property(_get_epsilon_cut, _set_epsilon_cut)
-
-    ## Special Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def __eq__(self, other):
-        return (
-                self._Bamp   == other._Bamp
-            and self._Btheta == other._Btheta
-            and self._Bphi   == other._Bphi
-            and np.all(self.sigma == other.sigma)
-        )
-
-    def __ne__(self, other):
-        return not self == other
+    def _get_dfdE_cut_percent(self):
+        return self._dfdE_cut_percent
+    def _set_dfdE_cut_percent(self, dfdE_cut_percent):
+        self._dfdE_cut_percent  = dfdE_cut_percent
+        self.epsilon_array = np.linspace(-self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
+                                          self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
+                                          self._N_epsilon)
+    dfdE_cut_percent = property(_get_dfdE_cut_percent, _set_dfdE_cut_percent)
 
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def runTransport(self, printDoping=False):
+        if self._T != 0:
+            #!!!! Add a warning if bandObject not already discretized
+            self.dos_k_epsilon      = {}
+            self.dkf_epsilon        = {}
+            self.kft_epsilon        = {}
+            self.vft_epsilon        = {}
+            self.t_over_tau_epsilon = {}
+
+            for epsilon in self.epsilon_array:
+                self.bandObject.runBandStructure(epsilon = epsilon, printDoping=printDoping)
+                self.solveMovementFunc()
+                self.dos_k_epsilon[epsilon]      = self.bandObject.dos_k
+                self.dkf_epsilon[epsilon]        = self.bandObject.dkf
+                self.kft_epsilon[epsilon]        = self.kft
+                self.vft_epsilon[epsilon]        = self.vft
+                self.t_over_tau_epsilon[epsilon] = self.t_over_tau
+                ## !!!!  Do not forget to update scattering rates !!! ##
+                ## Create properties for tmax, etc.
+        else:
+            self.solveMovementFunc()
+
 
     def BFunc(self):
         B = self._Bamp * \
@@ -190,18 +199,30 @@ class Conductivity:
     def solveMovementFunc(self):
         len_t = self.t.shape[0]
         len_kf = self.bandObject.kf.shape[1]
-        # Flatten to get all the initial kf solved at the same time
-        self.bandObject.kf.shape = (3 * len_kf,)
-        # Sovle differential equation
-        self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.t, rtol = 1e-4, atol = 1e-4).transpose()
-        # Reshape arrays
-        self.bandObject.kf.shape = (3, len_kf)
-        self.kft.shape = (3, len_kf, len_t)
-        # Velocity function of time
-        self.vft = np.empty_like(self.kft, dtype = np.float64)
-        self.vft[0, :, :], self.vft[1, :, :], self.vft[2, :, :] = self.bandObject.v_3D_func(self.kft[0, :, :], self.kft[1, :, :], self.kft[2, :, :])
+
+        ## Magnetic Field ON
+        if self.Bamp != 0:
+            # Flatten to get all the initial kf solved at the same time
+            self.bandObject.kf.shape = (3 * len_kf,)
+            # Sovle differential equation
+            self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.t, rtol = 1e-4, atol = 1e-4).transpose()
+            # Reshape arrays
+            self.bandObject.kf.shape = (3, len_kf)
+            self.kft.shape = (3, len_kf, len_t)
+            # Velocity function of time
+            self.vft = np.empty_like(self.kft, dtype = np.float64)
+            self.vft[0, :, :], self.vft[1, :, :], self.vft[2, :, :] = self.bandObject.v_3D_func(self.kft[0, :, :], self.kft[1, :, :], self.kft[2, :, :])
+        ## Magnetic Field OFF
+        else:
+            self.kft = np.empty((3, len_kf, 1), dtype = np.float64)
+            self.vft = np.empty((3, len_kf, 1), dtype = np.float64)
+            self.kft[0, :, 0], self.kft[1, :, 0], self.kft[2, :, 0] = self.bandObject.kf[0, :], self.bandObject.kf[1, :], self.bandObject.kf[2, :]
+            self.vft[0, :, 0], self.vft[1, :, 0], self.vft[2, :, 0] = self.bandObject.vf[0, :], self.bandObject.vf[1, :], self.bandObject.vf[2, :]
+
         # Compute right away the t_over_tau array
         self.tOverTauFunc()
+
+        return self.kft, self.vft
 
 
     def diffEqFunc(self, k, t):
@@ -229,7 +250,7 @@ class Conductivity:
     def omegac_tau_func(self):
         dks = self.bandObject.dks / Angstrom # in m^-1
         kf = self.bandObject.kf
-        vf = self.bandObject.vf * meVolt * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
+        vf = self.bandObject.vf * meV * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
         prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
         inverse_omegac_tau = \
@@ -265,16 +286,22 @@ class Conductivity:
 
     def tOverTauFunc(self):
         # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
-        self.t_over_tau = np.cumsum( self.dt_array / (
-                                     self.tauTotFunc(self.kft[0, :, :],
-                                                     self.kft[1, :, :],
-                                                     self.kft[2, :, :],
-                                                     self.vft[0, :, :],
-                                                     self.vft[1, :, :],
-                                                     self.vft[2, :, :]
-                                                     )
-                                                      )
-                                    , axis = 1)
+
+        ## Magnetic Field ON
+        if self.Bamp !=0:
+            self.t_over_tau = np.cumsum( self.dt_array / (
+                                        self.tauTotFunc(self.kft[0, :, :],
+                                                        self.kft[1, :, :],
+                                                        self.kft[2, :, :],
+                                                        self.vft[0, :, :],
+                                                        self.vft[1, :, :],
+                                                        self.vft[2, :, :]
+                                                        )
+                                                        )
+                                        , axis = 1)
+        ## Magnetic Field OFF
+        else:
+            self.t_over_tau = 0
 
 
     def tauTotMaxFunc(self):
@@ -295,65 +322,77 @@ class Conductivity:
         return tauTotMin
 
 
-    def solveMovementForPoint(self, kpoint):
-        len_t = self.t.shape[0]
-        kt = odeint(self.diffEqFunc, kpoint, self.t, rtol = 1e-4, atol = 1e-4).transpose() # solve differential equation
-        kt = np.reshape(kt, (3, 1, len_t))
-        return kt
-
-
-    def VelocitiesProduct(self, i, j):
+    def VelocitiesProduct(self, kft, vft, t_over_tau, i, j):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0: vif = vxf """
 
-        # Velocity components
-        vf  = self.bandObject.vf
-
         if self.Bamp != 0:
-            vft = self.vft
             # Integral over t
-            vj_sum_over_t = np.sum(vft[j, :, :] * exp(-self.t_over_tau) * self.dt, axis=1)
+            vj_sum_over_t = np.sum(vft[j, :, :] * exp(-t_over_tau) * self.dt, axis=1)
             # Product of velocities
-            self.v_product = vf[i, :] * vj_sum_over_t
+            self.v_product = vft[i, :, 0] * vj_sum_over_t
         else:
-            kf = self.bandObject.kf
-            self.v_product = vf[i, :] * vf[j, :] * self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
-                                                              vf[0, :], vf[1, :], vf[2, :])
+            self.v_product = vft[i, :, 0] * vft[j, :, 0] * self.tauTotFunc(kft[0, :, 0], kft[1, :, 0], kft[2, :, 0],
+                                                                           vft[0, :, 0], vft[1, :, 0], vft[2, :, 0])
         return self.v_product
 
+    def sigma_epsilon(self, dos_k, dkf, kft, vft, t_over_tau, i, j):
+        sigma_epsilon = units_chambers / self.bandObject.numberOfBZ * \
+                        np.sum( dkf * dos_k * self.VelocitiesProduct(kft, vft, t_over_tau, i=i, j=j) )
+        return sigma_epsilon
 
-    def chambersFunc(self, i = 2, j = 2):
+    def integrand_coeff(self, epsilon, coeff_name):
+        if coeff_name == "sigma":
+            return 1
+        elif coeff_name == "alpha":
+            return (epsilon * meV) / self.T / (-e)
+        elif coeff_name == "beta":
+            return (epsilon**2 * meV) / self.T / (-e)**2
+        else:
+            print("!Warming! You have not enter a correct coefficient name")
+
+    def chambersFunc(self, i, j, coeff_name="sigma"):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
 
+        #!!! Add a error message if asking for alpha and beta at T != 0
+
         if self._T == 0:
-            # if AF reconstructed, only 1 particule per FBZ instead of 2 (spins)
-            self.sigma[i, j] = units_chambers / self.bandObject.numberOfBZ * \
-                            np.sum( self.bandObject.dos_k *
-                                    self.bandObject.dkf *
-                                    self.VelocitiesProduct(i=i, j=j) )
-
+            self.sigma[i, j] = self.sigma_epsilon(self.bandObject.dos_k,
+                                                  self.bandObject.dkf,
+                                                  self.kft, self.vft,
+                                                  self.t_over_tau,
+                                                  i=i, j=j)
         else:
-            sigma_tot = 0
-            for n in range(self._epsilon_N+1):
-                epsilon = - self._epsilon_cut + n * self.d_epsilon
-                self.bandObject.discretize_FS(epsilon=epsilon)
-                self.bandObject.dos_k_func()
-                ## !!!!  Do not forget to update scattering rates !!! ##
-                ## Create properties for tmax, etc.
-                if self.Bamp !=0:
-                    self.solveMovementFunc()
-                sigma_epsilon = units_chambers / self.bandObject.numberOfBZ * \
-                                np.sum( self.bandObject.dos_k *
-                                        self.bandObject.dkf *
-                                        self.VelocitiesProduct(i=i, j=j) )
+            coeff_tot = 0
+            d_epsilon = self.epsilon_array[1] - self.epsilon_array[0]
+            # d_epsilon = 2 * self.epsilon_array[-1] / self._N_epsilon
+            for epsilon in self.epsilon_array:
+                sigma_epsilon = self.sigma_epsilon(self.dos_k_epsilon[epsilon],
+                                                   self.dkf_epsilon[epsilon],
+                                                   self.kft_epsilon[epsilon],
+                                                   self.vft_epsilon[epsilon],
+                                                   self.t_over_tau_epsilon[epsilon],
+                                                   i=i, j=j)
                 # Sum over the energie
-                sigma_tot += sigma_epsilon * self.d_epsilon * (- self.dfdE(-self._epsilon_cut + n * self.d_epsilon))
+                coeff_tot += d_epsilon * (- self.dfdE(epsilon)) * \
+                             self.integrand_coeff(epsilon, coeff_name) * sigma_epsilon
 
-            self.sigma[i, j] = sigma_tot
+            # Send to right transport coefficient
+            if coeff_name == "sigma":
+                self.sigma[i, j] = coeff_tot
+            elif coeff_name == "alpha":
+                self.alpha[i, j] = coeff_tot
+            elif coeff_name == "beta":
+                self.beta[i, j]  = coeff_tot
+            else:
+                print("!Warming! You have not enter a correct coefficient name")
+
 
 
     def dfdE(self, epsilon):
+        if self._T == 0:
+            return 1
         """Returns in fact dfdE * t in order to get epsilon unitless"""
         return -1 / (4 * kB * self._T) / (cosh(epsilon / (2*kB * self._T)))**2
 
@@ -572,14 +611,17 @@ class Conductivity:
 
         axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
 
-        epsilon = np.arange(-self._epsilon_cut-10*self.d_epsilon, self._epsilon_cut+11*self.d_epsilon, self.d_epsilon)
+        dfdE_cut    = self._dfdE_cut_percent * np.abs(self.dfdE(0))
+        epsilon_cut = self.energyCutOff(dfdE_cut)
+        d_epsilon   = self.epsilon_array[1]-self.epsilon_array[0]
+        epsilon = np.arange(-epsilon_cut-10*d_epsilon, epsilon_cut+11*d_epsilon, d_epsilon)
         dfdE = self.dfdE(epsilon)
         line = axes.plot(epsilon, -dfdE)
         plt.setp(line, ls ="-", c = 'r', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
-        line = axes.plot(self._epsilon_cut, self._dfdE_cut)
+        line = axes.plot(epsilon_cut, dfdE_cut)
         plt.setp(line, ls ="", c = 'k', lw = 3, marker = "s", mfc = 'k', ms = 6, mec = "#7E2320", mew= 0)  # set properties
-        line = axes.plot(-self._epsilon_cut, self._dfdE_cut)
+        line = axes.plot(-epsilon_cut, dfdE_cut)
         plt.setp(line, ls ="", c = 'k', lw = 3, marker = "s", mfc = 'k', ms = 6, mec = "#7E2320", mew= 0)  # set properties
 
 

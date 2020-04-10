@@ -57,7 +57,7 @@ class TestTransport(unittest.TestCase):
         condObject.solveMovementFunc()
         condObject.chambersFunc(i=2, j=2)
 
-        self.assertEqual(np.round(condObject.sigma[2,2],3), 18202.585)
+        self.assertEqual(np.round(condObject.sigma[2,2],3), 18103.539)
 
 
     def test_conductivity_T(self):
@@ -75,9 +75,10 @@ class TestTransport(unittest.TestCase):
 
         ## Conductivity
         condObject = Conductivity(bandObject, **params)
-        condObject.chambersFunc(i=2, j=2)
+        condObject.runTransport()
+        condObject.chambersFunc(i=2, j=2, coeff_name="sigma")
 
-        self.assertEqual(np.round(condObject.sigma[2,2],3), 17436.956)
+        self.assertEqual(np.round(condObject.sigma[2,2],3), 17342.108)
 
 if __name__ == '__main__':
     unittest.main()

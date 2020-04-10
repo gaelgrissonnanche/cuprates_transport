@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import cos, sin, pi, sqrt
 from scipy import optimize
+from scipy.constants import electron_mass, physical_constants
 import sympy as sp
 from skimage import measure
 from numba import jit
@@ -13,9 +14,9 @@ hbar = 1  # velocity will be in units of 1 / hbar,
 # this hbar is taken into accound in the constant units_move_eq
 
 ## Units ////////
-meVolt = 1.602e-22  # 1 meV in Joule
+meV = physical_constants["electron volt"][0] * 1e-3 # 1 meV in Joule
+m0 = electron_mass # in kg
 Angstrom = 1e-10  # 1 A in meters
-m0 = 9.109e-31 # in kg (the bare electron mass)
 
 
 class BandStructure:
@@ -44,6 +45,7 @@ class BandStructure:
         self.e_3D_v_3D_definition(*self.bandParameters())
 
         ## Discretization
+        self.mesh_xy_rough = 501 # rough in-plane mesh to run the Marching Square
         self.mesh_ds    = mesh_ds  # length resolution in FBZ in units of Pi
         if numberOfKz % 2 == 0:  # make sure it is an odd number
             numberOfKz += 1
@@ -152,6 +154,11 @@ class BandStructure:
     tz4 = property(_get_tz4, _set_tz4)
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def runBandStructure(self, epsilon=0, printDoping=True):
+        self.discretize_FS(epsilon=epsilon)
+        self.dos_k_func()
+        self.doping(printDoping=printDoping)
+
     def erase_Fermi_surface(self):
         self.kf  = None
         self.vf  = None
@@ -261,7 +268,7 @@ class BandStructure:
         """
         hbar = 1.05e-34 # m2 kg / s
         dks = self.dks / Angstrom # in m^-1
-        vf = self.vf * meVolt * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
+        vf = self.vf * meV * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
         prefactor = (hbar)**2 / (2 * pi) / self.numberOfKz # divide by the number of kz to average over all kz
         self.mc = prefactor * np.sum(dks / vf_perp) / m0
@@ -308,13 +315,13 @@ class BandStructure:
     def setMuToDoping(self, pTarget, ptol=0.001):
         self.mu = optimize.brentq(self.diffDoping, -10, 10, args=(pTarget,), xtol=ptol)
 
-    def discretize_FS(self, epsilon=0, mesh_xy_rough=501, PrintEnding=False):
+    def discretize_FS(self, epsilon=0, PrintEnding=False):
         """
         mesh_xy_rough: make denser rough meshgrid to interpolate after
         """
 
-        kx_a = np.linspace(0, pi / self.a, mesh_xy_rough)
-        ky_a = np.linspace(0, pi / self.b, mesh_xy_rough)
+        kx_a = np.linspace(0, pi / self.a, self.mesh_xy_rough)
+        ky_a = np.linspace(0, pi / self.b, self.mesh_xy_rough)
 
         if self.half_FS==True:
             kz_a = np.linspace(0, 2 * pi / self.c, self.numberOfKz)
@@ -329,16 +336,15 @@ class BandStructure:
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
         for j, kz in enumerate(kz_a):
-            bands = self.e_3D_func(kxx, kyy, kz)
-            contours = measure.find_contours(bands, epsilon)
+            contours = measure.find_contours(self.e_3D_func(kxx, kyy, kz), epsilon)
             numberPointsPerKz = 0
 
             for i, contour in enumerate(contours):
 
                 # Contour come in units proportionnal to size of meshgrid
                 # one want to scale to units of kx and ky
-                x = contour[:, 0] / (mesh_xy_rough - 1) * pi
-                y = contour[:, 1] / (mesh_xy_rough - 1) * pi / (self.b / self.a)  # anisotropy
+                x = contour[:, 0] / (self.mesh_xy_rough - 1) * pi
+                y = contour[:, 1] / (self.mesh_xy_rough - 1) * pi / (self.b / self.a)  # anisotropy
 
                 ds = sqrt(np.diff(x)**2 + np.diff(y)**2)  # segment lengths
                 s = np.zeros_like(x)  # arrays of zeros
@@ -552,6 +558,91 @@ class Pocket(BandStructure):
         self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
 
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def _get_t(self):
+        return self._t
+    def _set_t(self, t):
+        self._tp  = self.tp  * t
+        self._tpp = self.tpp * t
+        self._tz  = self.tz  * t
+        self._tz2 = self.tz2 * t
+        self._mu  = self.mu  * t
+        self._t = t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    t = property(_get_t, _set_t)
+
+    def _get_mu(self):
+        return self._mu / self._t
+    def _set_mu(self, mu):
+        self._mu = mu * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    mu = property(_get_mu, _set_mu)
+
+    def _get_tp(self):
+        return self._tp / self._t
+    def _set_tp(self, tp):
+        self._tp = tp * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    tp = property(_get_tp, _set_tp)
+
+    def _get_tpp(self):
+        return self._tpp / self._t
+    def _set_tpp(self, tpp):
+        self._tpp = tpp * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    tpp = property(_get_tpp, _set_tpp)
+
+    def _get_tppp(self):
+        return self._tppp / self._t
+    def _set_tppp(self, tppp):
+        self._tppp = tppp * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    tppp = property(_get_tppp, _set_tppp)
+
+    def _get_tpppp(self):
+        return self._tpppp / self._t
+    def _set_tpppp(self, tpppp):
+        self._tpppp = tpppp * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    tpppp = property(_get_tpppp, _set_tpppp)
+
+    def _get_tz(self):
+        return self._tz / self._t
+    def _set_tz(self, tz):
+        self._tz = tz * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    tz = property(_get_tz, _set_tz)
+
+    def _get_tz2(self):
+        return self._tz2 / self._t
+    def _set_tz2(self, tz2):
+        self._tz2 = tz2 * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    tz2 = property(_get_tz2, _set_tz2)
+
+    def _get_tz3(self):
+        return self._tz3 / self._t
+    def _set_tz3(self, tz3):
+        self._tz3 = tz3 * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    tz3 = property(_get_tz3, _set_tz3)
+
+    def _get_tz4(self):
+        return self._tz4 / self._t
+    def _set_tz4(self, tz4):
+        self._tz4 = tz4 * self._t
+        self.erase_Fermi_surface()
+        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+    tz4 = property(_get_tz4, _set_tz4)
+
     def _get_M(self):
         return self._M / self._t
     def _set_M(self, M):
@@ -617,7 +708,6 @@ class Pocket(BandStructure):
 
     def v_3D_func(self, kx, ky, kz):
         return self.v_func(kx, ky, kz, *self.bandParameters(), self._M)
-
 
 
 
