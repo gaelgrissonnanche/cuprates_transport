@@ -28,7 +28,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
 
 class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
-                 T=0, dfdE_cut_percent=0.01, N_epsilon = 6,
+                 T=0, dfdE_cut_percent=0.001, N_epsilon=20,
                  gamma_0=15,
                  gamma_dos_max=0,
                  gamma_k=0, power=2, az=0,
@@ -347,7 +347,7 @@ class Conductivity:
         elif coeff_name == "alpha":
             return (epsilon * meV) / self.T / (-e)
         elif coeff_name == "beta":
-            return (epsilon**2 * meV) / self.T / (-e)**2
+            return (epsilon * meV)**2 / self.T / (-e)**2
         else:
             print("!Warming! You have not enter a correct coefficient name")
 

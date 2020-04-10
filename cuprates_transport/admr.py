@@ -54,7 +54,7 @@ class ADMR:
                     iniCondObject.Bphi = phi
                     iniCondObject.Btheta = theta
 
-                    iniCondObject.solveMovementFunc()
+                    iniCondObject.runTransport()
                     iniCondObject.chambersFunc(i=2, j=2)
 
                     sigma_zz += iniCondObject.sigma[2, 2]

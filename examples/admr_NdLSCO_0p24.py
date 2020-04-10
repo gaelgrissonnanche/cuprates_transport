@@ -21,6 +21,8 @@ params = {
     "numberOfKz": 7,
     "mesh_ds": 1/20,
     "T" : 0,
+    "dfdE_cut_percent" : 0.001,
+    "N_epsilon" : 22,
     "Bamp": 45,
     "Btheta_min": 0,
     "Btheta_max": 90,
