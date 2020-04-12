@@ -41,6 +41,24 @@ class TestTransport(unittest.TestCase):
         bandObject.doping()
         self.assertEqual(np.round(bandObject.p,3), 0.240)
 
+    def test_conductivity_T_0_B_0(self):
+        """T = 0 & B = 0"""
+
+        bandObject = BandStructure(**TestTransport.params)
+
+        ## Discretize
+        bandObject.doping()
+        bandObject.discretize_FS()
+        bandObject.dos_k_func()
+
+        ## Conductivity
+        condObject = Conductivity(bandObject, **TestTransport.params)
+        condObject.Bamp = 0
+        condObject.runTransport()
+        condObject.chambersFunc(i=2, j=2)
+
+        self.assertEqual(np.round(condObject.sigma[2,2],3), 18817.909)
+
 
     def test_conductivity_T_0(self):
         """T = 0"""
@@ -54,7 +72,7 @@ class TestTransport(unittest.TestCase):
 
         ## Conductivity
         condObject = Conductivity(bandObject, **TestTransport.params)
-        condObject.solveMovementFunc()
+        condObject.runTransport()
         condObject.chambersFunc(i=2, j=2)
 
         self.assertEqual(np.round(condObject.sigma[2,2],3), 18103.539)
@@ -78,7 +96,7 @@ class TestTransport(unittest.TestCase):
         condObject.runTransport()
         condObject.chambersFunc(i=2, j=2, coeff_name="sigma")
 
-        self.assertEqual(np.round(condObject.sigma[2,2],3), 17342.108)
+        self.assertEqual(np.round(condObject.sigma[2,2],3), 17946.592)
 
 if __name__ == '__main__':
     unittest.main()

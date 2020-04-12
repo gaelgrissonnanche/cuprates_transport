@@ -29,7 +29,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
 class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
-                 gamma_0=15,
+                 gamma_0=15, a0_epsilon = 0,
                  gamma_dos_max=0,
                  gamma_k=0, power=2, az=0,
                  factor_arcs=1,
@@ -56,25 +56,25 @@ class Conductivity:
 
 
         # Scattering rate
-        self.gamma_0 = gamma_0 # in THz
+        self.gamma_0       = gamma_0 # in THz
+        self.a0_epsilon    = a0_epsilon # unit less
         self.gamma_dos_max = gamma_dos_max # in THz
-        self.gamma_k = gamma_k # in THz
-        self.power   = power
-        self.factor_arcs = factor_arcs # factor * gamma_0 outsite AF FBZ
-        self.gamma_tot_max = 1 / self.tauTotMinFunc() # in THz
-        self.gamma_tot_min = 1 / self.tauTotMaxFunc() # in THz
+        self.gamma_k       = gamma_k # in THz
+        self.power         = power
+        self.factor_arcs   = factor_arcs # factor * gamma_0 outsite AF FBZ
 
         # Time parameters
-        self.tmax = 8 * self.tauTotMaxFunc()  # in picoseconds
+        self.time_max = 8 * self.tau_total_max()  # in picoseconds
         self._N_time = N_time # number of steps in time
-        self.dt = self.tmax / self.N_time
-        self.t = np.arange(0, self.tmax, self.dt)
-        self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1] # integrand for tau_function
+        self.dtime = self.time_max / self.N_time
+        self.time_array = np.arange(0, self.time_max, self.dtime)
+        self.dtime_array = np.append(0, self.dtime * np.ones_like(self.time_array))[:-1] # integrand for tau_function
 
         # Time-dependent kf, vf
         self.kft = np.empty(1)
         self.vft = np.empty(1)
-        self.t_over_tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
+        self.tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
+        self.t_o_tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
         # i_t index of the time from the starting position
 
         # Product of [vf x int(vft*exp(-t/tau))]
@@ -121,9 +121,9 @@ class Conductivity:
         return self._N_time
     def _set_N_time(self, N_time):
         self._N_time = N_time
-        self.dt = self.tmax / self._N_time
-        self.t = np.arange(0, self.tmax, self.dt) # integrand for tau_function
-        self.dt_array = np.append(0, self.dt * np.ones_like(self.t))[:-1]
+        self.dtime = self.time_max / self._N_time
+        self.time_array = np.arange(0, self.time_max, self.dtime) # integrand for tau_function
+        self.dtime_array = np.append(0, self.dtime * np.ones_like(self.time_array))[:-1]
     N_time = property(_get_N_time, _set_N_time)
 
     def _get_T(self):
@@ -156,34 +156,38 @@ class Conductivity:
 
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def runTransport(self, printDoping=False):
+    def runTransport(self):
         if self._T != 0:
             #!!!! Add a warning if bandObject not already discretized
             self.dos_k_epsilon      = {}
             self.dkf_epsilon        = {}
             self.kft_epsilon        = {}
             self.vft_epsilon        = {}
-            self.t_over_tau_epsilon = {}
+            self.t_o_tau_epsilon = {}
 
             for epsilon in self.epsilon_array:
-                self.bandObject.runBandStructure(epsilon = epsilon, printDoping=printDoping)
+                self.bandObject.runBandStructure(epsilon = epsilon, printDoping=False)
                 self.solveMovementFunc()
+                self.t_o_tau_func(epsilon)
                 self.dos_k_epsilon[epsilon]      = self.bandObject.dos_k
                 self.dkf_epsilon[epsilon]        = self.bandObject.dkf
                 self.kft_epsilon[epsilon]        = self.kft
                 self.vft_epsilon[epsilon]        = self.vft
-                self.t_over_tau_epsilon[epsilon] = self.t_over_tau
+                self.t_o_tau_epsilon[epsilon]    = self.t_o_tau
                 ## !!!!  Do not forget to update scattering rates !!! ##
                 ## Create properties for tmax, etc.
         else:
             self.solveMovementFunc()
+            self.t_o_tau_func()
+
+        self.gamma_tot_max = 1 / self.tau_total_min() # in THz
+        self.gamma_tot_min = 1 / self.tau_total_max() # in THz
 
 
     def BFunc(self):
-        B = self._Bamp * \
-            np.array([sin(self._Btheta*pi/180) * cos(self._Bphi*pi/180),
-                      sin(self._Btheta*pi/180) * sin(self._Bphi*pi/180),
-                      cos(self._Btheta*pi/180)])
+        B = self._Bamp * np.array([sin(self._Btheta*pi/180) * cos(self._Bphi*pi/180),
+                                   sin(self._Btheta*pi/180) * sin(self._Bphi*pi/180),
+                                   cos(self._Btheta*pi/180)])
         return B
 
 
@@ -197,7 +201,7 @@ class Conductivity:
 
 
     def solveMovementFunc(self):
-        len_t = self.t.shape[0]
+        len_t = self.time_array.shape[0]
         len_kf = self.bandObject.kf.shape[1]
 
         ## Magnetic Field ON
@@ -205,7 +209,7 @@ class Conductivity:
             # Flatten to get all the initial kf solved at the same time
             self.bandObject.kf.shape = (3 * len_kf,)
             # Sovle differential equation
-            self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.t, rtol = 1e-4, atol = 1e-4).transpose()
+            self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.time_array, rtol = 1e-4, atol = 1e-4).transpose()
             # Reshape arrays
             self.bandObject.kf.shape = (3, len_kf)
             self.kft.shape = (3, len_kf, len_t)
@@ -218,11 +222,6 @@ class Conductivity:
             self.vft = np.empty((3, len_kf, 1), dtype = np.float64)
             self.kft[0, :, 0], self.kft[1, :, 0], self.kft[2, :, 0] = self.bandObject.kf[0, :], self.bandObject.kf[1, :], self.bandObject.kf[2, :]
             self.vft[0, :, 0], self.vft[1, :, 0], self.vft[2, :, 0] = self.bandObject.vf[0, :], self.bandObject.vf[1, :], self.bandObject.vf[2, :]
-
-        # Compute right away the t_over_tau array
-        self.tOverTauFunc()
-
-        return self.kft, self.vft
 
 
     def diffEqFunc(self, k, t):
@@ -247,6 +246,7 @@ class Conductivity:
         factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
         return factor_out_of_FBZ_AF
 
+
     def omegac_tau_func(self):
         dks = self.bandObject.dks / Angstrom # in m^-1
         kf = self.bandObject.kf
@@ -254,9 +254,10 @@ class Conductivity:
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
         prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
         inverse_omegac_tau = \
-            prefactor * np.sum(dks / vf_perp / (picosecond * self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
-                                                                             vf[0, :], vf[1, :], vf[2, :])))
+            prefactor * np.sum(dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
+                                                                                 vf[0, :], vf[1, :], vf[2, :])))
         self.omegac_tau = 1 / inverse_omegac_tau
+
 
     def gamma_DOS_Func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
@@ -269,11 +270,11 @@ class Conductivity:
         return self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
 
 
-    def tauTotFunc(self, kx, ky, kz, vx, vy, vz):
+    def tau_total_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
-        gammaTot = self.gamma_0 * np.ones_like(kx)
+        gammaTot = (self.gamma_0 * ( 1 + self.a0_epsilon * epsilon / self.bandObject.t)) * np.ones_like(kx)
         if self.gamma_k!=0:
             gammaTot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
@@ -284,61 +285,56 @@ class Conductivity:
         return 1/gammaTot
 
 
-    def tOverTauFunc(self):
-        # Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
-
+    def t_o_tau_func(self, espilon = 0):
+        ## Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
         ## Magnetic Field ON
         if self.Bamp !=0:
-            self.t_over_tau = np.cumsum( self.dt_array / (
-                                        self.tauTotFunc(self.kft[0, :, :],
-                                                        self.kft[1, :, :],
-                                                        self.kft[2, :, :],
-                                                        self.vft[0, :, :],
-                                                        self.vft[1, :, :],
-                                                        self.vft[2, :, :]
-                                                        )
-                                                        )
-                                        , axis = 1)
+            self.t_o_tau = np.cumsum( self.dtime_array /
+                                     (self.tau_total_func(self.kft[0, :, :],
+                                                          self.kft[1, :, :],
+                                                          self.kft[2, :, :],
+                                                          self.vft[0, :, :],
+                                                          self.vft[1, :, :],
+                                                          self.vft[2, :, :],
+                                                          espilon)), axis = 1)
         ## Magnetic Field OFF
         else:
-            self.t_over_tau = 0
+            self.t_o_tau = 1 / self.tau_total_func(self.kft[0, :, 0],
+                                                   self.kft[1, :, 0],
+                                                   self.kft[2, :, 0],
+                                                   self.vft[0, :, 0],
+                                                   self.vft[1, :, 0],
+                                                   self.vft[2, :, 0],
+                                                   espilon)
 
-
-    def tauTotMaxFunc(self):
+    def tau_total_max(self):
         # Compute the tau_max (the longest time between two collisions)
         # to better integrate from 0 --> 8 * 1 / gamma_min (instead of infinity)
         kf = self.bandObject.kf
         vf = self.bandObject.vf
-        tauTotMax = np.max(self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
-                                           vf[0, :], vf[1, :], vf[2, :]))
-        return tauTotMax
+        return np.max(self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
+                                          vf[0, :], vf[1, :], vf[2, :]))
 
-
-    def tauTotMinFunc(self):
+    def tau_total_min(self):
         kf = self.bandObject.kf
         vf = self.bandObject.vf
-        tauTotMin = np.min(self.tauTotFunc(kf[0, :], kf[1, :], kf[2, :],
-                                           vf[0, :], vf[1, :], vf[2, :]))
-        return tauTotMin
+        return np.min(self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
+                                          vf[0, :], vf[1, :], vf[2, :]))
 
 
-    def VelocitiesProduct(self, kft, vft, t_over_tau, i, j):
+    def velocity_product(self, kft, vft, t_o_tau, i, j):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0: vif = vxf """
 
         if self.Bamp != 0:
-            # Integral over t
-            vj_sum_over_t = np.sum(vft[j, :, :] * exp(-t_over_tau) * self.dt, axis=1)
-            # Product of velocities
-            self.v_product = vft[i, :, 0] * vj_sum_over_t
+            self.v_product = vft[i, :, 0] * np.sum(vft[j, :, :] * exp(-t_o_tau) * self.dtime, axis=1)
         else:
-            self.v_product = vft[i, :, 0] * vft[j, :, 0] * self.tauTotFunc(kft[0, :, 0], kft[1, :, 0], kft[2, :, 0],
-                                                                           vft[0, :, 0], vft[1, :, 0], vft[2, :, 0])
+            self.v_product = vft[i, :, 0] * vft[j, :, 0] * (1 / t_o_tau)
         return self.v_product
 
-    def sigma_epsilon(self, dos_k, dkf, kft, vft, t_over_tau, i, j):
+    def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau, i, j):
         sigma_epsilon = units_chambers / self.bandObject.numberOfBZ * \
-                        np.sum( dkf * dos_k * self.VelocitiesProduct(kft, vft, t_over_tau, i=i, j=j) )
+                        np.sum( dkf * dos_k * self.velocity_product(kft, vft, t_o_tau, i=i, j=j) )
         return sigma_epsilon
 
     def integrand_coeff(self, epsilon, coeff_name):
@@ -361,18 +357,17 @@ class Conductivity:
             self.sigma[i, j] = self.sigma_epsilon(self.bandObject.dos_k,
                                                   self.bandObject.dkf,
                                                   self.kft, self.vft,
-                                                  self.t_over_tau,
+                                                  self.t_o_tau,
                                                   i=i, j=j)
         else:
             coeff_tot = 0
             d_epsilon = self.epsilon_array[1] - self.epsilon_array[0]
-            # d_epsilon = 2 * self.epsilon_array[-1] / self._N_epsilon
             for epsilon in self.epsilon_array:
                 sigma_epsilon = self.sigma_epsilon(self.dos_k_epsilon[epsilon],
                                                    self.dkf_epsilon[epsilon],
                                                    self.kft_epsilon[epsilon],
                                                    self.vft_epsilon[epsilon],
-                                                   self.t_over_tau_epsilon[epsilon],
+                                                   self.t_o_tau_epsilon[epsilon],
                                                    i=i, j=j)
                 # Sum over the energie
                 coeff_tot += d_epsilon * (- self.dfdE(epsilon)) * \
@@ -388,14 +383,11 @@ class Conductivity:
             else:
                 print("!Warming! You have not enter a correct coefficient name")
 
-
-
     def dfdE(self, epsilon):
         if self._T == 0:
             return 1
         """Returns in fact dfdE * t in order to get epsilon unitless"""
         return -1 / (4 * kB * self._T) / (cosh(epsilon / (2*kB * self._T)))**2
-
 
     def energyCutOff(self, dfdE_cut):
         if self._T != 0:
@@ -446,7 +438,7 @@ class Conductivity:
             ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / self.bandObject.b
             vx, vy, vz = self.bandObject.v_3D_func(kx, ky, kz)
 
-            gamma_kz = 1 / self.tauTotFunc(kx, ky, kz, vx, vy, vz)
+            gamma_kz = 1 / self.tau_total_func(kx, ky, kz, vx, vy, vz)
             gamma_max_list.append(np.max(gamma_kz))
             gamma_min_list.append(np.min(gamma_kz))
 
@@ -503,7 +495,7 @@ class Conductivity:
             ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / self.bandObject.b
             vx, vy, vz = self.bandObject.v_3D_func(kx, ky, kz)
 
-            gamma_kz = 1 / self.tauTotFunc(kx, ky, kz, vx, vy, vz)
+            gamma_kz = 1 / self.tau_total_func(kx, ky, kz, vx, vy, vz)
 
             phi = np.rad2deg(np.arctan2(ky,kx))
 
@@ -578,7 +570,7 @@ class Conductivity:
 
         axes.axhline(y = 0, ls ="--", c ="k", linewidth = 0.6)
 
-        line = axes.plot(self.t, self.vft[2, index_kf,:])
+        line = axes.plot(self.time_array, self.vft[2, index_kf,:])
         plt.setp(line, ls ="-", c = '#6AFF98', lw = 3, marker = "", mfc = '#6AFF98', ms = 5, mec = "#7E2320", mew= 0)
 
         axes.tick_params(axis='x', which='major', pad=7)
@@ -593,7 +585,7 @@ class Conductivity:
         fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
         fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
 
-        line = axes.plot(self.t, np.cumsum(self.vft[2, index_kf, :] * exp(-self.t_over_tau[index_kf, :])))
+        line = axes.plot(self.time_array, np.cumsum(self.vft[2, index_kf, :] * exp(-self.t_o_tau[index_kf, :])))
         plt.setp(line, ls ="-", c = 'k', lw = 3, marker = "", mfc = 'k', ms = 8, mec = "#7E2320", mew= 0)  # set properties
 
         axes.tick_params(axis='x', which='major', pad=7)
@@ -816,7 +808,7 @@ class Conductivity:
                   (mesh_xy - 1) - 0.5) * 2 * pi / self.bandObject.b
             vx, vy, vz = self.bandObject.v_3D_func(kx, ky, 0)
 
-            gamma_kz0 = 1 / self.tauTotFunc(kx, ky, 0, vx, vy, vz)
+            gamma_kz0 = 1 / self.tau_total_func(kx, ky, 0, vx, vy, vz)
             gamma_max_list.append(np.max(gamma_kz0))
             gamma_min_list.append(np.min(gamma_kz0))
 
