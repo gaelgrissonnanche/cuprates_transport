@@ -29,7 +29,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
 class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
-                 gamma_0=15, a0_epsilon = 0,
+                 gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0,
                  gamma_dos_max=0,
                  gamma_k=0, power=2, az=0,
                  factor_arcs=1,
@@ -57,7 +57,9 @@ class Conductivity:
 
         # Scattering rate
         self.gamma_0       = gamma_0 # in THz
-        self.a0_epsilon    = a0_epsilon # unit less
+        self.a_epsilon     = a_epsilon # unit less
+        self.a_abs_epsilon = a_abs_epsilon # unit less
+        self.a_epsilon_2   = a_epsilon_2 # unit less
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k       = gamma_k # in THz
         self.power         = power
@@ -266,6 +268,9 @@ class Conductivity:
 
 
     def gamma_k_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
         return self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
 
@@ -274,8 +279,17 @@ class Conductivity:
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
-        gammaTot = (self.gamma_0 * ( 1 + self.a0_epsilon * epsilon / self.bandObject.t)) * np.ones_like(kx)
+        epsilon = epsilon / self.bandObject.t
+        # if epsilon > 0:
+        #     gammaTot = (self.gamma_0 * ( 1 + 1.1 * self.a0_epsilon * np.abs(epsilon / self.bandObject.t))) * np.ones_like(kx)
+        # else:
+        #     gammaTot = (self.gamma_0 * ( 1 + 1.0 * self.a0_epsilon * np.abs(epsilon / self.bandObject.t))) * np.ones_like(kx)
+        # phi = arctan2(ky, kx)
+        # gammaTot = (1 + np.power(self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2, (1+np.abs(cos(2*phi))**self.power)))
+        gammaTot = (1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2)
+        gammaTot *= self.gamma_0 * np.ones_like(kx)
         if self.gamma_k!=0:
+            # phi = arctan2(ky, kx)
             gammaTot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
             gammaTot += self.gamma_DOS_Func(vx, vy, vz)
@@ -354,11 +368,12 @@ class Conductivity:
         #!!! Add a error message if asking for alpha and beta at T != 0
 
         if self._T == 0:
-            self.sigma[i, j] = self.sigma_epsilon(self.bandObject.dos_k,
+            coeff_tot = self.sigma_epsilon(self.bandObject.dos_k,
                                                   self.bandObject.dkf,
                                                   self.kft, self.vft,
                                                   self.t_o_tau,
                                                   i=i, j=j)
+            self.sigma[i, j] = coeff_tot
         else:
             coeff_tot = 0
             d_epsilon = self.epsilon_array[1] - self.epsilon_array[0]
@@ -382,6 +397,8 @@ class Conductivity:
                 self.beta[i, j]  = coeff_tot
             else:
                 print("!Warming! You have not enter a correct coefficient name")
+
+        return coeff_tot
 
     def dfdE(self, epsilon):
         if self._T == 0:

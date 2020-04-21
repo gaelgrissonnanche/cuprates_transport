@@ -54,23 +54,23 @@ init_member = {
     "tpppp" : 0,
     "tz": 0.015,
     # "tz": 0.0285*8,
-    "tz2": -0.0070,
-    "tz3": -0.0100,
-    "tz4": 0.005,
+    # "tz2": -0.0070,
+    # "tz3": -0.0100,
+    # "tz4": 0.005,
     "mu": -1.222,
     "fixdoping": 0.25,
     "numberOfKz": 7,
     "mesh_ds": 1 / 20,
-    "Ntime": 500,
+    "N_time": 500,
     "T": 0,
     "Bamp": 45,
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 44], #[0, 20, 28, 36, 44],
-    "gamma_0": 4.2,
-    "gamma_k": 0,
-    "power": 2,
+    "gamma_0": 3,
+    "gamma_k": 3,
+    "power": 6,
     "gamma_dos_max": 0,
     "factor_arcs": 1,
     "seed": 72,
@@ -129,7 +129,7 @@ data_dict[4.2, 44] = ["data/Tl2201_Tc_20K_Hussey_2003/rhozz_vs_theta_Tl2201_Tc_2
 #                 population_size=100, N_generation=1000, mutation_s=0.3, crossing_p=0.7, normalized_data=False)
 
 # Play
-fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K", normalized_data=False)
+# fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K", normalized_data=False)
 
 
 # utils.save_member_to_json(init_member, folder="../data_NdLSCO_0p25")
@@ -137,4 +137,4 @@ fit_search(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K", norm
 #     "sim/Tl2201_Tc_20K",
 #     "data_p0.25_T4.2_fit_p0.200_T0_B45_t181.0_mu-1.375_tp-0.535_tpp0.300_tz0.015_tzz0.000_HolePocket_gzero6.5_gdos0.0_gk0.0_pwr2.0_arc1.0"
 # )
-# utils.fig_compare(init_member, data_dict, folder="sim/Tl2201_Tc_20K", normalized_data=True)
+utils.fig_compare(init_member, data_dict, folder="sim/Tl2201_Tc_20K", normalized_data=True)

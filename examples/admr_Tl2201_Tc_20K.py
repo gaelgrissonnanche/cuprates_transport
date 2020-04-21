@@ -14,7 +14,7 @@ params = {
     "tpp": 0.14,
     "tppp" : 0,
     "tpppp" : 0,
-    "tz": 0.05,
+    "tz": 0.015,
     # "tz": 0.0285*8,
     # "tz2": -0.0070,
     # "tz3": -0.0100,
@@ -23,11 +23,11 @@ params = {
     "fixdoping": 0.25,
     "numberOfKz": 7,
     "mesh_ds": 1 / 20,
-    "Ntime": 500,
+    "N_time": 500,
     "T": 0,
     "Bamp": 45,
     "Btheta_min": 0,
-    "Btheta_max": 90,
+    "Btheta_max": 80,
     "Btheta_step": 5,
     "Bphi_array": [0, 20, 28, 36, 44],
     "gamma_0": 4.2,
@@ -45,19 +45,17 @@ bandObject = BandStructure(**params)
 
 ## Discretize
 # bandObject.setMuToDoping(0.22)
-bandObject.doping(printDoping=True)
-bandObject.discretize_FS()
-bandObject.dos_k_func()
+bandObject.runBandStructure()
 
 bandObject.mc_func()
 print("mc = " + "{:.3f}".format(bandObject.mc))
 # bandObject.figDiscretizeFS2D()
-bandObject.figMultipleFS2D()
+# bandObject.figMultipleFS2D()
 
 ## Conductivity
 condObject = Conductivity(bandObject, **params)
 # condObject.figdfdE()
-condObject.solveMovementFunc()
+condObject.runTransport()
 condObject.omegac_tau_func()
 print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
 # condObject.figScatteringPhi(kz=0)
