@@ -154,7 +154,7 @@ class BandStructure:
     tz4 = property(_get_tz4, _set_tz4)
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def runBandStructure(self, epsilon=0, printDoping=True):
+    def runBandStructure(self, epsilon=0, printDoping=False):
         self.discretize_FS(epsilon=epsilon)
         self.dos_k_func()
         self.doping(printDoping=printDoping)

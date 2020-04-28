@@ -39,13 +39,11 @@ def produce_ADMR(member):
     if member["fixdoping"] >=-1 and member["fixdoping"] <=1  :
         bandObject.setMuToDoping(member["fixdoping"])
 
-    bandObject.discretize_FS(PrintEnding=False)
-    bandObject.dos_k_func()
-    bandObject.doping(printDoping=False)
+    bandObject.runBandStructure(printDoping=False)
 
     condObject = Conductivity(bandObject, **member)
+    condObject.runTransport()
 
-    condObject.solveMovementFunc()
     admr = ADMR([condObject], **member)
 
     return admr

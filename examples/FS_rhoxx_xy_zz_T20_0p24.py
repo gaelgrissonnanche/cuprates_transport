@@ -47,10 +47,7 @@ params = {
 
 ## BandObject ------------------------
 bandObject = BandStructure(**params)
-
-bandObject.discretize_FS()
-bandObject.dos_k_func()
-bandObject.doping()
+bandObject.runBandStructure()
 
 
 ## Conductivity Object ---------------
@@ -70,7 +67,7 @@ RHc_array = np.empty_like(B_array, dtype=np.float64)
 for i, B in enumerate(B_array):
 
     condObject.Bamp = B
-    condObject.solveMovementFunc()
+    condObject.runTransport()
     condObject.chambersFunc(0, 0)
     condObject.chambersFunc(0, 1)
     condObject.chambersFunc(2, 2)

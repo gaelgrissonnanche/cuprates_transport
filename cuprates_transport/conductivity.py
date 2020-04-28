@@ -39,7 +39,7 @@ class Conductivity:
         self.bandObject = bandObject ## WARNING do not modify within this object
 
         # Magnetic field in degrees
-        self._Bamp   = Bamp
+        self._Bamp   = Bamp # in Tesla
         self._Btheta = Btheta
         self._Bphi   = Bphi
         self._B_vector = self.BFunc() # np array fo Bx,By,Bz
