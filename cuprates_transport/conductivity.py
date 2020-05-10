@@ -6,6 +6,7 @@ from skimage import measure
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from copy import deepcopy
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Units ////////
@@ -36,7 +37,7 @@ class Conductivity:
                  **trash):
 
         # Band object
-        self.bandObject = bandObject ## WARNING do not modify within this object
+        self.bandObject = deepcopy(bandObject)
 
         # Magnetic field in degrees
         self._Bamp   = Bamp # in Tesla
@@ -178,6 +179,8 @@ class Conductivity:
                 self.t_o_tau_epsilon[epsilon]    = self.t_o_tau
                 ## !!!!  Do not forget to update scattering rates !!! ##
                 ## Create properties for tmax, etc.
+            self.bandObject.runBandStructure(epsilon = 0, printDoping=False)
+            # this lasr one is to be sure the bandObject is at the FS at the end
         else:
             self.solveMovementFunc()
             self.t_o_tau_func()

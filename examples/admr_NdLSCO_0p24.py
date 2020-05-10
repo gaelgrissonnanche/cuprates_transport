@@ -20,7 +20,7 @@ params = {
     "fixdoping": 0.1,
     "numberOfKz": 7,
     "mesh_ds": 1/20,
-    "T" : 25,
+    "T" : 0,
     "dfdE_cut_percent" : 0.001,
     "N_epsilon" : 22,
     "Bamp": 45,
@@ -29,10 +29,10 @@ params = {
     "Btheta_step": 5,
     "Bphi_array": [0, 15, 30, 45],
     "gamma_0": 15.,
-    "a_epsilon" : 9,
-    "a_abs_epsilon" : 73,
+    "a_epsilon" : 0,
+    "a_abs_epsilon" : 0,
     "a_epsilon_2" : 0,
-    "gamma_k": 0,
+    "gamma_k": 93,
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
@@ -75,10 +75,13 @@ bandObject = BandStructure(**params)
 # bandObject.setMuToDoping(0.4)
 # print(bandObject.mu)
 bandObject.runBandStructure()
-bandObject.mc_func()
-print("mc = " + "{:.3f}".format(bandObject.mc))
+# bandObject.mc_func()
+# print("mc = " + "{:.3f}".format(bandObject.mc))
 # bandObject.figMultipleFS2D()
 # bandObject.figDiscretizeFS2D()
+
+# import cProfile
+# cProfile.run("for i in range(100): bandObject.discretize_FS()", sort="cumulative")
 
 ## Compute conductivity
 condObject = Conductivity(bandObject, **params)
@@ -89,7 +92,6 @@ condObject.runTransport()
 # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
 # condObject.figArcs()
-
 
 ## Compute ADMR
 amro1band = ADMR([condObject], **params)

@@ -78,7 +78,7 @@ class BandStructure:
         self._mu  = self.mu  * t
         self._t = t
         self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        # self.e_3D_v_3D_definition(*self.bandParameters())
     t = property(_get_t, _set_t)
 
     def _get_mu(self):
@@ -86,7 +86,7 @@ class BandStructure:
     def _set_mu(self, mu):
         self._mu = mu * self._t
         self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        # self.e_3D_v_3D_definition(*self.bandParameters())
     mu = property(_get_mu, _set_mu)
 
     def _get_tp(self):
@@ -171,10 +171,10 @@ class BandStructure:
         self.dos_epsilon = None
         self.vf_mean  = None
         self.numberPointsPerKz_list = []
-        self.epsilon_sym = None
-        self.v_sym = None
-        self.epsilon_func = None
-        self.v_func = None
+        # self.epsilon_sym = None
+        # self.v_sym = None
+        # self.epsilon_func = None
+        # self.v_func = None
 
     def e_3D_v_3D_definition(self, a_num, b_num, c_num,
                                    mu_num, t_num,
@@ -249,7 +249,7 @@ class BandStructure:
         v_func = sp.lambdify(self.var_sym, self.v_sym, 'numpy')
 
         ## Numba ////////////////////////////////////////////////////////////////
-        self.epsilon_func = jit(epsilon_func, nopython=True)
+        self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
         self.v_func = jit(v_func, nopython=True, parallel=True)
 
 
