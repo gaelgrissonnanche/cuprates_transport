@@ -171,10 +171,6 @@ class BandStructure:
         self.dos_epsilon = None
         self.vf_mean  = None
         self.numberPointsPerKz_list = []
-        # self.epsilon_sym = None
-        # self.v_sym = None
-        # self.epsilon_func = None
-        # self.v_func = None
 
     def e_3D_v_3D_definition(self, a_num, b_num, c_num,
                                    mu_num, t_num,

@@ -283,16 +283,23 @@ class Conductivity:
         for the scattering rate"""
 
         epsilon = epsilon / self.bandObject.t
-        # if epsilon > 0:
-        #     gammaTot = (self.gamma_0 * ( 1 + 1.1 * self.a0_epsilon * np.abs(epsilon / self.bandObject.t))) * np.ones_like(kx)
-        # else:
-        #     gammaTot = (self.gamma_0 * ( 1 + 1.0 * self.a0_epsilon * np.abs(epsilon / self.bandObject.t))) * np.ones_like(kx)
-        # phi = arctan2(ky, kx)
-        # gammaTot = (1 + np.power(self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2, (1+np.abs(cos(2*phi))**self.power)))
-        gammaTot = (1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2)
+
+        ## Gamma epsilon^coeff_k
+        # gammaTot *= self.gamma_0 * np.ones_like(kx)
+        # if self.gamma_k!=0:
+        #     # phi = arctan2(ky, kx)
+        #     gammaTot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
+
+        # ## Gamma |epsilon|*cos(2*phi)
+        # gammaTot = (1 + self.a_epsilon_2 * epsilon**2)
+        # gammaTot *= self.gamma_0 * np.ones_like(kx)
+        # if self.gamma_k!=0:
+        #     gammaTot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
+
+        # gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
+        gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2
         gammaTot *= self.gamma_0 * np.ones_like(kx)
         if self.gamma_k!=0:
-            # phi = arctan2(ky, kx)
             gammaTot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
             gammaTot += self.gamma_DOS_Func(vx, vy, vz)

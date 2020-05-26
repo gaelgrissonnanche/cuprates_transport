@@ -77,7 +77,7 @@ bandObject = BandStructure(**params)
 bandObject.runBandStructure()
 # bandObject.mc_func()
 # print("mc = " + "{:.3f}".format(bandObject.mc))
-# bandObject.figMultipleFS2D()
+bandObject.figMultipleFS2D()
 # bandObject.figDiscretizeFS2D()
 
 # import cProfile

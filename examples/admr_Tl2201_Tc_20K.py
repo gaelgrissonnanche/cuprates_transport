@@ -45,7 +45,7 @@ bandObject = BandStructure(**params)
 
 ## Discretize
 # bandObject.setMuToDoping(0.22)
-bandObject.runBandStructure()
+bandObject.runBandStructure(printDoping=True)
 
 bandObject.mc_func()
 print("mc = " + "{:.3f}".format(bandObject.mc))
