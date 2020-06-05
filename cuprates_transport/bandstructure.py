@@ -234,6 +234,10 @@ class BandStructure:
         #     self.e_z_sym += - tz3 * sp.cos(kz * c / 2) * sp.cos(3 * kx * a / 2) * sp.cos(3 * ky * b / 2)
         # if tz4_num !=0:
         #     self.e_z_sym += - tz4 * sp.cos(kz * c / 2) * (sp.cos(5 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(5 * ky * b / 2))
+        
+        ## For Yamaji angle testing
+        if tz4_num !=0:
+            self.e_z_sym += - tz4 * sp.cos(kz * c / 2)
 
         self.epsilon_sym = self.e_2D_sym + self.e_z_sym - mu
 
