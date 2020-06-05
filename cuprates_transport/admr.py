@@ -262,7 +262,7 @@ class ADMR:
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:
-            file_figures = PdfPages(folder + "/Rzz_" + self.fileNameFunc() + ".pdf")
+            file_figures = PdfPages(folder + "Rzz_" + self.fileNameFunc() + ".pdf")
             for fig in fig_list[::-1]:
                 file_figures.savefig(fig)
             file_figures.close()
