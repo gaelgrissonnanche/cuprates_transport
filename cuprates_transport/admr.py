@@ -201,10 +201,6 @@ class ADMR:
         ## Create the list object of figures
         fig_list = []
 
-        ## Parameters figures ///////////////////////////////////////////////////#
-        for iniCondObject in self.initialCondObjectDict.values():
-            fig_list.append(iniCondObject.figParameters(fig_show=False))
-
         ## ADMR figure ////////////////////////////////////////////////////////#
         fig, axes = plt.subplots(1, 1, figsize = (10.5, 5.8)) # (1,1) means one plot, and figsize is w x h in inch of figure
         fig.subplots_adjust(left = 0.15, right = 0.70, bottom = 0.18, top = 0.92) # adjust the box of axes regarding the figure size
@@ -259,14 +255,18 @@ class ADMR:
 
         fig_list.append(fig)
 
+        ## Show figure ////////////////////////////////////////////////////////#
+        if fig_show == True:
+            plt.show()
+
+        ## Parameters figures ///////////////////////////////////////////////////#
+        for iniCondObject in self.initialCondObjectDict.values():
+            fig_list.append(iniCondObject.figParameters(fig_show=fig_show))
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:
             file_figures = PdfPages(folder + "/Rzz_" + self.fileNameFunc() + ".pdf")
-            for fig in fig_list[::-1]:
+            for fig in fig_list:
                 file_figures.savefig(fig)
             file_figures.close()
 
-        ## Show figure ////////////////////////////////////////////////////////#
-        if fig_show == True:
-            plt.show()

@@ -22,8 +22,8 @@ Angstrom = 1e-10  # 1 A in meters
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
                  mu=-0.825,
-                 t=190, tp=-0.14, tpp=0.07, tppp=0, tpppp=0,
-                 tz=0.07, tz2=0, tz3=0, tz4=0,
+                 t=190, tp=0, tpp=0, tppp=0, tpppp=0,
+                 tz=0, tz2=0, tz3=0, tz4=0,
                  numberOfKz=7, mesh_ds=1/20, **trash):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
@@ -67,18 +67,22 @@ class BandStructure:
         self.numberPointsPerKz_list = []
 
 
+
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def _get_t(self):
         return self._t
     def _set_t(self, t):
         self._tp  = self.tp  * t
         self._tpp = self.tpp * t
+        self._tppp = self.tppp * t
+        self._tpppp = self.tpppp * t
         self._tz  = self.tz  * t
         self._tz2 = self.tz2 * t
+        self._tz3 = self.tz3 * t
+        self._tz4 = self.tz4 * t
         self._mu  = self.mu  * t
         self._t = t
         self.erase_Fermi_surface()
-        # self.e_3D_v_3D_definition(*self.bandParameters())
     t = property(_get_t, _set_t)
 
     def _get_mu(self):
@@ -86,39 +90,54 @@ class BandStructure:
     def _set_mu(self, mu):
         self._mu = mu * self._t
         self.erase_Fermi_surface()
-        # self.e_3D_v_3D_definition(*self.bandParameters())
     mu = property(_get_mu, _set_mu)
 
     def _get_tp(self):
         return self._tp / self._t
     def _set_tp(self, tp):
-        self._tp = tp * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        if tp==0 or self._tp==0:
+            self._tp = tp * self._t
+            self.erase_Fermi_surface()
+            self.e_3D_v_3D_definition(*self.bandParameters())
+        else:
+            self._tp = tp * self._t
+            self.erase_Fermi_surface()
     tp = property(_get_tp, _set_tp)
 
     def _get_tpp(self):
         return self._tpp / self._t
     def _set_tpp(self, tpp):
-        self._tpp = tpp * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        if tpp==0 or self._tpp==0:
+            self._tpp = tpp * self._t
+            self.erase_Fermi_surface()
+            self.e_3D_v_3D_definition(*self.bandParameters())
+        else:
+            self._tpp = tpp * self._t
+            self.erase_Fermi_surface()
     tpp = property(_get_tpp, _set_tpp)
 
     def _get_tppp(self):
         return self._tppp / self._t
     def _set_tppp(self, tppp):
-        self._tppp = tppp * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        if tppp==0 or self._tppp==0:
+            self._tppp = tppp * self._t
+            self.erase_Fermi_surface()
+            self.e_3D_v_3D_definition(*self.bandParameters())
+        else:
+            self._tppp = tppp * self._t
+            self.erase_Fermi_surface()
     tppp = property(_get_tppp, _set_tppp)
 
     def _get_tpppp(self):
         return self._tpppp / self._t
     def _set_tpppp(self, tpppp):
-        self._tpppp = tpppp * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        if tpppp==0 or self._tpppp==0:
+            self._tpppp = tpppp * self._t
+            self.erase_Fermi_surface()
+            self.e_3D_v_3D_definition(*self.bandParameters())
+        else:
+            self._tpppp = tpppp * self._t
+            self.erase_Fermi_surface()
     tpppp = property(_get_tpppp, _set_tpppp)
 
     def _get_tz(self):
@@ -126,32 +145,45 @@ class BandStructure:
     def _set_tz(self, tz):
         self._tz = tz * self._t
         self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
     tz = property(_get_tz, _set_tz)
 
     def _get_tz2(self):
         return self._tz2 / self._t
     def _set_tz2(self, tz2):
-        self._tz2 = tz2 * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        if tz2==0 or self._tz2==0:
+            self._tz2 = tz2 * self._t
+            self.erase_Fermi_surface()
+            self.e_3D_v_3D_definition(*self.bandParameters())
+        else:
+            self._tz2 = tz2 * self._t
+            self.erase_Fermi_surface()
     tz2 = property(_get_tz2, _set_tz2)
 
     def _get_tz3(self):
         return self._tz3 / self._t
     def _set_tz3(self, tz3):
-        self._tz3 = tz3 * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        if tz3==0 or self._tz3==0:
+            self._tz3 = tz3 * self._t
+            self.erase_Fermi_surface()
+            self.e_3D_v_3D_definition(*self.bandParameters())
+        else:
+            self._tz3 = tz3 * self._t
+            self.erase_Fermi_surface()
     tz3 = property(_get_tz3, _set_tz3)
 
     def _get_tz4(self):
         return self._tz4 / self._t
     def _set_tz4(self, tz4):
-        self._tz4 = tz4 * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_definition(*self.bandParameters())
+        if tz4==0 or self._tz4==0:
+            self._tz4 = tz4 * self._t
+            self.erase_Fermi_surface()
+            self.e_3D_v_3D_definition(*self.bandParameters())
+        else:
+            self._tz4 = tz4 * self._t
+            self.erase_Fermi_surface()
     tz4 = property(_get_tz4, _set_tz4)
+
+
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runBandStructure(self, epsilon=0, printDoping=False):
@@ -203,6 +235,7 @@ class BandStructure:
         ## e_2D
         self.e_2D_sym = -2 * t * (sp.cos(kx * a) + sp.cos(ky * b))
         # self.e_2D_sym = -2 * t * (kx**2 + ky**2)
+        # self.e_2D_sym = -2 * t * (sp.sqrt((kx * a)**2))
 
         if tp_num != 0:
             self.e_2D_sym += -4 * tp * sp.cos(kx * a) * sp.cos(ky * b)
@@ -213,33 +246,34 @@ class BandStructure:
         if tpppp_num != 0:
             self.e_2D_sym += -4 * tpppp * sp.cos(2 * kx * a) * sp.cos(2 * ky * b)
 
-        ## e_z v1
-        self.e_z_sym = 0
-        self.e_z_sym = -2 * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2) * (sp.cos(kx * a) - sp.cos(ky * b))**2
+        ## e_z v1 ## Do not let e_z_sym to be only =0, otherwise the lambdafy function does not work
+        self.e_z_sym  = -2 * tz * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2) * (sp.cos(kx * a) - sp.cos(ky * b))**2
+        # # if tz2_num == 0 and tz3_num == 0:
+        # #     self.e_z_sym *= tz
+        # # if tz2_num != 0 and tz3_num == 0:
+        # #     self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b))
+        # # if tz2_num == 0 and tz3_num != 0:
+        # #     self.e_z_sym *= (tz + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
+        # # if tz2_num != 0 and tz3_num != 0:
+        # #     self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b) + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
 
-        if tz2_num == 0 and tz3_num == 0:
-            self.e_z_sym *= tz
-        if tz2_num != 0 and tz3_num == 0:
-            self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b))
-        if tz2_num == 0 and tz3_num != 0:
-            self.e_z_sym *= (tz + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
-        if tz2_num != 0 and tz3_num != 0:
-            self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b) + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
-
-        # ## e_z v2
-        # self.e_z_sym = 0
-        # self.e_z_sym  = - tz  * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2)
+        ## e_z v2 ## Do not let e_z_sym to be only =0, otherwise the lambdafy function does not work
+        ## Here we name tz the theta in Photopoulos
+        # self.e_z_sym  = 0.5 * tz * sp.cos(kx * a / 2) * sp.cos(ky * b / 2)
         # if tz2_num !=0:
-        #     self.e_z_sym += - tz2 * sp.cos(kz * c / 2) * (sp.cos(3 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(3 * ky * b / 2))
+        #     self.e_z_sym += -0.25 * tz2 * (sp.cos(3 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(3 * ky * b / 2))
         # if tz3_num !=0:
-        #     self.e_z_sym += - tz3 * sp.cos(kz * c / 2) * sp.cos(3 * kx * a / 2) * sp.cos(3 * ky * b / 2)
+        #     self.e_z_sym += -0.5 *  tz3 * sp.cos(3 * kx * a / 2) * sp.cos(3 * ky * b / 2)
         # if tz4_num !=0:
         #     self.e_z_sym += - tz4 * sp.cos(kz * c / 2) * (sp.cos(5 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(5 * ky * b / 2))
         
         ## For Yamaji angle testing
         if tz4_num !=0:
             self.e_z_sym += - tz4 * sp.cos(kz * c / 2)
+        #     self.e_z_sym += 0.25 * tz4 * (sp.cos(5 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(5 * ky * b / 2))
+        # self.e_z_sym     *= -2 * sp.cos(kz * c / 2)
 
+        ## E_3D dispersion
         self.epsilon_sym = self.e_2D_sym + self.e_z_sym - mu
 
         ## Velocity ////////////////////////////////////////////////////////////
@@ -274,7 +308,7 @@ class BandStructure:
         prefactor = (hbar)**2 / (2 * pi) / self.numberOfKz # divide by the number of kz to average over all kz
         self.mc = prefactor * np.sum(dks / vf_perp) / m0
 
-    def dispersionMesh(self, resX=500, resY=500, resZ=10):
+    def dispersionMesh(self, resX=500, resY=500, resZ=11):
         kx_a = np.linspace(-pi / self.a, pi / self.a, resX)
         ky_a = np.linspace(-pi / self.b, pi / self.b, resY)
         kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, resZ)
@@ -282,25 +316,25 @@ class BandStructure:
         epsilon = self.e_3D_func(kxx, kyy, kzz)
         return epsilon
 
-    def updateFilling(self, resX=500, resY=500, resZ=10):
+    def updateFilling(self, resX=500, resY=500, resZ=11):
         epsilon = self.dispersionMesh(resX, resY, resZ)
         kVolume = epsilon.shape[0] * epsilon.shape[1] * epsilon.shape[2]
         self.n = 2 * np.sum(np.greater_equal(0, epsilon)) / kVolume / self.numberOfBZ # 2 is for the spin
         self.p = 1 - self.n
         return self.n
 
-    def doping(self, resX=500, resY=500, resZ=10, printDoping=False):
+    def doping(self, resX=500, resY=500, resZ=11, printDoping=False):
         self.updateFilling(resX,resY,resZ)
         if printDoping==True:
             print("p=" + "{0:.3f}".format(self.p) + " :: " + self.bandname)
         return self.p
 
-    def filling(self, resX=500, resY=500, resZ=10):
+    def filling(self, resX=500, resY=500, resZ=11):
         self.updateFilling(resX,resY,resZ)
         print("n = " + "{0:.3f}".format(self.n))
         return self.n
 
-    def dopingPerkz(self, resX=500, resY=500, resZ=10):
+    def dopingPerkz(self, resX=500, resY=500, resZ=11):
         epsilon = self.dispersionMesh(resX, resY, resZ)
         # Number of k in the Brillouin zone per plane
         Nz = epsilon.shape[0] * epsilon.shape[1]
@@ -498,24 +532,37 @@ class BandStructure:
             ax.quiver(self.kf[0,:], self.kf[1,:], self.kf[2,:], self.vf[0,:], self.vf[1,:], self.vf[2,:], length=0.1, normalize=True)
         plt.show()
 
-    def figMultipleFS2D(self, kz = 0, meshXY = 1001):
+    def figMultipleFS2D(self, meshXY = 1001, averaged_kz_FS = False):
         """Show 2D Fermi Surface for different kz"""
         mesh_graph = meshXY
         kx = np.linspace(-4*pi / self.a, 4*pi / self.a, mesh_graph)
         ky = np.linspace(-4*pi / self.b, 4*pi / self.b, mesh_graph)
         kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
-        fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
-        fig.subplots_adjust(left=0.15, right=0.75, bottom=0.20, top=0.9)
+        fig, axes = plt.subplots(1, 1, figsize=(8.5, 5.6))
+        fig.subplots_adjust(left=0.01, right=0.75, bottom=0.20, top=0.9)
 
-        fig.text(0.77,0.84, r"$k_{\rm z}$ =")
-        fig.text(0.88,0.84, r"0", color = "#FF0000")
-        fig.text(0.88,0.78, r"$\pi/c$", color = "#00DC39")
-        fig.text(0.88,0.72, r"2$\pi/c$", color = "#6577FF")
+        doping_per_kz = self.dopingPerkz(resZ=5)[2:]
+        fig.text(0.63,0.84, r"$k_{\rm z}$ = 0,      $p$ $\in$ $k_{\rm z}$ = " + str(np.round(doping_per_kz[0], 3)), color = "#FF0000", fontsize = 18)
+        fig.text(0.63,0.78, r"$k_{\rm z}$ = $\pi/c$,   $p$ $\in$ $k_{\rm z}$ = " + str(np.round(doping_per_kz[1], 3)), color = "#00DC39", fontsize = 18)
+        fig.text(0.63,0.72, r"$k_{\rm z}$ = 2$\pi/c$, $p$ $\in$ $k_{\rm z}$ = " + str(np.round(doping_per_kz[2], 3)), color = "#6577FF", fontsize = 18)
+
+        fig.text(0.63,0.3, r"Average over $k_{\rm z}$", fontsize = 18)
+        fig.text(0.63,0.24, r"Total $p$ = " + str(np.round(self.doping(), 3)), fontsize = 18)
 
         axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
         axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, pi/self.c), 0, colors = '#00DC39', linewidths = 3)
         axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 2*pi/self.c), 0, colors = '#6577FF', linewidths = 3)
+
+        ## Averaged FS among all kz
+        if averaged_kz_FS == True:
+            kz_array = np.linspace(-2*pi/self.c, 2*pi/self.c, 5)
+            dump = 0
+            for kz in kz_array:
+                dump += self.e_3D_func(kxx, kyy, kz)
+            axes.contour(kxx*self.a, kyy*self.b, (1/self.numberOfKz)*dump, 0, colors = '#000000', linewidths = 3, linestyles = "dashed")
+
+
 
         axes.set_xlim(-pi, pi)
         axes.set_ylim(-pi, pi)
@@ -528,6 +575,7 @@ class BandStructure:
         axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
         axes.set_yticks([-pi, 0., pi])
         axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+        axes.set_aspect(aspect=1)
 
         plt.show()
         #//////////////////////////////////////////////////////////////////////////////#

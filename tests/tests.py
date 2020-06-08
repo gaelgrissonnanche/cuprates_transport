@@ -18,7 +18,6 @@ class TestTransport(unittest.TestCase):
             "tp": -0.14,
             "tpp": 0.07,
             "tz": 0.07,
-            "tz2": 0.00,
             "mu": -0.826,
             "fixdoping": 0.24,
             "numberOfKz": 7,
@@ -39,7 +38,7 @@ class TestTransport(unittest.TestCase):
     def test_doping(self):
         bandObject = BandStructure(**TestTransport.params)
         bandObject.doping()
-        self.assertEqual(np.round(bandObject.p,3), 0.240)
+        self.assertEqual(np.round(bandObject.p,3), 0.239)
 
     def test_conductivity_T_0_B_0(self):
         """T = 0 & B = 0"""
@@ -57,7 +56,7 @@ class TestTransport(unittest.TestCase):
         condObject.runTransport()
         condObject.chambersFunc(i=2, j=2)
 
-        self.assertEqual(np.round(condObject.sigma[2,2],3), 18817.909)
+        self.assertEqual(np.round(condObject.sigma[2,2],3), 18817.908)
 
 
     def test_conductivity_T_0(self):

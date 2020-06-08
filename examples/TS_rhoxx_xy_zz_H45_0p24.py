@@ -115,7 +115,7 @@ print("1 - n = ", np.round(p, 3))
 
 ## Fig / File name -------------------
 dummy = ADMR([condObject], Bphi_array=[0])
-file_name = "sim/NdLSCO_0p25/TS_Rxx_xy_zz" + dummy.fileNameFunc()[3:]
+file_name = "sim/NdLSCO_0p24/TS_Rxx_xy_zz" + dummy.fileNameFunc()[3:]
 
 ## Save Data -------------------------
 Data = np.vstack((T_array, rhoxx_array*1e8, rhoxy_array*1e8, rhozz_array*1e8, RH_array*1e9))
@@ -143,7 +143,7 @@ fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
 fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 
 # Load data ####################
-data = np.loadtxt("data/NdLSCO_0p25/rho_c_vs_T_NdLSCO_0p24_H_35T_Daou_et_al_Nat_phys_2009.dat",
+data = np.loadtxt("data/NdLSCO_0p24/rho_c_vs_T_NdLSCO_0p24_H_35T_Daou_et_al_Nat_phys_2009.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
@@ -184,7 +184,7 @@ fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
 fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 
 # Load data ####################
-data = np.loadtxt("data/NdLSCO_0p25/rho_a_vs_T_NdLSCO_0p24_Daou_2009.dat",
+data = np.loadtxt("data/NdLSCO_0p24/rho_a_vs_T_NdLSCO_0p24_Daou_2009.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
@@ -227,7 +227,7 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
 
 ## Load data ####################
-data = np.loadtxt("data/NdLSCO_0p25/RH_vs_T_NdLSCO_0p24_Daou_2009.dat",
+data = np.loadtxt("data/NdLSCO_0p24/RH_vs_T_NdLSCO_0p24_Daou_2009.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
@@ -241,7 +241,7 @@ line = axes.plot(T_array, rhoxy_array * 1e8, label=r"$\rho_{\rm xy}$ sim, $p$ = 
 plt.setp(line, ls="", c='#0000ff', lw=3, marker="o",
          mfc='#0000ff', ms=10, mec='k', mew=2)
 
-data = np.loadtxt("data/NdLSCO_0p25/rho_zy_Nd-LSCO-0p24-c-axis_1601-T-2019-10-19.dat",
+data = np.loadtxt("data/NdLSCO_0p24/rho_zy_Nd-LSCO-0p24-c-axis_1601-T-2019-10-19.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]
@@ -299,7 +299,7 @@ axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
 #############################################
 
 ## Load data ####################
-data = np.loadtxt("data/NdLSCO_0p25/RH_vs_T_NdLSCO_0p24_Daou_2009.dat",
+data = np.loadtxt("data/NdLSCO_0p24/RH_vs_T_NdLSCO_0p24_Daou_2009.dat",
                   dtype="float",
                   comments="#")
 T_data = data[:, 0]

@@ -4,69 +4,35 @@ from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-## ONE BAND Yawen Paper ///////////////////////////////////////////////////////
+## ONE BAND Matt et al. ///////////////////////////////////////////////////////
 params = {
     "bandname": "LargePocket",
-    "a": 3.74767,
-    "b": 3.74767,
+    "a": 3.75,
+    "b": 3.75,
     "c": 13.2,
     "t": 190,
-    "tp": -0.154,
-    "tpp": 0.074,
-    "tz": 0.076,
-    "tz2": 0.00,
-    "tz3": 0.00,
-    "mu": -0.93,
+    "tp": -0.136,
+    "tpp": 0.068,
+    "tz": 0.07,
+    "tz2": 0.07,
+    "tz3": 0.07,
+    "tz4": 0.07,
+    "mu": -0.83,
     "fixdoping": 0.1,
     "numberOfKz": 7,
     "mesh_ds": 1/20,
     "T" : 0,
-    "dfdE_cut_percent" : 0.001,
-    "N_epsilon" : 22,
     "Bamp": 45,
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 15, 30, 45],
-    "gamma_0": 15.,
-    "a_epsilon" : 0,
-    "a_abs_epsilon" : 0,
-    "a_epsilon_2" : 0,
-    "gamma_k": 93,
+    "gamma_0": 15.1,
+    "gamma_k": 72.2,
     "gamma_dos_max": 0,
-    "power": 12,
+    "power": 11.2,
     "factor_arcs": 1,
 }
-
-
-# ## ONE BAND Horio et al. ///////////////////////////////////////////////////////
-# params = {
-#     "bandname": "LargePocket",
-#     "a": 3.74767,
-#     "b": 3.74767,
-#     "c": 13.2,
-#     "t": 190,
-#     "tp": -0.14,
-#     "tpp": 0.07,
-#     "tz": 0.07,
-#     "tz2": 0.00,
-#     "tz3": 0.00,
-#     "mu": -0.826,
-#     "fixdoping": 0.1,
-#     "numberOfKz": 7,
-#     "mesh_ds": 1/20,
-#     "T" : 0,
-#     "Bamp": 45,
-#     "Btheta_min": 0,
-#     "Btheta_max": 90,
-#     "Btheta_step": 5,
-#     "Bphi_array": [0, 15, 30, 45],
-#     "gamma_0": 15.1,
-#     "gamma_k": 66,
-#     "gamma_dos_max": 0,
-#     "power": 12,
-#     "factor_arcs": 1,
-# }
 
 ## Create Bandstructure object
 bandObject = BandStructure(**params)
@@ -74,10 +40,10 @@ bandObject = BandStructure(**params)
 ## Discretize Fermi surface
 # bandObject.setMuToDoping(0.4)
 # print(bandObject.mu)
-bandObject.runBandStructure()
+bandObject.runBandStructure(printDoping=True)
 # bandObject.mc_func()
 # print("mc = " + "{:.3f}".format(bandObject.mc))
-bandObject.figMultipleFS2D()
+# bandObject.figMultipleFS2D()
 # bandObject.figDiscretizeFS2D()
 
 # import cProfile
@@ -85,7 +51,7 @@ bandObject.figMultipleFS2D()
 
 ## Compute conductivity
 condObject = Conductivity(bandObject, **params)
-condObject.runTransport()
+# condObject.runTransport()
 # condObject.omegac_tau_func()
 # print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
 # condObject.figScatteringPhi(kz=0)
@@ -96,7 +62,7 @@ condObject.runTransport()
 ## Compute ADMR
 amro1band = ADMR([condObject], **params)
 amro1band.runADMR()
-amro1band.fileADMR(folder="sim/NdLSCO_0p25")
-amro1band.figADMR(folder="sim/NdLSCO_0p25")
+amro1band.fileADMR(folder="sim/NdLSCO_0p24")
+amro1band.figADMR(folder="sim/NdLSCO_0p24")
 
 
