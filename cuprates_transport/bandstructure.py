@@ -202,6 +202,7 @@ class BandStructure:
         ## Dispersion //////////////////////////////////////////////////////////
         ## e_2D
         self.e_2D_sym = -2 * t * (sp.cos(kx * a) + sp.cos(ky * b))
+        # self.e_2D_sym = -2 * t * (kx**2 + ky**2)
 
         if tp_num != 0:
             self.e_2D_sym += -4 * tp * sp.cos(kx * a) * sp.cos(ky * b)
@@ -214,7 +215,7 @@ class BandStructure:
 
         ## e_z v1
         self.e_z_sym = 0
-        self.e_z_sym  = -2 * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2) * (sp.cos(kx * a) - sp.cos(ky * b))**2
+        self.e_z_sym = -2 * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2) * (sp.cos(kx * a) - sp.cos(ky * b))**2
 
         if tz2_num == 0 and tz3_num == 0:
             self.e_z_sym *= tz
