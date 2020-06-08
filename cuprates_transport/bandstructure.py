@@ -22,8 +22,8 @@ Angstrom = 1e-10  # 1 A in meters
 class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
                  mu=-0.825,
-                 t=190, tp=-0.14, tpp=0.07, tppp=0, tpppp=0,
-                 tz=0.07, tz2=0, tz3=0, tz4=0,
+                 t=190, tp=0, tpp=0, tppp=0, tpppp=0,
+                 tz=0, tz2=0, tz3=0, tz4=0,
                  numberOfKz=7, mesh_ds=1/20, **trash):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
@@ -234,6 +234,7 @@ class BandStructure:
         ## Dispersion //////////////////////////////////////////////////////////
         ## e_2D
         self.e_2D_sym = -2 * t * (sp.cos(kx * a) + sp.cos(ky * b))
+        # self.e_2D_sym = -2 * t * (sp.sqrt((kx * a)**2))
 
         if tp_num != 0:
             self.e_2D_sym += -4 * tp * sp.cos(kx * a) * sp.cos(ky * b)
@@ -245,26 +246,28 @@ class BandStructure:
             self.e_2D_sym += -4 * tpppp * sp.cos(2 * kx * a) * sp.cos(2 * ky * b)
 
         ## e_z v1 ## Do not let e_z_sym to be only =0, otherwise the lambdafy function does not work
-        self.e_z_sym  = -2 * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2) * (sp.cos(kx * a) - sp.cos(ky * b))**2
-        if tz2_num == 0 and tz3_num == 0:
-            self.e_z_sym *= tz
-        if tz2_num != 0 and tz3_num == 0:
-            self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b))
-        if tz2_num == 0 and tz3_num != 0:
-            self.e_z_sym *= (tz + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
-        if tz2_num != 0 and tz3_num != 0:
-            self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b) + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
+        self.e_z_sym  = -2 * tz * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2) * (sp.cos(kx * a) - sp.cos(ky * b))**2
+        # # if tz2_num == 0 and tz3_num == 0:
+        # #     self.e_z_sym *= tz
+        # # if tz2_num != 0 and tz3_num == 0:
+        # #     self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b))
+        # # if tz2_num == 0 and tz3_num != 0:
+        # #     self.e_z_sym *= (tz + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
+        # # if tz2_num != 0 and tz3_num != 0:
+        # #     self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b) + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
 
-        # ## e_z v2 ## Do not let e_z_sym to be only =0, otherwise the lambdafy function does not work
-        # self.e_z_sym = 0
-        # self.e_z_sym  = - tz  * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2)
+        ## e_z v2 ## Do not let e_z_sym to be only =0, otherwise the lambdafy function does not work
+        ## Here we name tz the theta in Photopoulos
+        # self.e_z_sym  = 0.5 * tz * sp.cos(kx * a / 2) * sp.cos(ky * b / 2)
         # if tz2_num !=0:
-        #     self.e_z_sym += - tz2 * sp.cos(kz * c / 2) * (sp.cos(3 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(3 * ky * b / 2))
+        #     self.e_z_sym += -0.25 * tz2 * (sp.cos(3 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(3 * ky * b / 2))
         # if tz3_num !=0:
-        #     self.e_z_sym += - tz3 * sp.cos(kz * c / 2) * sp.cos(3 * kx * a / 2) * sp.cos(3 * ky * b / 2)
+        #     self.e_z_sym += -0.5 *  tz3 * sp.cos(3 * kx * a / 2) * sp.cos(3 * ky * b / 2)
         # if tz4_num !=0:
-        #     self.e_z_sym += - tz4 * sp.cos(kz * c / 2) * (sp.cos(5 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(5 * ky * b / 2))
+        #     self.e_z_sym += 0.25 * tz4 * (sp.cos(5 * kx * a / 2) * sp.cos(ky * b / 2) + sp.cos(kx * a / 2) * sp.cos(5 * ky * b / 2))
+        # self.e_z_sym     *= -2 * sp.cos(kz * c / 2)
 
+        ## E_3D dispersion
         self.epsilon_sym = self.e_2D_sym + self.e_z_sym - mu
 
         ## Velocity ////////////////////////////////////////////////////////////

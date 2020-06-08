@@ -14,7 +14,7 @@ from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMR:
-    def __init__(self, init_member, ranges_dict, data_dict,
+    def __init__(self, init_member, ranges_dict, data_dict, pipi_FSR=False,
                  folder="",
                  method="leastsq",
                  population=100, N_generation=20, mutation_s=0.1, crossing_p=0.9,
@@ -27,6 +27,10 @@ class FittingADMR:
         self.data_dict   = data_dict
         self.folder      = folder
         self.normalized_data = normalized_data
+        self.pipi_FSR    = pipi_FSR
+        self.pars        = Parameters()
+        for param_name, param_range in self.ranges_dict.items():
+            self.pars.add(param_name, value = self.init_member[param_name], min = param_range[0], max = param_range[-1])
 
         self.method      = method # "shgo", "differential_evolution", "leastsq"
         ## Differential evolution
@@ -36,7 +40,10 @@ class FittingADMR:
         self.crossing_p  = crossing_p
 
         ## Objects
-        self.bandObject = BandStructure(**self.member)
+        if pipi_FSR==False:
+            self.bandObject = BandStructure(**self.member)
+        else:
+            self.bandObject = Pocket(**self.member)
         self.condObject = None
         self.admrObject = None
 
@@ -66,6 +73,8 @@ class FittingADMR:
         self.bandObject.runBandStructure()
         self.condObject = Conductivity(self.bandObject, **self.member)
         self.admrObject = ADMR([self.condObject], **self.member)
+        self.admrObject.Btheta_array = self.Btheta_array
+        self.admrObject.Bphi_array = self.Bphi_array
 
 
     def load_Bphi_data(self):
@@ -98,7 +107,7 @@ class FittingADMR:
 
     def load_and_interp_data(self):
         """
-        data_dict[data_T,phi] = [filename, col_theta, col_rzz, theta_cut, factor_to_SI]
+        data_dict[data_T,phi] = [filename, col_theta, col_rzz, theta_cut, rhozz_0]
         """
         ## Create Btheta array
         self.load_Btheta_data()
@@ -112,19 +121,28 @@ class FittingADMR:
             filename     = self.data_dict[self.member["data_T"], phi][0]
             col_theta    = self.data_dict[self.member["data_T"], phi][1]
             col_rzz      = self.data_dict[self.member["data_T"], phi][2]
-            factor_to_SI = self.data_dict[self.member["data_T"], phi][4]
+            rhozz_0      = self.data_dict[self.member["data_T"], phi][4]
 
             data = np.loadtxt(filename, dtype="float", comments="#")
             theta = data[:, col_theta]
-            rhozz = data[:, col_rzz] * factor_to_SI
-            rhozz_i = np.interp(self.Btheta_array, theta, rhozz) # "i" is for interpolated
+            rzz   = data[:, col_rzz]
 
-            self.rhozz_data_matrix[i, :] = rhozz_i
-            self.rzz_data_matrix[i, :] = rhozz_i / rhozz_i[0]
+            ## Order data
+            index_order = np.argsort(theta)
+            theta = theta[index_order]
+            rzz   = rzz[index_order]
+
+            rzz  /= np.interp(0, theta, rzz)
+            rzz_i = np.interp(self.Btheta_array, theta, rzz) # "i" is for interpolated
+
+            self.rhozz_data_matrix[i, :] = rzz_i * rhozz_0
+            self.rzz_data_matrix[i, :] = rzz_i
 
 
     def compute_diff(self, pars):
         """Compute diff = sim - data matrix"""
+
+        self.pars = pars
 
         start_total_time = time.time()
 
@@ -139,8 +157,8 @@ class FittingADMR:
 
         ## Update member with fit parameters
         for param_name in self.ranges_dict.keys():
-                self.member[param_name] = pars[param_name].value
-                print(param_name + " : " + "{0:g}".format(pars[param_name].value))
+                self.member[param_name] = self.pars[param_name].value
+                print(param_name + " : " + "{0:g}".format(self.pars[param_name].value))
 
         ## Compute ADMR ------------------------------------------------------------
         self.produce_ADMR_object()
@@ -162,20 +180,17 @@ class FittingADMR:
 
     def runFit(self):
         ## Initialize parameters
-        pars = Parameters()
-        self.nb_calls = 0
 
-        for param_name, param_range in self.ranges_dict.items():
-            pars.add(param_name, value = self.init_member[param_name], min = param_range[0], max = param_range[-1])
+        self.nb_calls = 0
 
         ## Run fit algorithm
         if self.method=="leastsq":
-            out = minimize(self.compute_diff, pars)
+            out = minimize(self.compute_diff, self.pars)
         if self.method=="shgo":
-            out = minimize(self.compute_diff, pars,
+            out = minimize(self.compute_diff, self.pars,
                            method='shgo',sampling_method='sobol', options={"ftol": 1e-16}, n = 100)
         if self.method=="differential_evolution":
-            out = minimize(self.compute_diff, pars,
+            out = minimize(self.compute_diff, self.pars,
                            method='differential_evolution')
         else:
             print("This method does not exist in the class")
@@ -221,12 +236,19 @@ class FittingADMR:
             filename     = self.data_dict[self.member["data_T"], phi][0]
             col_theta    = self.data_dict[self.member["data_T"], phi][1]
             col_rzz      = self.data_dict[self.member["data_T"], phi][2]
-            factor_to_SI = self.data_dict[self.member["data_T"], phi][4]
+            rhozz_0      = self.data_dict[self.member["data_T"], phi][4]
 
             data  = np.loadtxt(filename, dtype="float", comments="#")
             theta = data[:, col_theta]
-            rhozz = data[:, col_rzz] * factor_to_SI
-            rzz   = data[:, col_rzz] / data[0, col_rzz]
+            rzz   = data[:, col_rzz]
+
+            ## Order data
+            index_order = np.argsort(theta)
+            theta = theta[index_order]
+            rzz   = rzz[index_order]
+
+            rzz   = rzz / np.interp(0, theta, rzz)
+            rhozz = rzz * rhozz_0
             self.Btheta_data_dict[phi] = theta[theta<=Btheta_cut]
             self.rhozz_data_dict[phi]  = rhozz[theta<=Btheta_cut]
             self.rzz_data_dict[phi]    = rzz[theta<=Btheta_cut]
@@ -273,7 +295,7 @@ class FittingADMR:
                 plt.setp(line, ls ="-", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 7, mec = colors[i], mew= 0)
 
             for i, phi in enumerate(self.Bphi_array):
-                line = axes.plot(self.admrObject.Btheta_array, self.admrObject.rzz_array[i,:])
+                line = axes.plot(self.Btheta_array, self.admrObject.rzz_array[i,:])
                 plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)
         else:
             axes.set_ylabel(r"$\rho_{\rm zz}$ ( m$\Omega$ cm )", labelpad = 8)
@@ -282,7 +304,7 @@ class FittingADMR:
                 plt.setp(line, ls ="-", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 7, mec = colors[i], mew= 0)
 
             for i, phi in enumerate(self.Bphi_array):
-                line = axes.plot(self.admrObject.Btheta_array, self.admrObject.rhozz_array[i,:] * 1e5)
+                line = axes.plot(self.Btheta_array, self.admrObject.rhozz_array[i,:] * 1e5)
                 plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)
 
         ######################################################

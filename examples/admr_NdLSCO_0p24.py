@@ -14,8 +14,9 @@ params = {
     "tp": -0.136,
     "tpp": 0.068,
     "tz": 0.07,
-    "tz2": 0.00,
-    "tz3": 0.00,
+    "tz2": 0.07,
+    "tz3": 0.07,
+    "tz4": 0.07,
     "mu": -0.83,
     "fixdoping": 0.1,
     "numberOfKz": 7,
@@ -27,7 +28,7 @@ params = {
     "Btheta_step": 5,
     "Bphi_array": [0, 15, 30, 45],
     "gamma_0": 15.1,
-    "gamma_k": 72.5,
+    "gamma_k": 72.2,
     "gamma_dos_max": 0,
     "power": 11.2,
     "factor_arcs": 1,
@@ -61,7 +62,7 @@ condObject = Conductivity(bandObject, **params)
 ## Compute ADMR
 amro1band = ADMR([condObject], **params)
 amro1band.runADMR()
-amro1band.fileADMR(folder="sim/NdLSCO_0p25")
-amro1band.figADMR(folder="sim/NdLSCO_0p25")
+amro1band.fileADMR(folder="sim/NdLSCO_0p24")
+amro1band.figADMR(folder="sim/NdLSCO_0p24")
 
 

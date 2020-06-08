@@ -96,7 +96,7 @@ for i, tz in enumerate(tqdm(tz_array, ncols=80, unit="tz", desc="total tz")):
 
 
 ## Save data
-file_path = "sim/NdLSCO_0p25/" + os.path.basename(__file__)[0:-3] + ".dat"
+file_path = "sim/NdLSCO_0p24/" + os.path.basename(__file__)[0:-3] + ".dat"
 Data_list = []
 DataHeader = ""
 for i, tz in enumerate(tz_array):
@@ -136,7 +136,7 @@ mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType),
 ####################################################
 ## Plot Parameters #################################
 
-figures_path = "sim/NdLSCO_0p25/" + os.path.basename(__file__)[0:-3] + ".pdf"
+figures_path = "sim/NdLSCO_0p24/" + os.path.basename(__file__)[0:-3] + ".pdf"
 
 fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and figsize is w x h in inch of figure
 

@@ -732,8 +732,11 @@ class Conductivity:
                             r"$t_{\rm z}$    =  " + "{0:+.3f}".format(
                                 self.bandObject.tz) + r"   $t$",
                             r"$t_{\rm z}^{\prime}$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tz2) +
-                            r"   $t$"
+                            "{0:+.3f}".format(self.bandObject.tz2) + r"   $t$",
+                            r"$t_{\rm z}^{\prime\prime}$    =  " +
+                            "{0:+.3f}".format(self.bandObject.tz3) + r"   $t$",
+                            r"$t_{\rm z}^{\prime\prime\prime}$    =  " +
+                            "{0:+.3f}".format(self.bandObject.tz4) + r"   $t$"
                             ]
         try:  # if it is a AF band
             self.bandObject.M

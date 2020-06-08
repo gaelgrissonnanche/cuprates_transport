@@ -99,7 +99,7 @@ print("n - 1 = ", np.round(p, 3))
 
 ## Fig / File name -------------------
 dummy = ADMR([condObject], Bphi_array=[0])
-file_name = "sim/NdLSCO_0p25/" + dummy.fileNameFunc()[3:]
+file_name = "sim/NdLSCO_0p24/" + dummy.fileNameFunc()[3:]
 
 ## Save Data -------------------------
 Data = np.vstack((B_array, rhoxx_array*1e8, rhoxy_array*1e8, rhozz_array*1e8, RHa_array*1e9))
@@ -168,7 +168,7 @@ fig.subplots_adjust(left=0.18, right=0.82, bottom=0.18, top=0.95)
 #############################################
 
 ## Load resistivity data ####################
-data = np.loadtxt("data/NdLSCO_0p25/NdLSCOp24_rho_RH_T20_H0_37p5T_FS.txt",
+data = np.loadtxt("data/NdLSCO_0p24/NdLSCOp24_rho_RH_T20_H0_37p5T_FS.txt",
                   dtype="float",
                   comments="#")
 B_data = data[:, 0]
@@ -216,7 +216,7 @@ axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
 #############################################
 
 ## Load data ####################
-data = np.loadtxt("data/NdLSCO_0p25/NdLSCOp24_rho_RH_T20_H0_37p5T_FS.txt",
+data = np.loadtxt("data/NdLSCO_0p24/NdLSCOp24_rho_RH_T20_H0_37p5T_FS.txt",
                   dtype="float",
                   comments="#")
 B_data = data[:, 0]
@@ -272,7 +272,7 @@ axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
 #############################################
 
 ## Load data ####################
-data = np.loadtxt("data/NdLSCO_0p25/NdLSCOp24_rho_RH_T20_H0_37p5T_FS.txt",
+data = np.loadtxt("data/NdLSCO_0p24/NdLSCOp24_rho_RH_T20_H0_37p5T_FS.txt",
                   dtype="float",
                   comments="#")
 B_data = data[:, 0]
@@ -329,7 +329,7 @@ fig_list.append(fig)
 # #############################################
 
 # ## Load resistivity data ####################
-# data = np.loadtxt("data/NdLSCO_0p25/FS-Nd-LSCO-0p24-c-axis_FS_T_20.dat",
+# data = np.loadtxt("data/NdLSCO_0p24/FS-Nd-LSCO-0p24-c-axis_FS_T_20.dat",
 #                   dtype="float",
 #                   comments="#")
 # B_data = data[:, 0]

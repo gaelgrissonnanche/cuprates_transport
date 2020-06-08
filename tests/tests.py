@@ -18,7 +18,6 @@ class TestTransport(unittest.TestCase):
             "tp": -0.14,
             "tpp": 0.07,
             "tz": 0.07,
-            "tz2": 0.00,
             "mu": -0.826,
             "fixdoping": 0.24,
             "numberOfKz": 7,
