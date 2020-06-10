@@ -28,8 +28,10 @@ params = {
     "Btheta_step": 5,
     "Bphi_array": [0, 15, 30, 45],
     "gamma_0": 15.1,
-    "gamma_k": 72.2,
+    "gamma_k": 0,#72.2,
     "gamma_dos_max": 0,
+    "gamma_step": 70.0,
+    "phi_step": pi/6.0,
     "power": 11.2,
     "factor_arcs": 1,
 }

@@ -34,6 +34,7 @@ class Conductivity:
                  gamma_dos_max=0,
                  gamma_k=0, power=2, az=0,
                  factor_arcs=1,
+                 gamma_step=30, phi_step=np.pi/6,
                  **trash):
 
         # Band object
@@ -65,6 +66,8 @@ class Conductivity:
         self.gamma_k       = gamma_k # in THz
         self.power         = power
         self.factor_arcs   = factor_arcs # factor * gamma_0 outsite AF FBZ
+        self.gamma_step    = gamma_step
+        self.phi_step      = phi_step
 
         # Time parameters
         self.time_max = 8 * self.tau_total_max()  # in picoseconds
@@ -275,8 +278,13 @@ class Conductivity:
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
-        return self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
+        gamma_k = self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
 
+        quad_phi = phi % (np.pi/2)
+        mask = (quad_phi < self.phi_step) | (quad_phi > (np.pi/2 - self.phi_step))
+        gamma_k += self.gamma_step * mask
+
+        return gamma_k
 
     def tau_total_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
         """Computes the total lifetime based on the input model
