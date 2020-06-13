@@ -20,10 +20,10 @@ Angstrom = 1e-10  # 1 A in meters
 
 
 class BandStructure:
-    def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
-                 mu=-0.825,
-                 t=190, tp=0, tpp=0, tppp=0, tpppp=0,
-                 tz=0, tz2=0, tz3=0, tz4=0,
+    def __init__(self, bandname="band0", a=3.75, b=3.75, c=13.2,
+                 mu=-0.83,
+                 t=190, tp=-0.136, tpp=0.068, tppp=0, tpppp=0,
+                 tz=0.07, tz2=0, tz3=0, tz4=0,
                  numberOfKz=7, mesh_ds=1/20, **trash):
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
@@ -576,7 +576,10 @@ class BandStructure:
 
 
 
-
+if __name__ == '__main__':
+    bandObject = BandStructure(a=3.75, b=3.75, c=13.2, mesh_ds=1, numberOfKz=1)
+    bandObject.runBandStructure()
+    print(bandObject.kf[0,:])
 
 
 
