@@ -23,7 +23,7 @@ class BandStructure:
     def __init__(self,
                  a, b, c,
                  bandwidth,
-                 band_params={"t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07, "mu":-0.83},
+                 band_params={"t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07, "µ":-0.83},
                  band_name="band_1",
                  epsilon_xy_string = "", epsilon_z_string = "",
                  res_xy=20, res_z=7,
@@ -49,7 +49,7 @@ class BandStructure:
         ## Build the symbolic in-plane dispersion
         self.epsilon_sym = None # intialize this attribute
         if epsilon_xy_string=="":
-            self.epsilon_xy_sym = sp.sympify("-mu - 2*t*(cos(a*kx) + cos(b*ky))" +\
+            self.epsilon_xy_sym = sp.sympify("-µ - 2*t*(cos(a*kx) + cos(b*ky))" +\
                                              "- 4*tp*cos(a*kx)*cos(b*ky)" +\
                                              "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))")
         else:

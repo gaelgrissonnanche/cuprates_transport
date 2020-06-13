@@ -246,7 +246,7 @@ class Conductivity:
         kf = self.bandObject.kf
         vf = self.bandObject.vf * meV * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
-        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
+        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.res_z # divide by the number of kz to average over all kz
         inverse_omegac_tau = \
             prefactor * np.sum(dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
                                                                                  vf[0, :], vf[1, :], vf[2, :])))
@@ -298,7 +298,7 @@ class Conductivity:
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
-        epsilon = epsilon / self.bandObject.t
+        epsilon = epsilon / self.bandObject.bandwidth
 
         ## Gamma epsilon^coeff_k
         # gammaTot *= self.gamma_0 * np.ones_like(kx)
@@ -682,10 +682,9 @@ class Conductivity:
         axes.remove()
 
         # Band name
-        fig.text(0.45, 0.92, "Band :: " +
-                    self.bandObject.bandname, fontsize=20, color='#00d900')
+        fig.text(0.72, 0.92, self.bandObject.band_name, fontsize=20, color='#00d900')
         try:
-            self.bandObject.M
+            self.bandObject.band_params["M"]
             fig.text(0.41, 0.92, "AF", fontsize=20,
                         color="#FF0000")
         except:
@@ -694,9 +693,9 @@ class Conductivity:
         # Band Formulas
         fig.text(0.45, 0.445, "Band formula", fontsize=16,
                     color='#008080')
-        fig.text(0.45, 0.4, r"$a$ = " + "{0:.2f}".format(self.bandObject.a) + r" $\AA$  ::  " +
-                            r"$b$ = " + "{0:.2f}".format(self.bandObject.b) + r" $\AA$  ::  " +
-                            r"$c$ = " + "{0:.2f}".format(self.bandObject.c) + r" $\AA$", fontsize=10)
+        fig.text(0.45, 0.4, r"$a$ = " + "{0:.2f}".format(self.bandObject.a) + r" $\AA$,  " +
+                            r"$b$ = " + "{0:.2f}".format(self.bandObject.b) + r" $\AA$,  " +
+                            r"$c$ = " + "{0:.2f}".format(self.bandObject.c) + r" $\AA$", fontsize=12)
 
         # r"$c$ " + "{0:.2f}".format(self.bandObject.c)
         bandFormulaE2D = r"$\epsilon_{\rm k}^{\rm 2D}$ = - $\mu$" +\
@@ -713,7 +712,7 @@ class Conductivity:
 
         # AF Band Formula
         try:
-            self.bandObject.M
+            self.bandObject.band_params["M"]
             if self.bandObject.electronPocket == True:
                 sign_symbol = "+"
             else:
@@ -736,46 +735,25 @@ class Conductivity:
         fig.text(0.45, 0.03, scatteringFormula, fontsize=10)
 
         # Parameters Bandstructure
-        fig.text(0.45, 0.85, "Band Parameters", fontsize=16,
+        fig.text(0.45, 0.92, "Band Parameters", fontsize=16,
                     color='#008080')
-        label_parameters = [r"$t$     =  " + "{0:.1f}".format(self.bandObject.t) + "    meV",
-                            r"$\mu$    =  " +
-                            "{0:+.3f}".format(self.bandObject.mu) +
-                            r"   $t$",
-                            r"$t^\prime$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tp) +
-                            r"   $t$",
-                            r"$t^{\prime\prime}$   =  " + "{0:+.3f}".format(
-                                self.bandObject.tpp) + r"   $t$",
-                            r"$t_{\rm z}$    =  " + "{0:+.3f}".format(
-                                self.bandObject.tz) + r"   $t$",
-                            r"$t_{\rm z}^{\prime}$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tz2) + r"   $t$",
-                            r"$t_{\rm z}^{\prime\prime}$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tz3) + r"   $t$",
-                            r"$t_{\rm z}^{\prime\prime\prime}$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tz4) + r"   $t$"
-                            ]
+        label_parameters = [r"t = " + "{0:.1f}".format(self.bandObject.bandwidth) + " meV"] +\
+                           [key + " = " + "{0:+.3f}".format(value) + r" $t$" for (key, value) in sorted(self.bandObject.band_params.items()) if key!="t"]
+
         try:  # if it is a AF band
-            self.bandObject.M
+            self.bandObject.band_params["M"]
             label_parameters.append(
-                r"$\Delta_{\rm AF}$ =  " + "{0:+.3f}".format(self.bandObject.M) + r"   $t$")
+                r"$\Delta_{\rm AF}$ =  " + "{0:+.3f}".format(self.bandObject.band_params["M"]) + r"   $t$")
         except:
             None
 
-        h_label = 0.80
+        h_label = 0.88
         for label in label_parameters:
-            fig.text(0.45, h_label, label, fontsize=14)
-            h_label -= 0.043
-
-        # Band filling
-        fig.text(0.72, 0.85, "Band Filling =", fontsize=16,
-                    color='#008080')
-        fig.text(0.855, 0.85, "{0:.3f}".format(
-                    self.bandObject.n), fontsize=16, color='#000000')
+            fig.text(0.45, h_label, label, fontsize=12)
+            h_label -= 0.035
 
         # Scattering parameters
-        fig.text(0.72, 0.79, "Scattering Parameters",
+        fig.text(0.72, 0.86, "Scattering Parameters",
                     fontsize=16, color='#008080')
         label_parameters = [
             r"$\Gamma_{\rm 0}$       = " + "{0:.1f}".format(self.gamma_0) +
@@ -791,10 +769,10 @@ class Conductivity:
             r"$\Gamma_{\rm tot}^{\rm min}$     = " +
             "{0:.1f}".format(self.gamma_tot_min) + "   THz",
         ]
-        h_label = 0.74
+        h_label = 0.82
         for label in label_parameters:
-            fig.text(0.72, h_label, label, fontsize=14)
-            h_label -= 0.043
+            fig.text(0.72, h_label, label, fontsize=12)
+            h_label -= 0.035
 
         ## Inset FS ///////////////////////////////////////////////////////////#
         a = self.bandObject.a
@@ -900,3 +878,14 @@ class Conductivity:
         #//////////////////////////////////////////////////////////////////////////////#
 
         return fig
+
+
+
+if __name__ == '__main__':
+    from cuprates_transport.bandstructure_new import *
+    bandObject = BandStructure(a=3.75, b=3.75, c=13.2, bandwidth=190, res_xy=20, res_z=7)
+    bandObject.runBandStructure()
+    condObject = Conductivity(bandObject, Bamp=45)
+    condObject.runTransport()
+    print(condObject.chambersFunc(2,2))
+    condObject.figParameters()
