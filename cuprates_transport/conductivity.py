@@ -34,7 +34,7 @@ class Conductivity:
                  gamma_dos_max=0,
                  gamma_k=0, power=2, az=0,
                  factor_arcs=1,
-                 gamma_step=30, phi_step=np.pi/6,
+                 gamma_step=0, phi_step=np.pi/6,
                  **trash):
 
         # Band object
@@ -280,9 +280,9 @@ class Conductivity:
         phi = arctan2(ky, kx)
         gamma_k = self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
 
-        quad_phi = phi % (np.pi/2)
-        mask = (quad_phi < self.phi_step) | (quad_phi > (np.pi/2 - self.phi_step))
-        gamma_k += self.gamma_step * mask
+        # quad_phi = phi % (np.pi/2)
+        # mask = (quad_phi < self.phi_step) | (quad_phi > (np.pi/2 - self.phi_step))
+        # gamma_k += self.gamma_step * mask
 
         return gamma_k
 
@@ -307,7 +307,7 @@ class Conductivity:
         # gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
         gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2
         gammaTot *= self.gamma_0 * np.ones_like(kx)
-        if self.gamma_k!=0:
+        if self.gamma_k!=0 or self.gamma_step!=0 :
             gammaTot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
             gammaTot += self.gamma_DOS_Func(vx, vy, vz)
