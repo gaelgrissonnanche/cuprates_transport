@@ -33,6 +33,7 @@ class Conductivity:
                  gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0,
                  gamma_dos_max=0,
                  gamma_k=0, power=2, az=0,
+                 gamma_step=0, phi_step=0,
                  factor_arcs=1,
                  **trash):
 
@@ -64,6 +65,8 @@ class Conductivity:
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k       = gamma_k # in THz
         self.power         = power
+        self.gamma_step    = gamma_step
+        self.phi_step      = phi_step
         self.factor_arcs   = factor_arcs # factor * gamma_0 outsite AF FBZ
 
         # Time parameters
@@ -238,6 +241,18 @@ class Conductivity:
         return dkdt
 
 
+    def omegac_tau_func(self):
+        dks = self.bandObject.dks / Angstrom # in m^-1
+        kf = self.bandObject.kf
+        vf = self.bandObject.vf * meV * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
+        vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
+        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
+        inverse_omegac_tau = \
+            prefactor * np.sum(dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
+                                                                                 vf[0, :], vf[1, :], vf[2, :])))
+        self.omegac_tau = 1 / inverse_omegac_tau
+
+
     def factor_arcs_Func(self, kx, ky, kz):
         # line ky = kx + pi
         d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
@@ -252,18 +267,6 @@ class Conductivity:
         return factor_out_of_FBZ_AF
 
 
-    def omegac_tau_func(self):
-        dks = self.bandObject.dks / Angstrom # in m^-1
-        kf = self.bandObject.kf
-        vf = self.bandObject.vf * meV * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
-        vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
-        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
-        inverse_omegac_tau = \
-            prefactor * np.sum(dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
-                                                                                 vf[0, :], vf[1, :], vf[2, :])))
-        self.omegac_tau = 1 / inverse_omegac_tau
-
-
     def gamma_DOS_Func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
         dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units
@@ -275,8 +278,21 @@ class Conductivity:
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
-        return self.gamma_k * np.abs(cos(2*phi))**self.power # / (1 + self.az*abs(sin(kz*self.bandObject.c/2)))
+        return self.gamma_k * np.abs(cos(2*phi))**self.power
 
+    def gamma_step_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
+        phi = arctan2(ky, kx)
+
+        index_low = (np.mod(phi, pi/2) >= (pi/4 - self.phi_step)) * (np.mod(phi, pi/2) <= (pi/4 + self.phi_step))
+        index_high = np.logical_not(index_low)
+
+        gamma_step_array = np.zeros_like(phi)
+        gamma_step_array[index_high] = self.gamma_step
+
+        return gamma_step_array
 
     def tau_total_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
         """Computes the total lifetime based on the input model
@@ -301,6 +317,8 @@ class Conductivity:
         gammaTot *= self.gamma_0 * np.ones_like(kx)
         if self.gamma_k!=0:
             gammaTot += self.gamma_k_Func(kx, ky, kz)
+        if self.gamma_step!=0:
+            gammaTot += self.gamma_step_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
             gammaTot += self.gamma_DOS_Func(vx, vy, vz)
         if self.factor_arcs!=1:

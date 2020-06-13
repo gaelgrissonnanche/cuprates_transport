@@ -1,6 +1,77 @@
 from cuprates_transport.fitting_admr import FittingADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+# ## Darren Peets paramters
+# init_member = {
+#     "bandname": "HolePocket",
+#     "a": 3.87,
+#     "b": 3.87,
+#     "c": 23.20,
+#     "t": 181,
+#     "tp": -0.42,
+#     "tpp": -0.021,
+#     "tppp" : 0.111,
+#     "tpppp" : -0.005,
+#     "tz": 0.015,
+#     "tz2": 0.005,
+#     "tz3": 0.015,
+#     "tz4": 0.0084,
+#     "mu": -1.33,
+#     "fixdoping": 0.30,
+#     "numberOfKz": 5,
+#     "mesh_ds": 1 / 20,
+#     "N_time": 500,
+#     "T": 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 90,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0, 20, 28, 36, 44],
+#     "gamma_0": 3.7,
+#     "gamma_k": 0,
+#     "power": 6,
+#     "gamma_dos_max": 0,
+#     "factor_arcs": 1,
+#     "data_T": 4.2,
+#     "data_p": 0.30,
+# }
+
+# ## Hussey
+# init_member = {
+#     "bandname": "HolePocket",
+#     "a": 3.87,
+#     "b": 3.87,
+#     "c": 23.20,
+#     "t": 181,
+#     "tp": -0.436,
+#     "tpp": 0,
+#     "tppp" : 0,
+#     "tpppp" : 0,
+#     "tz": 0.015,
+#     "tz2": 0.015,
+#     "tz3": 0.015,
+#     "tz4": 0.0094,
+#     "mu": -1.55,
+#     "fixdoping": 0.32,
+#     "numberOfKz": 5,
+#     "mesh_ds": 1 / 20,
+#     "N_time": 500,
+#     "T": 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 90,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0, 20, 28, 36, 44],
+#     "gamma_0": 2.69,
+#     "gamma_k": 0,
+#     "power": 6,
+#     "gamma_dos_max": 0,
+#     "factor_arcs": 1,
+#     "data_T": 4.2,
+#     "data_p": 0.30,
+# }
+
+## Horio et al.
 init_member = {
     "bandname": "HolePocket",
     "a": 3.87,
@@ -12,9 +83,9 @@ init_member = {
     "tppp" : 0,
     "tpppp" : 0,
     "tz": 0.015,
-    "tz2": 0.014,
+    "tz2": 0.005,
     "tz3": 0.015,
-    "tz4": 0.008,
+    "tz4": 0.0084,
     "mu": -1.33,
     "fixdoping": 0.30,
     "numberOfKz": 5,
@@ -26,7 +97,7 @@ init_member = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 20, 28, 36, 44],
-    "gamma_0": 3.77,
+    "gamma_0": 3.7,
     "gamma_k": 0,
     "power": 6,
     "gamma_dos_max": 0,
@@ -65,5 +136,5 @@ data_dict[4.2, 44] = ["data/Tl2201_Tc_20K_Hussey_2003/rhozz_vs_theta_Tl2201_Tc_2
 
 fitObject = FittingADMR(init_member, ranges_dict, data_dict, folder="sim/Tl2201_Tc_20K",
                         method="differential_evolution")
-fitObject.runFit()
-# fitObject.fig_compare()
+# fitObject.runFit()
+fitObject.fig_compare()

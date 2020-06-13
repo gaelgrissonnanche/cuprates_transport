@@ -247,14 +247,14 @@ class BandStructure:
 
         ## e_z v1 ## Do not let e_z_sym to be only =0, otherwise the lambdafy function does not work
         self.e_z_sym  = -2 * tz * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2) * (sp.cos(kx * a) - sp.cos(ky * b))**2
-        # # if tz2_num == 0 and tz3_num == 0:
-        # #     self.e_z_sym *= tz
-        # # if tz2_num != 0 and tz3_num == 0:
-        # #     self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b))
-        # # if tz2_num == 0 and tz3_num != 0:
-        # #     self.e_z_sym *= (tz + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
-        # # if tz2_num != 0 and tz3_num != 0:
-        # #     self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b) + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
+        # if tz2_num == 0 and tz3_num == 0:
+        #     self.e_z_sym *= tz
+        # if tz2_num != 0 and tz3_num == 0:
+        #     self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b))
+        # if tz2_num == 0 and tz3_num != 0:
+        #     self.e_z_sym *= (tz + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
+        # if tz2_num != 0 and tz3_num != 0:
+        #     self.e_z_sym *= (tz + tz2 * sp.cos(kx * a) * sp.cos(ky * b) + tz3 * (sp.cos(kx * a) + sp.cos(ky * b)-1))
 
         ## e_z v2 ## Do not let e_z_sym to be only =0, otherwise the lambdafy function does not work
         ## Here we name tz the theta in Photopoulos
