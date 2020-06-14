@@ -19,8 +19,10 @@ import plotly.express as px
 
 try:
     switch = sys.argv[1]  ## get the first  the script
-except KeyError:
+except IndexError:
     switch = "LargePocket"
+
+# switch = "af"
 
 if switch in ["hp", "hpocket", "hole", "af", "AF"]:
     default_params = {
@@ -88,37 +90,38 @@ else:
 params = easy_args(default_params, out_dict=True)
 pklname = args_name(params, default_params, ["pocket"]) + ".pkl"
 
-if os.path.exists(pklname):
-    print(f"loading results from {pklname}")
-    with open(pklname, 'rb') as f:
-        bandObject, condObject, admrObject = pickle.load(f)
-    print("done")
-else:
-    if switch in ["hp", "hpocket", "hole", "af", "AF"]:
-        bandObject = Pocket(**params)
-        bandObject.runBandStructure()
-        bandObject.half_FS = False
-        condObject = Conductivity(bandObject, **params)
-        admrObject = ADMR([condObject], **params)
-        admrObject.runADMR()
-    else:
-        bandObject = BandStructure(**params)
-        bandObject.half_FS = False
-        bandObject.runBandStructure()
-        condObject = Conductivity(bandObject, **params)
-        admrObject = ADMR([condObject], **params)
-        admrObject.runADMR()
+# if os.path.exists(pklname):
+#     print(f"loading results from {pklname}")
+#     with open(pklname, 'rb') as f:
+#         bandObject, condObject, admrObject = pickle.load(f)
+#     print("done")
+# else:
 
-    print(f"saving results in {pklname}")
-    with open(pklname, 'wb') as f:
-        pickle.dump((bandObject, condObject, admrObject), f)
-    print("done")
+if switch in ["hp", "hpocket", "hole", "af", "AF"]:
+    bandObject = Pocket(**params)
+    bandObject.runBandStructure()
+    bandObject.half_FS = False
+    condObject = Conductivity(bandObject, **params)
+    admrObject = ADMR([condObject], **params)
+    admrObject.runADMR()
+else:
+    bandObject = BandStructure(**params)
+    bandObject.half_FS = False
+    bandObject.runBandStructure()
+    condObject = Conductivity(bandObject, **params)
+    admrObject = ADMR([condObject], **params)
+    admrObject.runADMR()
+
+# print(f"saving results in {pklname}")
+# with open(pklname, 'wb') as f:
+#     pickle.dump((bandObject, condObject, admrObject), f)
+# print("done")
     
 
 
 #%% MAKING THE DASH APP
 
-fs_name = "hPocket" if params['pocket'] else "LargePocket"
+fs_name = "hPocket" if switch in ["hp", "hpocket", "hole", "af", "AF"] else "LargePocket"
 vv_dict = {}
 vvrel_dict = {}
 vvdos_dict = {}
@@ -170,12 +173,14 @@ dos_on_kf_max = max(abs(np.min(dos_on_kf)),abs(np.max(dos_on_kf)))
 
 color_labels = {  # copy-pasted from https://www.unicodeit.net
     0:"v",
-    1:"vv",
+    1:"vv̅",
     2:"vv̅ρ",
     3:"vv̅-(vv̅)₀",
     4:"vv̅ρ-(vv̅ρ)₀",
     5:"τ",
     6:"ρ (DOS)",
+    # ajouter v^2 tau (champ nul)
+    # ajouter vv̅ρ-(vv̅ρ)₀ pour phi
 }
 
 
@@ -223,7 +228,7 @@ N_POINTS = 8051
 
 
 def FSwithTrajectories(kstart=0, theta=0, phi=0, nk=1, nk_jump=1, view_selected=0):
-    kft = admrObject.kftDict[fs_name, 0, theta]
+    kft = admrObject.kftDict[fs_name, phi, theta]
     return [fermiSurfacePlot(theta, phi, view_selected)] + [
         go.Scatter3d(
             x = kft[0, kstart+ii*nk_jump, :],
