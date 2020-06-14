@@ -28,13 +28,22 @@ class BandStructure:
                  epsilon_xy_string = "", epsilon_z_string = "",
                  res_xy=20, res_z=7,
                  **trash):
+
         self.bandwidth = bandwidth  # the bandwidth in meV
         self.a    = a  # in Angstrom
         self.b    = b  # in Angstrom
         self.c    = c  # in Angstrom
+
         ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ## Check if "t" is in the dictionnary, if "t" is not 1, warning but continue
-        band_params["t"] = 1
+        try:
+            assert band_params["t"]==1
+        except KeyError:
+            band_params["t"]=1
+            print("!Warning! You forgot 't':1, it has been added and set to 1")
+        except AssertionError:
+            band_params["t"]=1
+            print("!Warning! 't' has been set to 1, its value must set in 'bandwidth' in meV")
+
         self._band_params = band_params # all a fraction of the bandwidth
         self.numberOfBZ = 1 # number of BZ we intregrate on
         self.band_name = band_name # a string to designate the band
@@ -42,7 +51,7 @@ class BandStructure:
         ## Build the symbolic variables
         self.var_sym = [sp.Symbol('kx'), sp.Symbol('ky'), sp.Symbol('kz'),
                         sp.Symbol('a'),  sp.Symbol('b'),  sp.Symbol('c')]
-        for params in sorted(self.band_params.keys()):
+        for params in sorted(self._band_params.keys()):
             self.var_sym.append(sp.Symbol(params))
         self.var_sym = tuple(self.var_sym)
 
@@ -90,8 +99,12 @@ class BandStructure:
     def _get_band_params(self):
         return self._band_params
     def _set_band_params(self, band_params):
-
-        ## Add a warning to prevent adding new keys to dictionnary, only with constructor
+        # print("Hello")
+        # try:
+        #     assert sorted(self._band_params.keys())==sorted(band_params.keys())
+        # except:
+        #     print("!Warning! Band parameters can only be added\n during the construction of the object")
+        # else:
         self._band_params = band_params
         self.erase_Fermi_surface()
     band_params = property(_get_band_params, _set_band_params)
@@ -192,7 +205,7 @@ class BandStructure:
     def doping(self, resX=500, resY=500, resZ=11, printDoping=False):
         self.updateFilling(resX,resY,resZ)
         if printDoping==True:
-            print("p=" + "{0:.3f}".format(self.p) + " :: " + self.band_name)
+            print(self.band_name + " :: " + "p=" + "{0:.3f}".format(self.p))
         return self.p
 
     def filling(self, resX=500, resY=500, resZ=11):

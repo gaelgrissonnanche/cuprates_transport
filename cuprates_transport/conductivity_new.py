@@ -882,7 +882,7 @@ class Conductivity:
 
 
 if __name__ == '__main__':
-    from cuprates_transport.bandstructure_new import *
+    from cuprates_transport.bandstructure_new import BandStructure
     bandObject = BandStructure(a=3.75, b=3.75, c=13.2, bandwidth=190, res_xy=20, res_z=7)
     bandObject.runBandStructure()
     condObject = Conductivity(bandObject, Bamp=45)
