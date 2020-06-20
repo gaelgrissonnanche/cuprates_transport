@@ -23,6 +23,7 @@ class BandStructure:
     def __init__(self, bandname="band0", a=3.74767, b=3.74767, c=13.2,
                  mu=-0.825,
                  t=190, tp=0, tpp=0, tppp=0, tpppp=0,
+                 free_term=0,
                  tz=0, tz2=0, tz3=0, tz4=0,
                  numberOfKz=7, mesh_ds=1/20, **trash):
         self.a    = a  # in Angstrom
@@ -33,6 +34,7 @@ class BandStructure:
         self._tpp = tpp * t
         self._tppp = tppp * t
         self._tpppp = tpppp * t
+        self._free_term = free_term * t
         self._tz  = tz  * t
         self._tz2 = tz2 * t
         self._tz3 = tz3 * t
@@ -76,6 +78,7 @@ class BandStructure:
         self._tpp = self.tpp * t
         self._tppp = self.tppp * t
         self._tpppp = self.tpppp * t
+        self._free_term = self.free_term * t
         self._tz  = self.tz  * t
         self._tz2 = self.tz2 * t
         self._tz3 = self.tz3 * t
@@ -139,6 +142,18 @@ class BandStructure:
             self._tpppp = tpppp * self._t
             self.erase_Fermi_surface()
     tpppp = property(_get_tpppp, _set_tpppp)
+
+    def _get_free_term(self):
+        return self._free_term / self._t
+    def _set_free_term(self, free_term):
+        if free_term==0 or self._free_term==0:
+            self._free_term = free_term * self._t
+            self.erase_Fermi_surface()
+            self.e_3D_v_3D_definition(*self.bandParameters())
+        else:
+            self._free_term = free_term * self._t
+            self.erase_Fermi_surface()
+    free_term = property(_get_free_term, _set_free_term)
 
     def _get_tz(self):
         return self._tz / self._t
@@ -207,6 +222,7 @@ class BandStructure:
     def e_3D_v_3D_definition(self, a_num, b_num, c_num,
                                    mu_num, t_num,
                                    tp_num, tpp_num, tppp_num, tpppp_num,
+                                   free_term_num,
                                    tz_num, tz2_num, tz3_num, tz4_num):
 
         """Defines with Sympy the dispersion relation and
@@ -224,19 +240,19 @@ class BandStructure:
         tpp   = sp.Symbol('tpp')
         tppp  = sp.Symbol('tppp')
         tpppp = sp.Symbol('tpppp')
+        free_term = sp.Symbol('free_term')
         tz     = sp.Symbol('tz')
         tz2    = sp.Symbol('tz2')
         tz3    = sp.Symbol('tz3')
         tz4    = sp.Symbol('tz4')
 
-        self.var_sym = (kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, tz, tz2, tz3, tz4)
+        self.var_sym = (kx, ky, kz, a, b, c, mu, t, tp, tpp, tppp, tpppp, free_term, tz, tz2, tz3, tz4)
 
         ## Dispersion //////////////////////////////////////////////////////////
         ## e_2D
-        self.e_2D_sym = -2 * t * (sp.cos(kx * a) + sp.cos(ky * b))
-        # self.e_2D_sym = -2 * t * (kx**2 + ky**2)
-        # self.e_2D_sym = -2 * t * (sp.sqrt((kx * a)**2))
-
+        self.e_2D_sym = 0
+        if free_term_num == 0:
+            self.e_2D_sym += -2 * t * (sp.cos(kx * a) + sp.cos(ky * b))
         if tp_num != 0:
             self.e_2D_sym += -4 * tp * sp.cos(kx * a) * sp.cos(ky * b)
         if tpp_num != 0:
@@ -245,6 +261,8 @@ class BandStructure:
             self.e_2D_sym += -2 * tppp * (sp.cos(2 * kx * a) * sp.cos(ky * b) + sp.cos(kx * a) * sp.cos(2 * ky * b))
         if tpppp_num != 0:
             self.e_2D_sym += -4 * tpppp * sp.cos(2 * kx * a) * sp.cos(2 * ky * b)
+        if free_term_num != 0:
+            self.e_2D_sym += -2 * free_term * (kx**2 + ky**2)
 
         ## e_z v1 ## Do not let e_z_sym to be only =0, otherwise the lambdafy function does not work
         self.e_z_sym  = -2 * tz * sp.cos(kx * a / 2) * sp.cos(ky * b / 2) * sp.cos(kz * c / 2) * (sp.cos(kx * a) - sp.cos(ky * b))**2
@@ -289,7 +307,7 @@ class BandStructure:
 
 
     def bandParameters(self):
-        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tppp, self._tpppp, self._tz, self._tz2, self._tz3, self._tz4]
+        return [self.a, self.b, self.c, self._mu, self._t, self._tp, self._tpp, self._tppp, self._tpppp, self._free_term, self._tz, self._tz2, self._tz3, self._tz4]
 
     def e_3D_func(self, kx, ky, kz):
         return self.epsilon_func(kx, ky, kz, *self.bandParameters())
@@ -711,7 +729,7 @@ class Pocket(BandStructure):
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def e_3D_v_3D_AF_definition(self, a_num, b_num, c_num,
                                 mu_num, t_num,
-                                tp_num, tpp_num, tppp_num, tpppp_num,
+                                tp_num, tpp_num, tppp_num, tpppp_num, free_term,
                                 tz_num, tz2_num, tz3_num, tz4_num, M_num):
 
         """Defines with Sympy the dispersion relation and

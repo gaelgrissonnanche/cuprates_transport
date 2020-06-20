@@ -1,7 +1,6 @@
 #%%
 import os
 import sys
-import pickle
 import numpy as np
 from numpy import pi
 from cuprates_transport.bandstructure import BandStructure, Pocket
@@ -22,74 +21,85 @@ try:
 except IndexError:
     switch = "LargePocket"
 
-# switch = "af"
+band_switch = None
+# band_switch = "yamaji"
+# band_switch = "af"
 
-if switch in ["hp", "hpocket", "hole", "af", "AF"]:
-    default_params = {
+tau_switch = None
+tau_switch = "long"
+# tau_swhitch = "medium"
+
+default_params = {
+    "bandname": "LargePocket",
+    "t": 190,
+    "tp": -0.154,
+    "tpp": 0.074,
+    "tz": 0.076,
+    "tz2": 0.00,
+    "tz3": 0.00,
+    "tz4": 0.,
+    "mu": -0.930,
+    "fixdoping": 0.1,
+    "numberOfKz": 31,
+    "mesh_ds": 1/30,
+    "T" : 0,
+    "Bamp": 45,
+    "Btheta_min": 0,
+    "Btheta_max": 90,
+    "Btheta_step": 5,
+    "Bphi_array": [0, 15, 30, 45],
+    "gamma_0": 15.1,
+    "gamma_k": 84,
+    "N_time": 500,
+    "gamma_dos_max": 0,
+    "power": 12,
+    "factor_arcs": 1,
+    "seed": 72,
+    "data_T": 25,
+    "data_p": 0.24,
+}
+
+if band_switch in ["hp", "hpocket", "hole", "af", "AF"]:
+    default_params.update({
         "bandname": "hPocket",
-        "a": 3.75,
-        "b": 3.75,
-        "c": 13.2,
-        "t": 190,
-        "tp": -0.136,
-        "tpp": 0.068,
-        "tz": 0.07,
-        "tz2": 0.00,
-        "tz3": 0.00,
         "mu": -0.495,
         "M": 0.025,
-        "fixdoping": 0.1,
-        "numberOfKz": 31,
-        "mesh_ds": 1/100,
-        "T" : 0,
-        "Bamp": 45,
-        "Btheta_min": 0,
-        "Btheta_max": 90,
-        "Btheta_step": 5,
         "Bphi_array": [0, 45],
         "gamma_0": 24.2,
         "gamma_k": 0,
-        "gamma_dos_max": 0,
-        "power": 12,
-        "factor_arcs": 1,
-    }
-else: 
-    default_params = {
-        "bandname": "LargePocket",
-        "a": 3.74767,
-        "b": 3.74767,
-        "c": 13.2,
-        "t": 190,
+    })
+elif band_switch in ["free", "yamaji"]:
+    default_params.update({
+        "bandname": "yamaji",
         "tp": -0.154,
         "tpp": 0.074,
-        "tz": 0.076,
-        "tz2": 0.00,
-        "tz3": 0.00,
-        "tz4": 0.,
-        "mu": -0.930,
-        "fixdoping": 0.1,
-        "numberOfKz": 51,
-        "mesh_ds": 1/30,
-        "T" : 0,
-        "Bamp": 45,
-        "Btheta_min": 0,
-        "Btheta_max": 90,
-        "Btheta_step": 5,
-        "Bphi_array": [0, 15, 30, 45],
-        "gamma_0": 15.1,
-        "gamma_k": 84,
+        "tz": 0.,
+        "tz4": 0.05,
+        "free_term": 1.0,
+        "mu": -0.7,
+        "numberOfKz": 31,
+        "mesh_ds": 1/100,
+        "Bphi_array": [0],
+    })
+
+if tau_switch in ["long", "full"]:
+    default_params.update({
+        "gamma_0": 0.1,
+        "gamma_k": 0,
+        "N_time": 1000,
+        "Btheta_step": 1,
+    }) 
+elif tau_switch in ["medium", "intermediate"]:
+    default_params.update({
+        "gamma_0": 1,
+        "gamma_k": 0,
         "N_time": 500,
-        "gamma_dos_max": 0,
-        "power": 12,
-        "factor_arcs": 1,
-        "seed": 72,
-        "data_T": 25,
-        "data_p": 0.24,
-    }
+    }) 
+
 
 params = easy_args(default_params, out_dict=True)
-pklname = args_name(params, default_params, ["pocket"]) + ".pkl"
 
+# pklname = args_name(params, default_params, ["pocket"]) + ".pkl"
 # if os.path.exists(pklname):
 #     print(f"loading results from {pklname}")
 #     with open(pklname, 'rb') as f:
@@ -99,29 +109,24 @@ pklname = args_name(params, default_params, ["pocket"]) + ".pkl"
 
 if switch in ["hp", "hpocket", "hole", "af", "AF"]:
     bandObject = Pocket(**params)
-    bandObject.runBandStructure()
     bandObject.half_FS = False
-    condObject = Conductivity(bandObject, **params)
-    admrObject = ADMR([condObject], **params)
-    admrObject.runADMR()
+    bandObject.runBandStructure()
 else:
     bandObject = BandStructure(**params)
     bandObject.half_FS = False
     bandObject.runBandStructure()
-    condObject = Conductivity(bandObject, **params)
-    admrObject = ADMR([condObject], **params)
-    admrObject.runADMR()
+# bandObject.figMultipleFS2D()
+condObject = Conductivity(bandObject, **params)
+admrObject = ADMR([condObject], **params)
+admrObject.runADMR()
+
 
 # print(f"saving results in {pklname}")
 # with open(pklname, 'wb') as f:
 #     pickle.dump((bandObject, condObject, admrObject), f)
 # print("done")
     
-
-
-#%% MAKING THE DASH APP
-
-fs_name = "hPocket" if switch in ["hp", "hpocket", "hole", "af", "AF"] else "LargePocket"
+fs_name = params["bandname"]
 vv_dict = {}
 vvrel_dict = {}
 vvdos_dict = {}
@@ -178,7 +183,7 @@ color_labels = {  # copy-pasted from https://www.unicodeit.net
     3:"vv̅-(vv̅)₀",
     4:"vv̅ρ-(vv̅ρ)₀",
     5:"τ",
-    6:"ρ (DOS)",
+    6:"ρ",
     # ajouter v^2 tau (champ nul)
     # ajouter vv̅ρ-(vv̅ρ)₀ pour phi
 }
@@ -368,8 +373,8 @@ def update_3Dgraph(clickOn3DGraph, clickOn2DGraph, viewSlider, relayoutData):
     try: clicked_point = clickOn3DGraph['points'][0]['pointNumber']
     except TypeError: clicked_point = 0
 
-    clicked_theta = get_theta(clickOn2DGraph)*5
-    clicked_phi = get_phi(clickOn2DGraph)*15
+    clicked_theta = get_theta(clickOn2DGraph) * params["Btheta_step"]
+    clicked_phi = params["Bphi_array"][get_phi(clickOn2DGraph)]
 
     print(clicked_theta)
     updatedGraph = graph3D
@@ -405,5 +410,5 @@ def get_phi(clickOn2DGraph):
 
 
 if __name__ == '__main__':
+    os.system("open http://127.0.0.1:8050/")
     app.run_server()
-
