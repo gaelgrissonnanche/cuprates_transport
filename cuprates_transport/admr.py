@@ -16,7 +16,7 @@ class ADMR:
         self.totalFilling = 0 # total bands filling (of electron) over all bands
         for condObject in initialcondObjectList:
             self.totalFilling += condObject.bandObject.n
-            self.initialCondObjectDict[condObject.bandObject.bandname] = condObject
+            self.initialCondObjectDict[condObject.bandObject.band_name] = condObject
         self.bandNamesList = list(self.initialCondObjectDict.keys())
         self.totalHoleDoping = 1 - self.totalFilling # total bands hole doping over all bands
 
@@ -49,7 +49,7 @@ class ADMR:
             for m, theta in enumerate(self.Btheta_array):
 
                 sigma_zz = 0
-                for (bandname, iniCondObject) in list(self.initialCondObjectDict.items()):
+                for (band_name, iniCondObject) in list(self.initialCondObjectDict.items()):
 
                     iniCondObject.Bphi = phi
                     iniCondObject.Btheta = theta
@@ -60,10 +60,10 @@ class ADMR:
                     sigma_zz += iniCondObject.sigma[2, 2]
 
                     # Store in dictionaries
-                    self.condObjectDict[bandname, phi, theta] = iniCondObject
-                    self.kftDict[bandname, phi, theta] = iniCondObject.kft
-                    self.vftDict[bandname, phi, theta] = iniCondObject.vft
-                    self.vproductDict[bandname, phi, theta] = iniCondObject.v_product
+                    self.condObjectDict[band_name, phi, theta] = iniCondObject
+                    self.kftDict[band_name, phi, theta] = iniCondObject.kft
+                    self.vftDict[band_name, phi, theta] = iniCondObject.vft
+                    self.vproductDict[band_name, phi, theta] = iniCondObject.v_product
 
                 rhozz_array[l, m] = 1 / sigma_zz
 
@@ -80,7 +80,7 @@ class ADMR:
 
         # Detect if bands come from the AF reconstruction
         try:
-            bandObject0.M # if M exists in one of the band (meaning AF FSR)
+            bandObject0._band_params["M"] # if M exists in one of the band (meaning AF FSR)
             bandAF = True
         except:
             bandAF = False
@@ -89,19 +89,14 @@ class ADMR:
         file_parameters_list  = [r"p"   + "{0:.3f}".format(self.totalHoleDoping),
                                  r"T"   + "{0:.0f}".format(CondObject0.T),
                                  r"B"   + "{0:.0f}".format(CondObject0.Bamp),
-                                 r"t"   + "{0:.1f}".format(bandObject0.t),
-                                 r"mu"  + "{0:.3f}".format(bandObject0.mu),
-                                 r"tp"  + "{0:.3f}".format(bandObject0.tp),
-                                 r"tpp" + "{0:.3f}".format(bandObject0.tpp),
-                                 r"tz"  + "{0:.3f}".format(bandObject0.tz),
-                                 r"tzz" + "{0:.3f}".format(bandObject0.tz2)
-                                ]
+                                 r"t" + "{0:.1f}".format(bandObject0.energy_scale)] +\
+        [key + "{0:.3f}".format(value) for (key, value) in sorted(bandObject0._band_params.items()) if key!="t"]
 
         if bandAF == True:
-            file_parameters_list.append(r"M" + "{0:.3f}".format(bandObject0.M))
+            file_parameters_list.append(r"M" + "{0:.3f}".format(bandObject0._band_params["M"]))
 
-        for (bandname, iniCondObject) in self.initialCondObjectDict.items():
-            file_parameters_list.extend([bandname,
+        for (band_name, iniCondObject) in self.initialCondObjectDict.items():
+            file_parameters_list.extend([band_name,
                                          r"gzero" + "{0:.1f}".format(iniCondObject.gamma_0),
                                          r"gdos" + "{0:.1f}".format(iniCondObject.gamma_dos_max),
                                          r"gk"  + "{0:.1f}".format(iniCondObject.gamma_k),
@@ -130,12 +125,12 @@ class ADMR:
 
         # Detect if bands come from the AF reconstruction
         try:
-            bandObject0.M # if M exists in one of the band (meaning AF FSR)
+            bandObject0._band_params["M"] # if M exists in one of the band (meaning AF FSR)
             bandAF = True
         except:
             bandAF = False
 
-        # Build Data 2D-array
+        ## Build Data 2D-array & Header -----------------------------------------
         Ones = np.ones_like(self.Btheta_array) # column of 1 with same size of Btheta_array
         rhozzMatrix = self.rhozz_array[0,:] # initialize with first phi value
         rhozzHeader = "rhozz(phi=" + str(self.Bphi_array[0])+ ")[Ohm.m]\t"
@@ -146,40 +141,42 @@ class ADMR:
                 rhozzMatrix = np.vstack((rhozzMatrix, self.rhozz_array[l,:]))
                 rhozzHeader += "rho_zz(phi=" + str(self.Bphi_array[l])+ ")[Ohm.m]\t"
 
-        Data = np.vstack((self.Btheta_array, rhozzMatrix,
-                          CondObject0.Bamp * Ones,
-                          bandObject0.t    * Ones, bandObject0.tp * Ones,
-                          bandObject0.tpp  * Ones, bandObject0.tz * Ones,
-                          bandObject0.tz2  * Ones, bandObject0.mu * Ones,
-                          bandObject0.mesh_ds * Ones, bandObject0.numberOfKz * Ones))
+        Data = np.vstack((self.Btheta_array, rhozzMatrix, CondObject0.Bamp * Ones))
+        Data = np.vstack((Data, np.round(bandObject0.energy_scale,0) * Ones))
+        DataHeader = "theta[deg]\t" + rhozzHeader + "B[T]\tt[meV]\t"
 
+        for (key, value) in sorted(bandObject0._band_params.items()):
+            if key!="t":
+                Data = np.vstack((Data, np.round(value,3)*Ones))
+                DataHeader += key + "\t"
         if bandAF == True:
-            Data = np.vstack((Data, bandObject0.M*Ones))
+            Data = np.vstack((Data, np.round(bandObject0._band_params["M"],3)*Ones))
+            DataHeader += "M\t"
+
+        Data = np.vstack((Data, bandObject0.res_xy * Ones, bandObject0.res_z * Ones))
+        DataHeader += "res_xy\tres_z\t"
 
         condHeader = ""
-        for (bandname, iniCondObject) in self.initialCondObjectDict.items():
+        for (band_name, iniCondObject) in self.initialCondObjectDict.items():
             Data = np.vstack((Data,
                               iniCondObject.gamma_0 * Ones,
                               iniCondObject.gamma_dos_max * Ones,
                               iniCondObject.gamma_k * Ones,
                               iniCondObject.power   * Ones))
-            condHeader += bandname + "_g_0[THz]\t" + \
-                          bandname + "_g_dos_max[THz]\t" + \
-                          bandname + "_g_k[THz]\t" + \
-                          bandname + "_power\t"
+            condHeader += band_name + "_g_0[THz]\t" + \
+                          band_name + "_g_dos_max[THz]\t" + \
+                          band_name + "_g_k[THz]\t" + \
+                          band_name + "_power\t"
+        DataHeader += condHeader
 
         Data = Data.transpose()
 
-        # Build header
-        DataHeader = "theta[deg]\t" + rhozzHeader + \
-                     "B[T]\tt[meV]\ttp\ttpp\ttz\ttz2\tmu\tmesh_ds\tmesh_z\t" + \
-                     condHeader
+        ## Build header ---------------------------------------------------------
 
         np.savetxt(folder + "/Rzz_" + self.fileNameFunc() + ".dat", Data, fmt='%.7e',
         header = DataHeader, comments = "#")
 
 
-    #---------------------------------------------------------------------------
     def figADMR(self, fig_show=True, fig_save=True, folder=""):
         #///// RC Parameters //////#
         mpl.rcdefaults()
@@ -269,4 +266,5 @@ class ADMR:
             for fig in fig_list:
                 file_figures.savefig(fig)
             file_figures.close()
+
 
