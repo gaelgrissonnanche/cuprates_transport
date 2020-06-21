@@ -53,7 +53,6 @@ class BandStructure:
 
 
         self._band_params = deepcopy(band_params) # all a fraction of the bandwidth
-        self._band_params_keys = sorted(band_params.keys())
         self.numberOfBZ = 1 # number of BZ we intregrate on
         self.band_name = band_name # a string to designate the band
 

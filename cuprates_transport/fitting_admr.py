@@ -16,7 +16,7 @@ from cuprates_transport.conductivity import Conductivity
 class FittingADMR:
     def __init__(self, init_member, ranges_dict, data_dict, pipi_FSR=False,
                  folder="",
-                 method="leastsq",
+                 method="differential_evolution",
                  population=100, N_generation=20, mutation_s=0.1, crossing_p=0.9,
                  normalized_data=True,
                  **trash):
@@ -30,8 +30,10 @@ class FittingADMR:
         self.pipi_FSR    = pipi_FSR
         self.pars        = Parameters()
         for param_name, param_range in self.ranges_dict.items():
-            self.pars.add(param_name, value = self.init_member[param_name], min = param_range[0], max = param_range[-1])
-
+            if param_name in self.init_member.keys():
+                self.pars.add(param_name, value = self.init_member[param_name], min = param_range[0], max = param_range[-1])
+            elif param_name in self.init_member["band_params"].keys():
+                self.pars.add(param_name, value = self.init_member["band_params"][param_name], min = param_range[0], max = param_range[-1])
         self.method      = method # "shgo", "differential_evolution", "leastsq"
         ## Differential evolution
         self.population  = population
@@ -64,11 +66,13 @@ class FittingADMR:
         for param_name in self.ranges_dict.keys():
                 if hasattr(self.bandObject, param_name):
                     setattr(self.bandObject, param_name, self.member[param_name])
+                if param_name in self.bandObject._band_params.keys():
+                    self.bandObject[param_name] = self.member["band_params"][param_name]
 
         ## Adjust the doping if need be
         if self.member["fixdoping"] >=-1 and self.member["fixdoping"] <=1:
             self.bandObject.setMuToDoping(self.member["fixdoping"])
-            self.member["mu"] = self.bandObject.mu
+            self.member["mu"] = self.bandObject["mu"]
 
         self.bandObject.runBandStructure()
         self.condObject = Conductivity(self.bandObject, **self.member)
@@ -156,9 +160,12 @@ class FittingADMR:
         self.member["Btheta_step"] = float(self.Btheta_array[1] - self.Btheta_array[0])
 
         ## Update member with fit parameters
-        for param_name in self.ranges_dict.keys():
+        for param_name, param_range in self.ranges_dict.items():
+            if param_name in self.init_member.keys():
                 self.member[param_name] = self.pars[param_name].value
-                print(param_name + " : " + "{0:g}".format(self.pars[param_name].value))
+            elif param_name in self.init_member["band_params"].keys():
+                self.member["band_params"][param_name] = self.pars[param_name].value
+            print(param_name + " : " + "{0:g}".format(self.pars[param_name].value))
 
         ## Compute ADMR ------------------------------------------------------------
         self.produce_ADMR_object()
