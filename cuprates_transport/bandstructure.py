@@ -30,7 +30,7 @@ class BandStructure:
                  res_xy=20, res_z=7,
                  **trash):
 
-        self.energy_scale = energy_scale  # the value of "t" in meV
+        self._energy_scale = energy_scale  # the value of "t" in meV
         self.a = a  # in Angstrom
         self.b = b  # in Angstrom
         self.c = c  # in Angstrom
@@ -66,7 +66,7 @@ class BandStructure:
         ## Build the symbolic in-plane dispersion
         self.epsilon_sym = None # intialize this attribute
         if epsilon_xy=="":
-            self.epsilon_xy_sym = sp.sympify("-mu - 2*t*(cos(a*kx) + cos(b*ky))" +\
+            self.epsilon_xy_sym = sp.sympify("- 2*t*(cos(a*kx) + cos(b*ky))" +\
                                              "- 4*tp*cos(a*kx)*cos(b*ky)" +\
                                              "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))")
         else:
@@ -126,6 +126,14 @@ class BandStructure:
     def set_band_param(self, key, val):
         self[key] = val
 
+    ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def _get_energy_scale(self):
+        return self._energy_scale
+    def _set_energy_scale(self, energy_scale):
+        self._energy_scale = energy_scale
+        self.erase_Fermi_surface()
+    energy_scale = property(_get_energy_scale, _set_energy_scale)
+
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runBandStructure(self, epsilon=0, printDoping=False):
         self.discretize_FS(epsilon=epsilon)
@@ -152,13 +160,19 @@ class BandStructure:
         """Defines with Sympy the dispersion relation and
         symbolicly derives the velocity"""
 
+        ## Symbolic variables ///////////////////////////////////////////////////
+        kx = sp.Symbol('kx')
+        ky = sp.Symbol('ky')
+        kz = sp.Symbol('kz')
+        mu = sp.Symbol('mu')
+
         ## Dispersion 3D ////////////////////////////////////////////////////////
-        self.epsilon_sym = self.epsilon_xy_sym + self.epsilon_z_sym
+        self.epsilon_sym = self.epsilon_xy_sym + self.epsilon_z_sym  - mu
 
         ## Velocity /////////////////////////////////////////////////////////////
-        self.v_sym = [sp.diff(self.epsilon_sym, self.var_sym[0]),
-                      sp.diff(self.epsilon_sym, self.var_sym[1]),
-                      sp.diff(self.epsilon_sym, self.var_sym[2])]
+        self.v_sym = [sp.diff(self.epsilon_sym, kx),
+                      sp.diff(self.epsilon_sym, ky),
+                      sp.diff(self.epsilon_sym, kz)]
 
         ## Lambdafity ///////////////////////////////////////////////////////////
         epsilon_func = sp.lambdify(self.var_sym, self.epsilon_sym, 'numpy')
@@ -463,191 +477,84 @@ class BandStructure:
 
 
 
-if __name__ == '__main__':
-    bandObject = BandStructure(a=3.75, b=3.75, c=13.2, energy_scale=190, res_xy=1, res_z=1)
-    bandObject.runBandStructure()
-    print(bandObject["tp"])
-    bandObject.set_band_param("tp", 0.15)
-    print(bandObject["tp"])
-    # print(bandObject.kf[0,:])
-
-
-
-
-
-
-
-
 ## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 class Pocket(BandStructure):
-    def __init__(self, M=0.2, electronPocket=False, **kwargs):
+    def __init__(self, electronPocket=False, reconstruction_3D=False, **kwargs):
         super().__init__(**kwargs)
-        self._M = M * self.t
-        self._electronPocket = electronPocket
-        self.numberOfBZ = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
+        self._electronPocket   = electronPocket
+        self.reconstruction_3D = reconstruction_3D # if True the reconstruction is over E_2D + E_z, otherwise just E_2D
+        self.numberOfBZ        = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
 
-        # For Sympy
-        M = sp.Symbol('M')
-        self.var_sym = list(self.var_sym)
-        self.var_sym.append(M)
-        self.var_sym = tuple(self.var_sym)
+        ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        try:
+            assert self._band_params["M"]
+        except KeyError:
+            self._band_params["M"] = 0.5
+            print("Warning! 'M' has to be defined; it has been added and set to 0.5")
+
+        # self.var_sym = list(self.var_sym)
+        # self.var_sym.append(sp.Symbol('M'))
+        # for params in sorted(self._band_params.keys()):
+        #     self.var_sym.append(sp.Symbol(params))
+        # self.var_sym = tuple(self.var_sym)
 
         ## Create the dispersion and velocity functions
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+        self.e_3D_v_3D_AF_definition()
 
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def _get_t(self):
-        return self._t
-    def _set_t(self, t):
-        self._tp  = self.tp  * t
-        self._tpp = self.tpp * t
-        self._tz  = self.tz  * t
-        self._tz2 = self.tz2 * t
-        self._mu  = self.mu  * t
-        self._t = t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    t = property(_get_t, _set_t)
-
-    def _get_mu(self):
-        return self._mu / self._t
-    def _set_mu(self, mu):
-        self._mu = mu * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    mu = property(_get_mu, _set_mu)
-
-    def _get_tp(self):
-        return self._tp / self._t
-    def _set_tp(self, tp):
-        self._tp = tp * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    tp = property(_get_tp, _set_tp)
-
-    def _get_tpp(self):
-        return self._tpp / self._t
-    def _set_tpp(self, tpp):
-        self._tpp = tpp * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    tpp = property(_get_tpp, _set_tpp)
-
-    def _get_tppp(self):
-        return self._tppp / self._t
-    def _set_tppp(self, tppp):
-        self._tppp = tppp * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    tppp = property(_get_tppp, _set_tppp)
-
-    def _get_tpppp(self):
-        return self._tpppp / self._t
-    def _set_tpppp(self, tpppp):
-        self._tpppp = tpppp * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    tpppp = property(_get_tpppp, _set_tpppp)
-
-    def _get_tz(self):
-        return self._tz / self._t
-    def _set_tz(self, tz):
-        self._tz = tz * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    tz = property(_get_tz, _set_tz)
-
-    def _get_tz2(self):
-        return self._tz2 / self._t
-    def _set_tz2(self, tz2):
-        self._tz2 = tz2 * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    tz2 = property(_get_tz2, _set_tz2)
-
-    def _get_tz3(self):
-        return self._tz3 / self._t
-    def _set_tz3(self, tz3):
-        self._tz3 = tz3 * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    tz3 = property(_get_tz3, _set_tz3)
-
-    def _get_tz4(self):
-        return self._tz4 / self._t
-    def _set_tz4(self, tz4):
-        self._tz4 = tz4 * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    tz4 = property(_get_tz4, _set_tz4)
-
-    def _get_M(self):
-        return self._M / self._t
-    def _set_M(self, M):
-        self._M = M * self._t
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
-    M = property(_get_M, _set_M)
-
     def _get_electronPocket(self):
         return self._electronPocket
     def _set_electronPocket(self, electronPocket):
         self._electronPocket = electronPocket
         self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition(*self.bandParameters(), self._M)
+        self.e_3D_v_3D_AF_definition()
     electronPocket = property(_get_electronPocket, _set_electronPocket)
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def e_3D_v_3D_AF_definition(self, a_num, b_num, c_num,
-                                mu_num, t_num,
-                                tp_num, tpp_num, tppp_num, tpppp_num,
-                                tz_num, tz2_num, tz3_num, tz4_num, M_num):
+    def e_3D_v_3D_AF_definition(self):
 
         """Defines with Sympy the dispersion relation and
         symbolicly derives the velocity"""
 
 
-        kx = self.var_sym[0]
-        ky = self.var_sym[1]
-        kz = self.var_sym[2]
-        a  = self.var_sym[3]
-        b  = self.var_sym[4]
-        mu = self.var_sym[6]
-        M  = self.var_sym[-1]
+        ## Symbolic variables ///////////////////////////////////////////////////
+        kx = sp.Symbol('kx')
+        ky = sp.Symbol('ky')
+        kz = sp.Symbol('kz')
+        a  = sp.Symbol('a')
+        b  = sp.Symbol('b')
+        mu = sp.Symbol('mu')
+        M  = sp.Symbol('M')
 
         ## Dispersion //////////////////////////////////////////////////////////
-        if self.electronPocket == True:
+        if self._electronPocket == True:
             sign = 1
         else:
             sign = -1
 
-        self.e_2D_AF_sym = 0.5 * (self.e_2D_sym + self.e_2D_sym.subs([(kx, kx+pi/a), (ky, ky+pi/b)])) + \
-            sign * sp.sqrt(0.25*(self.e_2D_sym - self.e_2D_sym.subs([(kx, kx+pi/a), (ky, ky+pi/b)]))**2 + M**2)
-
-        if M_num>=0.00001:
-            self.epsilon_sym = self.e_2D_AF_sym + self.e_z_sym - mu
+        if self.reconstruction_3D == True:
+            self.epsilon_sym = self.epsilon_xy_sym + self.epsilon_z_sym
         else:
-            self.epsilon_sym = self.e_2D_sym + self.e_z_sym - mu
+            self.epsilon_sym = self.epsilon_xy_sym
+
+        self.epsilon_AF_sym = 0.5 * (self.epsilon_sym + self.epsilon_sym.subs([(kx, kx+pi/a), (ky, ky+pi/b)])) + \
+            sign * sp.sqrt(0.25*(self.epsilon_sym - self.epsilon_sym.subs([(kx, kx+pi/a), (ky, ky+pi/b)]))**2 + M**2)
+
+        if self.reconstruction_3D == False:
+            self.epsilon_AF_sym += self.epsilon_z_sym
+
+        self.epsilon_AF_sym += - mu
 
         ## Velocity ////////////////////////////////////////////////////////////
-        self.v_sym = [sp.diff(self.epsilon_sym, kx), sp.diff(self.epsilon_sym, ky), sp.diff(self.epsilon_sym, kz)]
+        self.v_AF_sym = [sp.diff(self.epsilon_AF_sym, kx), sp.diff(self.epsilon_AF_sym, ky), sp.diff(self.epsilon_AF_sym, kz)]
 
         ## Lambdafity //////////////////////////////////////////////////////////
-        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_sym, 'numpy')
-        v_func = sp.lambdify(self.var_sym, self.v_sym, 'numpy')
+        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_AF_sym, 'numpy')
+        v_func = sp.lambdify(self.var_sym, self.v_AF_sym, 'numpy')
 
         ## Numba ////////////////////////////////////////////////////////////////
-        self.epsilon_func = jit(epsilon_func, nopython=True)
+        self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
         self.v_func = jit(v_func, nopython=True, parallel=True)
-
-
-    def e_3D_func(self, kx, ky, kz):
-        return self.epsilon_func(kx, ky, kz, *self.bandParameters(), self._M)
-
-    def v_3D_func(self, kx, ky, kz):
-        return self.v_func(kx, ky, kz, *self.bandParameters(), self._M)
-
-
 
 
 ## Functions to compute the doping of a two bands system and more >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
