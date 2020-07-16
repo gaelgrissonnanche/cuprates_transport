@@ -70,12 +70,14 @@ class BandStructure:
                                              "- 4*tp*cos(a*kx)*cos(b*ky)" +\
                                              "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))")
         else:
+            epsilon_xy = epsilon_xy.replace("mu", "0") # replace is just to remove "mu" if the user has entered it by mistake
             self.epsilon_xy_sym = sp.sympify(epsilon_xy)
 
         ## Build the symbolic out-of-plane dispersion
         if epsilon_z=="":
             self.epsilon_z_sym = sp.sympify("- 2*tz*(cos(a*kx) - cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)")
         else:
+            epsilon_z = epsilon_z.replace("mu", "0") # replace is just to remove "mu" if the user has entered it by mistake
             self.epsilon_z_sym = sp.sympify(epsilon_z)
 
         ## Create the dispersion and velocity functions
@@ -479,24 +481,29 @@ class BandStructure:
 
 ## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 class Pocket(BandStructure):
-    def __init__(self, electronPocket=False, reconstruction_3D=False, **kwargs):
+    def __init__(self, electronPocket=False, reconstruction_3D=False, Q_vector=1, **kwargs):
         super().__init__(**kwargs)
-        self._electronPocket   = electronPocket
-        self.reconstruction_3D = reconstruction_3D # if True the reconstruction is over E_2D + E_z, otherwise just E_2D
-        self.numberOfBZ        = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
+        self._electronPocket    = electronPocket
+        self._reconstruction_3D = reconstruction_3D # if True the reconstruction is over E_2D + E_z, otherwise just E_2D
+        self._Q_vector          = Q_vector # if = 1 then Q=(pi,pi), if =-1 then Q=(-pi,pi), it only matters if reconstruction_3D = True
+        self.numberOfBZ         = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
 
         ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         try:
-            assert self._band_params["M"]
+            assert self._band_params["M"] > 0.00001
         except KeyError:
-            self._band_params["M"] = 0.5
-            print("Warning! 'M' has to be defined; it has been added and set to 0.5")
+            self._band_params["M"] = 0.00001
+            print("Warning! 'M' has to be defined; it has been added and set to 0.00001")
+        except AssertionError:
+            self._band_params["M"] = 0.00001
+            print("Warning! 'M' has to be > 0.00001; it has been set to 0.00001")
 
-        # self.var_sym = list(self.var_sym)
-        # self.var_sym.append(sp.Symbol('M'))
-        # for params in sorted(self._band_params.keys()):
-        #     self.var_sym.append(sp.Symbol(params))
-        # self.var_sym = tuple(self.var_sym)
+        ## Build the symbolic variables
+        self.var_sym = [sp.Symbol('kx'), sp.Symbol('ky'), sp.Symbol('kz'),
+                        sp.Symbol('a'),  sp.Symbol('b'),  sp.Symbol('c')]
+        for params in sorted(self._band_params.keys()):
+            self.var_sym.append(sp.Symbol(params))
+        self.var_sym = tuple(self.var_sym)
 
         ## Create the dispersion and velocity functions
         self.e_3D_v_3D_AF_definition()
@@ -505,17 +512,26 @@ class Pocket(BandStructure):
     def _get_electronPocket(self):
         return self._electronPocket
     def _set_electronPocket(self, electronPocket):
-        self._electronPocket = electronPocket
-        self.erase_Fermi_surface()
-        self.e_3D_v_3D_AF_definition()
+        print("You can only set this parameter when building the object")
     electronPocket = property(_get_electronPocket, _set_electronPocket)
+
+    def _get_reconstruction_3D(self):
+        return self._reconstruction_3D
+    def _set_reconstruction_3D(self, reconstruction_3D):
+        print("You can only set this parameter when building the object")
+    reconstruction_3D = property(_get_reconstruction_3D, _set_reconstruction_3D)
+
+    def _get_Q_vector(self):
+        return self._Q_vector
+    def _set_Q_vector(self, Q_vector):
+        print("You can only set this parameter when building the object")
+    Q_vector = property(_get_Q_vector, _set_Q_vector)
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def e_3D_v_3D_AF_definition(self):
 
         """Defines with Sympy the dispersion relation and
         symbolicly derives the velocity"""
-
 
         ## Symbolic variables ///////////////////////////////////////////////////
         kx = sp.Symbol('kx')
@@ -528,19 +544,19 @@ class Pocket(BandStructure):
 
         ## Dispersion //////////////////////////////////////////////////////////
         if self._electronPocket == True:
-            sign = 1
+            sign_pocket = 1
         else:
-            sign = -1
+            sign_pocket = -1
 
-        if self.reconstruction_3D == True:
+        if self._reconstruction_3D == True:
             self.epsilon_sym = self.epsilon_xy_sym + self.epsilon_z_sym
         else:
             self.epsilon_sym = self.epsilon_xy_sym
 
-        self.epsilon_AF_sym = 0.5 * (self.epsilon_sym + self.epsilon_sym.subs([(kx, kx+pi/a), (ky, ky+pi/b)])) + \
-            sign * sp.sqrt(0.25*(self.epsilon_sym - self.epsilon_sym.subs([(kx, kx+pi/a), (ky, ky+pi/b)]))**2 + M**2)
+        self.epsilon_AF_sym = 0.5 * (self.epsilon_sym + self.epsilon_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)])) + \
+            sign_pocket * sp.sqrt(0.25*(self.epsilon_sym - self.epsilon_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)]))**2 + M**2)
 
-        if self.reconstruction_3D == False:
+        if self._reconstruction_3D == False:
             self.epsilon_AF_sym += self.epsilon_z_sym
 
         self.epsilon_AF_sym += - mu

@@ -27,6 +27,7 @@ params = {
     "factor_arcs": 1,
 }
 
+# "- 2*t*(cos(a*kx) + cos(b*ky)) - 4*tp*cos(a*kx)*cos(b*ky) - 2*tpp*(cos(2*a*kx) + cos(2*b*ky))"
 
 ## Create Bandstructure object
 bandObject = BandStructure(**params)

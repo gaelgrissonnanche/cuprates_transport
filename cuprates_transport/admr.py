@@ -55,9 +55,7 @@ class ADMR:
                     iniCondObject.Btheta = theta
 
                     iniCondObject.runTransport()
-                    iniCondObject.chambersFunc(i=2, j=2)
-
-                    sigma_zz += iniCondObject.sigma[2, 2]
+                    sigma_zz += iniCondObject.chambersFunc(i=2, j=2)
 
                     # Store in dictionaries
                     self.condObjectDict[band_name, phi, theta] = iniCondObject
