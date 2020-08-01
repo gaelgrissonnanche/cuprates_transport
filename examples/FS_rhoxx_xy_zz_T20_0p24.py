@@ -19,30 +19,22 @@ Bstep = 3
 B_array = np.arange(Bmin, Bmax, Bstep)
 
 
-## ONE BAND Horio et al. ///////////////////////////////////////////////////////
+## ONE BAND Matt et al. ///////////////////////////////////////////////////////
 params = {
-    "bandname": "LargePocket",
-    "a": 3.74767,
-    "b": 3.74767,
+    "band_name": "LargePocket",
+    "a": 3.75,
+    "b": 3.75,
     "c": 13.2,
-    "t": 190,
-    "tp": -0.14,
-    "tpp": 0.07,
-    "tz": 0.07,
-    "tz2": 0.00,
-    "mu": -0.826,
-    "fixdoping": 0.24,
-    "numberOfKz": 7,
-    "mesh_ds": 1/20,
+    "energy_scale": 190,
+    "band_params":{"mu":-0.83, "t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07},
+    "res_xy": 20,
+    "res_z": 7,
     "T" : 0,
-    "gamma_0": 14.0,
-    "gamma_k": 74.1,
+    "gamma_0": 3.6,
+    "gamma_k": 0,
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
-    "seed": 72,
-    "data_T": 20,
-    "data_p": 0.24,
 }
 
 ## BandObject ------------------------
@@ -190,7 +182,7 @@ axes.set_xlabel(r"$H$ ( T )", labelpad=8)
 axes.set_ylabel(r"$\rho_{\rm xx}$ ( $\mu\Omega$ cm )", labelpad=8)
 #############################################
 
-plt.legend(loc=4, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
+plt.legend(bbox_to_anchor=(0.8, 0.3), loc=4, fontsize=14, frameon=False, numpoints=1, markerscale=1, handletextpad=0.5)
 
 ## Set ticks space and minor ticks space ############
 xtics = 10 # space between two ticks

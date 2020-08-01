@@ -191,7 +191,7 @@ class FittingADMR:
         self.nb_calls = 0
 
         ## Run fit algorithm
-        if self.method=="leastsq":
+        if self.method=="least_square":
             out = minimize(self.compute_diff, self.pars)
         if self.method=="shgo":
             out = minimize(self.compute_diff, self.pars,
