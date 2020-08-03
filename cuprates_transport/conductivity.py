@@ -32,7 +32,8 @@ class Conductivity:
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
                  gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0,
                  gamma_dos_max=0,
-                 gamma_k=0, power=2, az=0,
+                 gamma_k=0, power=2,
+                 a0=0, a1=0, a2=0, a3=0, a4=0,
                  gamma_step=0, phi_step=0,
                  factor_arcs=1,
                  **trash):
@@ -68,6 +69,11 @@ class Conductivity:
         self.gamma_step    = gamma_step
         self.phi_step      = phi_step
         self.factor_arcs   = factor_arcs # factor * gamma_0 outsite AF FBZ
+        self.a0 = a0
+        self.a1 = a1
+        self.a2 = a2
+        self.a3 = a3
+        self.a4 = a4
 
         # Time parameters
         self.time_max = 8 * self.tau_total_max()  # in picoseconds
@@ -280,6 +286,21 @@ class Conductivity:
         phi = arctan2(ky, kx)
         return self.gamma_k * np.abs(cos(2*phi))**self.power
 
+    def gamma_poly_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
+        phi = arctan2(ky, kx)
+        phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
+        return np.abs(self.a0 + self.a1 * phi_p + self.a2 * phi_p**2 + self.a3 * phi_p**3 + self.a4 * phi_p**4)
+
+    def gamma_tanh_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
+        phi = arctan2(ky, kx)
+        return self.a0 / np.abs(np.tanh(self.a1 + self.a2 * np.abs(cos(2*(phi+pi/4)))))
+
     def gamma_step_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
@@ -315,6 +336,10 @@ class Conductivity:
         # gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
         gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2
         gammaTot *= self.gamma_0 * np.ones_like(kx)
+
+        if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0:
+            gammaTot += self.gamma_tanh_Func(kx, ky, kz)
+            # gammaTot += self.gamma_poly_Func(kx, ky, kz)
         if self.gamma_k!=0:
             gammaTot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_step!=0:

@@ -20,11 +20,14 @@ params = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 15, 30, 45],
-    "gamma_0": 15.1,
-    "gamma_k": 72.2,
+    "gamma_0": 15,
+    "gamma_k": 0,
     "gamma_dos_max": 0,
     "power": 11.2,
     "factor_arcs": 1,
+    "a0": 0.8,
+    "a1": 0.01,
+    "a2": 1,
 }
 
 # "- 2*t*(cos(a*kx) + cos(b*ky)) - 4*tp*cos(a*kx)*cos(b*ky) - 2*tpp*(cos(2*a*kx) + cos(2*b*ky))"
