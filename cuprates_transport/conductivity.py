@@ -278,6 +278,10 @@ class Conductivity:
         dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (dos / dos_max)
 
+    def gamma_DOS_Func(self, vx, vy, vz):
+        dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
+        dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units
+        return self.gamma_dos_max * (dos / dos_max)
 
     def gamma_k_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
@@ -299,7 +303,7 @@ class Conductivity:
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
-        return self.a0 / np.abs(np.tanh(self.a1 + self.a2 * np.abs(cos(2*(phi+pi/4)))))
+        return self.a0 / np.abs(np.tanh(self.a1 + self.a2 * np.abs(cos(2*(phi+pi/4)))**self.a3))
 
     def gamma_step_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.

@@ -27,7 +27,7 @@ class BandStructure:
                  band_params={"t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07, "mu":-0.83},
                  band_name="band_1",
                  epsilon_xy = "", epsilon_z = "",
-                 res_xy=20, res_z=7,
+                 res_xy=20, res_z=1,
                  **trash):
 
         self._energy_scale = energy_scale  # the value of "t" in meV
@@ -138,7 +138,7 @@ class BandStructure:
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runBandStructure(self, epsilon=0, printDoping=False):
-        self.discretize_FS(epsilon=epsilon)
+        self.discretize_fermi_surface(epsilon=epsilon)
         self.dos_k_func()
         self.doping(printDoping=printDoping)
 
@@ -247,14 +247,21 @@ class BandStructure:
     def setMuToDoping(self, pTarget, ptol=0.001):
         self._band_params["mu"] = optimize.brentq(self.diffDoping, -10, 10, args=(pTarget,), xtol=ptol)
 
-    def discretize_FS(self, epsilon=0, PrintEnding=False):
+    def discretize_fermi_surface(self, epsilon=0, PrintEnding=False):
         """
         res_xy_rough: make denser rough meshgrid to interpolate after
         """
 
-        kx_a = np.linspace(0, pi / self.a, self.res_xy_rough)
-        ky_a = np.linspace(0, pi / self.b, self.res_xy_rough)
+        ## Initialize kx and ky arrays
+        if self.a == self.b: # tetragonal case
+            kx_a = np.linspace(0, pi / self.a, self.res_xy_rough)
+            ky_a = np.linspace(0, pi / self.b, self.res_xy_rough)
+        else: # orthorhombic
+            kx_a = np.linspace(-pi / self.a, pi / self.a, 2*self.res_xy_rough)
+            ky_a = np.linspace(-pi / self.b, pi / self.b, 2*self.res_xy_rough)
 
+
+        ## Initialize kz array
         if self.half_FS==True:
             kz_a = np.linspace(0, 2 * pi / self.c, self.res_z)
             # half of FBZ, 2*pi/c because bodycentered unit cell
@@ -267,16 +274,22 @@ class BandStructure:
 
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
+        ## Loop over the kz array
         for j, kz in enumerate(kz_a):
             contours = measure.find_contours(self.e_3D_func(kxx, kyy, kz), epsilon)
             number_of_points_per_kz = 0
 
+            ## Loop over the different pieces of Fermi surfaces
             for i, contour in enumerate(contours):
 
                 # Contour come in units proportionnal to size of meshgrid
                 # one want to scale to units of kx and ky
-                x = contour[:, 0] / (self.res_xy_rough - 1) * pi
-                y = contour[:, 1] / (self.res_xy_rough - 1) * pi / (self.b / self.a)  # anisotropy
+                if self.a == self.b:
+                    x = contour[:, 0] / (self.res_xy_rough - 1) * pi
+                    y = contour[:, 1] / (self.res_xy_rough - 1) * pi / (self.b / self.a)  # anisotropy
+                else:
+                    x = (contour[:, 0] / (2*self.res_xy_rough - 1) - 0.5) * 2*pi
+                    y = (contour[:, 1] / (2*self.res_xy_rough - 1) - 0.5) * 2*pi / (self.b / self.a) # anisotropy
 
                 ds = sqrt(np.diff(x)**2 + np.diff(y)**2)  # segment lengths
                 s = np.zeros_like(x)  # arrays of zeros
@@ -293,16 +306,16 @@ class BandStructure:
                 x_int = np.interp(s_int, s, x)[:-1]
                 y_int = np.interp(s_int, s, y)[:-1]
 
-                # Rotate the contour to get the entire Fermi surface
-                # ### WARNING NOT ROBUST IN THE CASE OF C4 SYMMETRY BREAKING
-                x_dump = x_int
-                y_dump = y_int
-                for angle in [pi / 2, pi, 3 * pi / 2]:
-                    x_int_p, y_int_p = self.rotation(x_int, y_int, angle)
-                    x_dump = np.append(x_dump, x_int_p)
-                    y_dump = np.append(y_dump, y_int_p)
-                x_int = x_dump
-                y_int = y_dump
+                if self.a == self.b:
+                    # For tetragonal symmetry, rotate the contour to get the entire Fermi surface
+                    x_dump = x_int
+                    y_dump = y_int
+                    for angle in [pi / 2, pi, 3 * pi / 2]:
+                        x_int_p, y_int_p = self.rotation(x_int, y_int, angle)
+                        x_dump = np.append(x_dump, x_int_p)
+                        y_dump = np.append(y_dump, y_int_p)
+                    x_int = x_dump
+                    y_int = y_dump
 
                 # Put in an array /////////////////////////////////////////////////////#
                 if i == 0 and j == 0:  # for first contour and first kz
@@ -321,8 +334,11 @@ class BandStructure:
                     self.dkz = np.append(self.dkz, dkz * np.ones_like(x_int))
                     self.dkf = np.append(self.dkf, dks * dkz * np.ones_like(x_int))
 
-            # discretize one fourth of FS, therefore need * 4
-            self.number_of_points_per_kz_list.append(4 * number_of_points_per_kz)
+            if self.a == self.b:
+                # discretize one fourth of FS, therefore need * 4
+                self.number_of_points_per_kz_list.append(4 * number_of_points_per_kz)
+            else:
+                self.number_of_points_per_kz_list.append(number_of_points_per_kz)
 
         # dim -> (n, i0) = (xyz, position on FS)
         self.kf = np.vstack([kxf, kyf, kzf])
