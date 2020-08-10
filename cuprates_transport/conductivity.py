@@ -326,34 +326,34 @@ class Conductivity:
         epsilon = epsilon / self.bandObject.energy_scale
 
         ## Gamma epsilon^coeff_k
-        # gammaTot *= self.gamma_0 * np.ones_like(kx)
+        # gamma_tot *= self.gamma_0 * np.ones_like(kx)
         # if self.gamma_k!=0:
         #     # phi = arctan2(ky, kx)
-        #     gammaTot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
+        #     gamma_tot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
 
         # ## Gamma |epsilon|*cos(2*phi)
-        # gammaTot = (1 + self.a_epsilon_2 * epsilon**2)
-        # gammaTot *= self.gamma_0 * np.ones_like(kx)
+        # gamma_tot = (1 + self.a_epsilon_2 * epsilon**2)
+        # gamma_tot *= self.gamma_0 * np.ones_like(kx)
         # if self.gamma_k!=0:
-        #     gammaTot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
+        #     gamma_tot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
 
-        # gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
-        gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2
-        gammaTot *= self.gamma_0 * np.ones_like(kx)
+        # gamma_tot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
+        gamma_tot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2
+        gamma_tot *= self.gamma_0 * np.ones_like(kx)
 
-        if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0:
-            gammaTot += self.gamma_tanh_Func(kx, ky, kz)
-            # gammaTot += self.gamma_poly_Func(kx, ky, kz)
+        # if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0:
+            # gamma_tot += self.gamma_poly_Func(kx, ky, kz)
+            # gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
         if self.gamma_k!=0:
-            gammaTot += self.gamma_k_Func(kx, ky, kz)
+            gamma_tot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_step!=0:
-            gammaTot += self.gamma_step_Func(kx, ky, kz)
+            gamma_tot += self.gamma_step_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
-            gammaTot += self.gamma_DOS_Func(vx, vy, vz)
+            gamma_tot += self.gamma_DOS_Func(vx, vy, vz)
         if self.factor_arcs!=1:
-            gammaTot *= self.factor_arcs_Func(kx, ky, kz)
+            gamma_tot *= self.factor_arcs_Func(kx, ky, kz)
 
-        return 1/gammaTot
+        return 1/gamma_tot
 
 
     def t_o_tau_func(self, espilon = 0):
