@@ -72,7 +72,7 @@ class FittingADMR:
         ## Adjust the doping if need be
         if self.member["fixdoping"] >=-1 and self.member["fixdoping"] <=1:
             self.bandObject.setMuToDoping(self.member["fixdoping"])
-            self.member["mu"] = self.bandObject["mu"]
+            self.member["band_params"]["mu"] = self.bandObject["mu"]
 
         self.bandObject.runBandStructure()
         self.condObject = Conductivity(self.bandObject, **self.member)
@@ -160,7 +160,7 @@ class FittingADMR:
         self.member["Btheta_step"] = float(self.Btheta_array[1] - self.Btheta_array[0])
 
         ## Update member with fit parameters
-        for param_name, param_range in self.ranges_dict.items():
+        for param_name in self.ranges_dict.keys():
             if param_name in self.init_member.keys():
                 self.member[param_name] = self.pars[param_name].value
             elif param_name in self.init_member["band_params"].keys():
@@ -195,7 +195,7 @@ class FittingADMR:
             out = minimize(self.compute_diff, self.pars)
         if self.method=="shgo":
             out = minimize(self.compute_diff, self.pars,
-                           method='shgo',sampling_method='sobol', options={"f_tol": 1e-16}, n = 100)
+                           method='shgo',sampling_method='sobol', options={"f_tol": 1e-16}, n = 100, iters=20)
         if self.method=="differential_evolution":
             out = minimize(self.compute_diff, self.pars,
                            method='differential_evolution')
@@ -207,7 +207,10 @@ class FittingADMR:
 
         ## Export final parameters from the fit
         for param_name in self.ranges_dict.keys():
+            if param_name in self.init_member.keys():
                 self.member[param_name] = out.params[param_name].value
+            elif param_name in self.init_member["band_params"].keys():
+                self.member["band_params"][param_name] = out.params[param_name].value
 
         ## Save BEST member to JSON
         self.save_member_to_json()
