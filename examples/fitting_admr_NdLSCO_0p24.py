@@ -20,7 +20,7 @@ init_member = {
     "Btheta_step": 5,
     "Bphi_array": [0, 45],
     "gamma_0": 15,
-    "gamma_k": 73,
+    "gamma_k": 0,
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
@@ -62,19 +62,19 @@ init_member = {
 
 ## For FIT
 ranges_dict = {
-    "energy_scale": [170,210],
-    "tp": [-0.18,-0.1],
-    "tpp": [0.04,0.1],
+    # "energy_scale": [170,210],
+    # "tp": [-0.18,-0.1],
+    # "tpp": [0.04,0.1],
     # "tppp": [-0.1,0.1],
     # "tpppp": [-0.05,0.05],
-    "tz": [0.04,0.1],
+    # "tz": [0.04,0.1],
     # "tz2": [-0.07,0.07],
     # "tz3": [-0.07,0.07],
     # "tz4": [0,0.2],
-    "mu": [-1.0,-0.6],
+    # "mu": [-1.0,-0.6],
     "gamma_0": [10,20],
-    "gamma_k": [0,150],
-    "power":[1, 20],
+    # "gamma_k": [0,150],
+    # "power":[1, 20],
     # "gamma_dos_max": [0.1, 1000],
     # "factor_arcs" : [1, 300],
 }
@@ -110,6 +110,6 @@ data_dict[6, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e
 
 
 fitObject = FittingADMR(init_member, ranges_dict, data_dict, folder="sim/NdLSCO_0p24",
-                        method="differential_evolution", normalized_data=False)
+                        method="least_square", normalized_data=True)
 fitObject.runFit()
 # fitObject.fig_compare()

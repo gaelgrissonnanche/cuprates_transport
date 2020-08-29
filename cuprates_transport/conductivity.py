@@ -33,7 +33,7 @@ class Conductivity:
                  gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0,
                  gamma_dos_max=0,
                  gamma_k=0, power=2,
-                 a0=0, a1=0, a2=0, a3=0, a4=0,
+                 a0=0, a1=0, a2=0, a3=0, a4=0, a5=0,
                  gamma_step=0, phi_step=0,
                  factor_arcs=1,
                  **trash):
@@ -74,6 +74,7 @@ class Conductivity:
         self.a2 = a2
         self.a3 = a3
         self.a4 = a4
+        self.a5 = a5
 
         # Time parameters
         self.time_max = 8 * self.tau_total_max()  # in picoseconds
@@ -296,7 +297,7 @@ class Conductivity:
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
         phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
-        return np.abs(self.a0 + self.a1 * phi_p + self.a2 * phi_p**2 + self.a3 * phi_p**3 + self.a4 * phi_p**4)
+        return np.abs(self.a0 + self.a1 * phi_p + self.a2 * phi_p**2 + self.a3 * phi_p**3 + self.a4 * phi_p**4 + self.a5 * phi_p**5)
 
     def gamma_tanh_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
@@ -341,8 +342,8 @@ class Conductivity:
         gamma_tot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2
         gamma_tot *= self.gamma_0 * np.ones_like(kx)
 
-        # if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0:
-            # gamma_tot += self.gamma_poly_Func(kx, ky, kz)
+        if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
+            gamma_tot += self.gamma_poly_Func(kx, ky, kz)
             # gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
         if self.gamma_k!=0:
             gamma_tot += self.gamma_k_Func(kx, ky, kz)
@@ -490,7 +491,7 @@ class Conductivity:
     mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
     # editing the text in illustrator
 
-    def figScatteringColor(self, kz=0, mesh_xy=501):
+    def figScatteringColor(self, kz=0, gamma_min=None, gamma_max=None, mesh_xy=501):
         fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
         fig.subplots_adjust(left=0.10, right=0.85, bottom=0.20, top=0.9)
 
@@ -525,8 +526,11 @@ class Conductivity:
 
             line = axes.add_collection(lc)
 
-        gamma_max = max(gamma_max_list)
-        gamma_min = min(gamma_min_list)
+
+        if gamma_min == None:
+            gamma_min = min(gamma_min_list)
+        if gamma_max == None:
+            gamma_min = min(gamma_min_list)
         line.set_clim(gamma_min, gamma_max)
         cbar = fig.colorbar(line, ax=axes)
         cbar.minorticks_on()

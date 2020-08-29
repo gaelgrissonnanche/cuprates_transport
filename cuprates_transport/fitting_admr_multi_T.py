@@ -28,6 +28,7 @@ class FittingADMR:
         self.folder      = folder
         self.normalized_data = normalized_data
         self.pipi_FSR    = pipi_FSR
+        self.weight_rhozz = 0
         self.pars        = Parameters()
         for param_name, param_range in self.ranges_dict.items():
             if param_name in self.init_member.keys() and type(self.init_member[param_name])==dict:
@@ -63,9 +64,10 @@ class FittingADMR:
         self.json_name   = None
         self.rhozz_data_i_dict = {} # keys=(T), dictionaries of interpolated values for fit
         self.rzz_data_i_dict   = {}  # keys=(T) dictionaries of interpolated values for fit
-        self.rhozz_data_dict = {} # keys=(T, phi) dictionaries of the raw data
-        self.rzz_data_dict   = {} # keys=(T, phi) dictionaries of the raw data
-        self.Btheta_data_dict = {} # keys=(T, phi) dictionaries of the raw data
+        self.rhozz_0_data_dict = {} # keys=(T, phi), dictionaries of rhozz(theta=0) data
+        self.rhozz_data_dict   = {} # keys=(T, phi) dictionaries of the raw data
+        self.rzz_data_dict     = {} # keys=(T, phi) dictionaries of the raw data
+        self.Btheta_data_dict  = {} # keys=(T, phi) dictionaries of the raw data
         self.Bphi_dict   = {}
         self.Btheta_dict = {}
         self.rhozz_data_i_dict  = {}
@@ -144,7 +146,7 @@ class FittingADMR:
                 col_theta    = self.data_dict[T, phi][1]
                 col_rzz      = self.data_dict[T, phi][2]
                 Btheta_cut   = self.data_dict[T, phi][3]
-                rhozz_0      = self.data_dict[T, phi][4]
+                rhozz_0      = self.data_dict[T, phi][4] # Ohm.m
 
                 data = np.loadtxt(filename, dtype="float", comments="#")
                 theta = data[:, col_theta]
@@ -163,6 +165,7 @@ class FittingADMR:
                 self.Btheta_data_dict[T, phi] = theta[theta<=Btheta_cut]
                 self.rhozz_data_dict[T, phi]  = rzz[theta<=Btheta_cut] * rhozz_0
                 self.rzz_data_dict[T, phi]    = rzz[theta<=Btheta_cut]
+                self.rhozz_0_data_dict[T, phi]     = rhozz_0 # Ohm m
 
             self.rhozz_data_i_dict[T] = rhozz_data_i_matrix
             self.rzz_data_i_dict[T]   = rzz_data_i_matrix
@@ -213,17 +216,19 @@ class FittingADMR:
         self.nb_calls += 1
         print("---- call #" + str(self.nb_calls) + " in %.6s seconds ----" % (time.time() - start_total_time))
 
-        ## Compute diff
         diff = np.array([])
         for T in self.data_T_list:
             diff_matrix = np.zeros_like(self.rzz_data_i_dict[T])
-            for i in range(self.Bphi_dict[T].size):
-                if self.normalized_data==True:
-                    diff_matrix[i, :] = self.rzz_data_i_dict[T][i, :] - self.admrObject_dict[T].rzz_array[i, :]
-                else:
-                    diff_matrix[i, :] = (self.rhozz_data_i_dict[T][i, :] - self.admrObject_dict[T].rhozz_array[i, :])*1e5
+            for i, phi in enumerate(self.Bphi_dict[T]):
+                diff_matrix[i, :] = self.rzz_data_i_dict[T][i, :] - self.admrObject_dict[T].rzz_array[i, :]
             diff = np.append(diff, diff_matrix.flatten())
 
+            if self.normalized_data==False:
+                for i, phi in enumerate(self.Bphi_dict[T]):
+                    rhozz_0_fit  = np.interp(0, self.admrObject_dict[T].Btheta_array, self.admrObject_dict[T].rhozz_array[i, :])
+                    rhozz_0_data = self.rhozz_0_data_dict[T, phi]
+                    diff_rhozz_0 = self.weight_rhozz * (rhozz_0_data - rhozz_0_fit) * 1e5 # mOhm.cm
+                    diff = np.append(diff, diff_rhozz_0)
         return diff
 
 

@@ -25,12 +25,14 @@ params = {
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
-    # "a0": 0.8,
-    # "a1": 0.01,
-    # "a2": 1,
+    # "espilon_z": "- 2*tz*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)",
+    # "a1": 8.49772756,
+    # "a2": -141.605389,
+    # "a3": 830.306324,
+    # "a4": -1644.49799,
+    # "a5": 598.753854,
 }
 
-# "- 2*t*(cos(a*kx) + cos(b*ky)) - 4*tp*cos(a*kx)*cos(b*ky) - 2*tpp*(cos(2*a*kx) + cos(2*b*ky))"
 
 ## Create Bandstructure object
 bandObject = BandStructure(**params)
@@ -47,8 +49,8 @@ bandObject.runBandStructure(printDoping=True)
 
 # ## Compute conductivity
 condObject = Conductivity(bandObject, **params)
-# # condObject.runTransport()
-# # condObject.figScatteringColor()
+condObject.runTransport()
+# condObject.figScatteringColor(gamma_max=60)
 # # condObject.omegac_tau_func()
 # # print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
 # # condObject.figScatteringPhi(kz=0)
