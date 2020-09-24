@@ -4,14 +4,14 @@ from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-## ONE BAND Matt et al. ///////////////////////////////////////////////////////
+## ADMR absolute AMPGO /////////////////////////////////////////////////////
 params = {
     "band_name": "LargePocket",
     "a": 3.75,
     "b": 3.75,
     "c": 13.2,
     "energy_scale": 190,
-    "band_params":{"mu":-0.83, "t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07},
+    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
     "res_xy": 20,
     "res_z": 7,
     "T" : 0,
@@ -20,8 +20,8 @@ params = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 15, 30, 45],
-    "gamma_0": 15.1,
-    "gamma_k": 69,
+    "gamma_0": 11.43349034741798,
+    "gamma_k": 75.91575620491152,
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
@@ -34,11 +34,72 @@ params = {
 }
 
 
+# ## Play /////////////////////////////////////////////////////
+# params = {
+#     "band_name": "LargePocket",
+#     "a": 3.75,
+#     "b": 3.75,
+#     "c": 13.2,
+#     "energy_scale": 190,
+#     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
+#     "res_xy": 20,
+#     "res_z": 7,
+#     "T" : 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 110,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0, 45],
+#     "gamma_0": 32,
+#     "gamma_k": 0,
+#     "gamma_dos_max": 0,
+#     "power": 1.5,
+#     "factor_arcs": 1,
+#     "gamma_step":31,
+#     "phi_step":deg2rad(5),
+#     # "espilon_z": "- 2*tz*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)",
+#     # "a1": 8.49772756,
+#     # "a2": -141.605389,
+#     # "a3": 830.306324,
+#     # "a4": -1644.49799,
+#     # "a5": 598.753854,
+# }
+
+# ## ONE BAND Matt et al. ///////////////////////////////////////////////////////
+# params = {
+#     "band_name": "LargePocket",
+#     "a": 3.75,
+#     "b": 3.75,
+#     "c": 13.2,
+#     "energy_scale": 190,
+#     "band_params":{"mu":-0.83, "t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07},
+#     "res_xy": 20,
+#     "res_z": 7,
+#     "T" : 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 90,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0, 15, 30, 45],
+#     "gamma_0": 15.1,
+#     "gamma_k": 69,
+#     "gamma_dos_max": 0,
+#     "power": 12,
+#     "factor_arcs": 1,
+#     # "espilon_z": "- 2*tz*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)",
+#     # "a1": 8.49772756,
+#     # "a2": -141.605389,
+#     # "a3": 830.306324,
+#     # "a4": -1644.49799,
+#     # "a5": 598.753854,
+# }
+
+
 ## Create Bandstructure object
 bandObject = BandStructure(**params)
 
 ## Discretize Fermi surface
-# bandObject.setMuToDoping(0.4)
+# bandObject.setMuToDoping(0.15)
 # print(bandObject["mu"])
 bandObject.runBandStructure(printDoping=True)
 # bandObject.mc_func()

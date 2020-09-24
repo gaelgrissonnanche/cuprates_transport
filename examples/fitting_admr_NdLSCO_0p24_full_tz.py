@@ -1,6 +1,39 @@
 from cuprates_transport.fitting_admr import FittingADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+# ## ONE BAND Matt et al. ///////////////////////////////////////////////////////
+# init_member = {
+#     "bandname": "LargePocket",
+#     "a": 3.75,
+#     "b": 3.75,
+#     "c": 13.2,
+#     "energy_scale": 190,
+#     "band_params":{"mu":-0.83, "t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07, "tz2":0.07, "tz3":0.07, "tz4":0.07},
+#     "res_xy": 20,
+#     "res_z": 7,
+#     "fixdoping": 2,
+#     "T" : 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 90,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0, 45],
+#     "gamma_0": 15,
+#     "gamma_k": 0,
+#     "gamma_dos_max": 0,
+#     "power": 12,
+#     "factor_arcs": 1,
+#     "data_T": 25,
+#     "data_p": 0.21,
+#     "epsilon_z":"-2 * cos(c*kz/2)*(" +\
+#                 "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
+#                 "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
+#                 "-0.50 * tz3 *  cos(3 * kx * a / 2) * cos(3 * ky * b / 2)" +\
+#                 "+0.25 * tz4 * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))" +\
+#                 ")",
+# }
+
+
 ## ONE BAND Matt et al. ///////////////////////////////////////////////////////
 init_member = {
     "bandname": "LargePocket",
@@ -8,7 +41,7 @@ init_member = {
     "b": 3.75,
     "c": 13.2,
     "energy_scale": 190,
-    "band_params":{"mu":-0.83, "t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07, "tz2":0.07, "tz3":0.07, "tz4":0.07},
+    "band_params":{"mu":-0.3, "t": 1, "tp":-0.136, "tpp":0.136, "tz":0.25, "tz2":0, "tz3":0, "tz4":0},
     "res_xy": 20,
     "res_z": 7,
     "fixdoping": 2,
@@ -18,7 +51,7 @@ init_member = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 45],
-    "gamma_0": 15,
+    "gamma_0": 100,
     "gamma_k": 0,
     "gamma_dos_max": 0,
     "power": 12,
@@ -32,8 +65,6 @@ init_member = {
                 "+0.25 * tz4 * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))" +\
                 ")",
 }
-
-
 
 
 ## For FIT
@@ -57,7 +88,7 @@ ranges_dict = {
 
 
 # ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-# data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, factor_to_SI]
+# data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, rhozz_0] # rhozz_0 in SI units
 # data_dict[25, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
 # data_dict[25, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
 # data_dict[25, 30] = ["data/NdLSCO_0p24/0p25_30degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
@@ -88,4 +119,5 @@ data_dict[25, 45] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_45.d
 fitObject = FittingADMR(init_member, ranges_dict, data_dict, folder="sim/NdLSCO_0p24",
                         method="differential_evolution")
 # fitObject.runFit()
+fitObject.bandObject.figMultipleFS2D()
 fitObject.fig_compare()

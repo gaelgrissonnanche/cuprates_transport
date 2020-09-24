@@ -199,6 +199,9 @@ class FittingADMR:
         if self.method=="differential_evolution":
             out = minimize(self.compute_diff, self.pars,
                            method='differential_evolution')
+        if self.method=="ampgo":
+            out = minimize(self.compute_diff, self.pars,
+                           method='ampgo')
         else:
             print("This method does not exist in the class")
 
