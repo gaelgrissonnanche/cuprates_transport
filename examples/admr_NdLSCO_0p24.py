@@ -20,17 +20,12 @@ params = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 15, 30, 45],
-    "gamma_0": 11.43349034741798,
-    "gamma_k": 75.91575620491152,
+    "gamma_0": 15,
+    "gamma_k": 75,
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
     # "espilon_z": "- 2*tz*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)",
-    # "a1": 8.49772756,
-    # "a2": -141.605389,
-    # "a3": 830.306324,
-    # "a4": -1644.49799,
-    # "a5": 598.753854,
 }
 
 

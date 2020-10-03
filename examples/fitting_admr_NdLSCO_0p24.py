@@ -9,7 +9,7 @@ init_member = {
     "b": 3.75,
     "c": 13.2,
     "energy_scale": 190,
-    "band_params":{"mu":-0.83, "t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07},
+    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
     "res_xy": 20,
     "res_z": 7,
     "fixdoping": 2,

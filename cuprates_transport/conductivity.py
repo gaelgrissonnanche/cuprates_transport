@@ -30,7 +30,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
 class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
-                 gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0,
+                 gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0, a_T = 0, a_T2 = 0,
                  gamma_dos_max=0,
                  gamma_k=0, power=2,
                  a0=0, a1=0, a2=0, a3=0, a4=0, a5=0,
@@ -60,9 +60,11 @@ class Conductivity:
 
         # Scattering rate
         self.gamma_0       = gamma_0 # in THz
-        self.a_epsilon     = a_epsilon # unit less
-        self.a_abs_epsilon = a_abs_epsilon # unit less
-        self.a_epsilon_2   = a_epsilon_2 # unit less
+        self.a_epsilon     = a_epsilon # in THz/meV
+        self.a_abs_epsilon = a_abs_epsilon # in THz/meV
+        self.a_epsilon_2   = a_epsilon_2 # in THz/meV^2
+        self.a_T           = a_T # in THz/K
+        self.a_T2          = a_T2 # in THz/K^2
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k       = gamma_k # in THz
         self.power         = power
@@ -190,7 +192,7 @@ class Conductivity:
                 ## !!!!  Do not forget to update scattering rates !!! ##
                 ## Create properties for tmax, etc.
             self.bandObject.runBandStructure(epsilon = 0, printDoping=False)
-            # this lasr one is to be sure the bandObject is at the FS at the end
+            # this last one is to be sure the bandObject is at the FS at the end
         else:
             self.solveMovementFunc()
             self.t_o_tau_func()
@@ -252,12 +254,18 @@ class Conductivity:
         dks = self.bandObject.dks / Angstrom # in m^-1
         kf = self.bandObject.kf
         vf = self.bandObject.vf * meV * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
+        kf_perp = sqrt(kf[0, :]**2 + kf[1, :]**2) / Angstrom  # kf perp to B in m
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
-        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.res_z # divide by the number of kz to average over all kz
-        inverse_omegac_tau = \
-            prefactor * np.sum(dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
-                                                                                 vf[0, :], vf[1, :], vf[2, :])))
+        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp)
+
+        ## Function of k
+        inverse_omegac_tau_k = prefactor * 2*pi*kf_perp / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))
+        self.omegac_tau_k = 1 / inverse_omegac_tau_k
+
+        ## Integrated over the Fermi surface
+        inverse_omegac_tau = np.sum(prefactor * dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))) / self.bandObject.res_z  # divide by the number of kz to average over all kz
         self.omegac_tau = 1 / inverse_omegac_tau
+
 
 
     def factor_arcs_Func(self, kx, ky, kz):
@@ -319,7 +327,7 @@ class Conductivity:
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
-        epsilon = epsilon / self.bandObject.energy_scale
+        epsilon = epsilon
 
         ## Gamma epsilon^coeff_k
         # gamma_tot *= self.gamma_0 * np.ones_like(kx)
@@ -334,9 +342,11 @@ class Conductivity:
         #     gamma_tot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
 
         # gamma_tot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
-        gamma_tot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2
-        gamma_tot *= self.gamma_0 * np.ones_like(kx)
+        gamma_tot = self.gamma_0 * np.ones_like(kx)
 
+        if self.a_epsilon!=0 or self.a_abs_epsilon!=0 or self.a_epsilon_2!=0:
+            gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 + (self.a_T * self.T)**2)
+            gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * self.T**2
         if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
             gamma_tot += self.gamma_poly_Func(kx, ky, kz)
             # gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
