@@ -16,7 +16,7 @@ from cuprates_transport.conductivity import Conductivity
 class FittingADMR:
     def __init__(self, init_member, ranges_dict, data_dict, pipi_FSR=False,
                  folder="",
-                 method="leastsq",
+                 method="differential_evolution",
                  population=100, N_generation=20, mutation_s=0.1, crossing_p=0.9,
                  normalized_data=True,
                  **trash):
@@ -30,8 +30,10 @@ class FittingADMR:
         self.pipi_FSR    = pipi_FSR
         self.pars        = Parameters()
         for param_name, param_range in self.ranges_dict.items():
-            self.pars.add(param_name, value = self.init_member[param_name], min = param_range[0], max = param_range[-1])
-
+            if param_name in self.init_member.keys():
+                self.pars.add(param_name, value = self.init_member[param_name], min = param_range[0], max = param_range[-1])
+            elif param_name in self.init_member["band_params"].keys():
+                self.pars.add(param_name, value = self.init_member["band_params"][param_name], min = param_range[0], max = param_range[-1])
         self.method      = method # "shgo", "differential_evolution", "leastsq"
         ## Differential evolution
         self.population  = population
@@ -64,11 +66,13 @@ class FittingADMR:
         for param_name in self.ranges_dict.keys():
                 if hasattr(self.bandObject, param_name):
                     setattr(self.bandObject, param_name, self.member[param_name])
+                if param_name in self.bandObject._band_params.keys():
+                    self.bandObject[param_name] = self.member["band_params"][param_name]
 
         ## Adjust the doping if need be
         if self.member["fixdoping"] >=-1 and self.member["fixdoping"] <=1:
             self.bandObject.setMuToDoping(self.member["fixdoping"])
-            self.member["mu"] = self.bandObject.mu
+            self.member["band_params"]["mu"] = self.bandObject["mu"]
 
         self.bandObject.runBandStructure()
         self.condObject = Conductivity(self.bandObject, **self.member)
@@ -157,8 +161,11 @@ class FittingADMR:
 
         ## Update member with fit parameters
         for param_name in self.ranges_dict.keys():
+            if param_name in self.init_member.keys():
                 self.member[param_name] = self.pars[param_name].value
-                print(param_name + " : " + "{0:g}".format(self.pars[param_name].value))
+            elif param_name in self.init_member["band_params"].keys():
+                self.member["band_params"][param_name] = self.pars[param_name].value
+            print(param_name + " : " + "{0:g}".format(self.pars[param_name].value))
 
         ## Compute ADMR ------------------------------------------------------------
         self.produce_ADMR_object()
@@ -173,7 +180,7 @@ class FittingADMR:
             if self.normalized_data==True:
                 diff_matrix[i, :] = self.rzz_data_matrix[i, :] - self.admrObject.rzz_array[i, :]
             else:
-                diff_matrix[i, :] = self.rhozz_data_matrix[i, :] - self.admrObject.rhozz_array[i, :]
+                diff_matrix[i, :] = (self.rhozz_data_matrix[i, :] - self.admrObject.rhozz_array[i, :])*1e5
 
         return diff_matrix.flatten()
 
@@ -184,14 +191,17 @@ class FittingADMR:
         self.nb_calls = 0
 
         ## Run fit algorithm
-        if self.method=="leastsq":
+        if self.method=="least_square":
             out = minimize(self.compute_diff, self.pars)
         if self.method=="shgo":
             out = minimize(self.compute_diff, self.pars,
-                           method='shgo',sampling_method='sobol', options={"ftol": 1e-16}, n = 100)
+                           method='shgo',sampling_method='sobol', options={"f_tol": 1e-16}, n = 100, iters=20)
         if self.method=="differential_evolution":
             out = minimize(self.compute_diff, self.pars,
                            method='differential_evolution')
+        if self.method=="ampgo":
+            out = minimize(self.compute_diff, self.pars,
+                           method='ampgo')
         else:
             print("This method does not exist in the class")
 
@@ -200,7 +210,10 @@ class FittingADMR:
 
         ## Export final parameters from the fit
         for param_name in self.ranges_dict.keys():
+            if param_name in self.init_member.keys():
                 self.member[param_name] = out.params[param_name].value
+            elif param_name in self.init_member["band_params"].keys():
+                self.member["band_params"][param_name] = out.params[param_name].value
 
         ## Save BEST member to JSON
         self.save_member_to_json()

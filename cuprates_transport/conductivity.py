@@ -30,9 +30,10 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
 class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
-                 gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0,
+                 gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0, a_T = 0, a_T2 = 0,
                  gamma_dos_max=0,
-                 gamma_k=0, power=2, az=0,
+                 gamma_k=0, power=2,
+                 a0=0, a1=0, a2=0, a3=0, a4=0, a5=0,
                  gamma_step=0, phi_step=0,
                  factor_arcs=1,
                  **trash):
@@ -59,15 +60,23 @@ class Conductivity:
 
         # Scattering rate
         self.gamma_0       = gamma_0 # in THz
-        self.a_epsilon     = a_epsilon # unit less
-        self.a_abs_epsilon = a_abs_epsilon # unit less
-        self.a_epsilon_2   = a_epsilon_2 # unit less
+        self.a_epsilon     = a_epsilon # in THz/meV
+        self.a_abs_epsilon = a_abs_epsilon # in THz/meV
+        self.a_epsilon_2   = a_epsilon_2 # in THz/meV^2
+        self.a_T           = a_T # in THz/K^2
+        self.a_T2          = a_T2 # in THz/K^2
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k       = gamma_k # in THz
         self.power         = power
         self.gamma_step    = gamma_step
         self.phi_step      = phi_step
         self.factor_arcs   = factor_arcs # factor * gamma_0 outsite AF FBZ
+        self.a0 = a0
+        self.a1 = a1
+        self.a2 = a2
+        self.a3 = a3
+        self.a4 = a4
+        self.a5 = a5
 
         # Time parameters
         self.time_max = 8 * self.tau_total_max()  # in picoseconds
@@ -183,7 +192,7 @@ class Conductivity:
                 ## !!!!  Do not forget to update scattering rates !!! ##
                 ## Create properties for tmax, etc.
             self.bandObject.runBandStructure(epsilon = 0, printDoping=False)
-            # this lasr one is to be sure the bandObject is at the FS at the end
+            # this last one is to be sure the bandObject is at the FS at the end
         else:
             self.solveMovementFunc()
             self.t_o_tau_func()
@@ -245,12 +254,18 @@ class Conductivity:
         dks = self.bandObject.dks / Angstrom # in m^-1
         kf = self.bandObject.kf
         vf = self.bandObject.vf * meV * Angstrom # in Joule.m (because in the code vf is not divided by hbar)
+        kf_perp = sqrt(kf[0, :]**2 + kf[1, :]**2) / Angstrom  # kf perp to B in m
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in Joule.m
-        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp) / self.bandObject.numberOfKz # divide by the number of kz to average over all kz
-        inverse_omegac_tau = \
-            prefactor * np.sum(dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
-                                                                                 vf[0, :], vf[1, :], vf[2, :])))
+        prefactor = (hbar)**2 / (2 * pi * e * self._Bamp)
+
+        ## Function of k
+        inverse_omegac_tau_k = prefactor * 2*pi*kf_perp / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))
+        self.omegac_tau_k = 1 / inverse_omegac_tau_k
+
+        ## Integrated over the Fermi surface
+        inverse_omegac_tau = np.sum(prefactor * dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))) / self.bandObject.res_z  # divide by the number of kz to average over all kz
         self.omegac_tau = 1 / inverse_omegac_tau
+
 
 
     def factor_arcs_Func(self, kx, ky, kz):
@@ -272,13 +287,27 @@ class Conductivity:
         dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (dos / dos_max)
 
-
     def gamma_k_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
         return self.gamma_k * np.abs(cos(2*phi))**self.power
+
+    def gamma_poly_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
+        phi = arctan2(ky, kx)
+        phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
+        return np.abs(self.a0 + self.a1 * phi_p + self.a2 * phi_p**2 + self.a3 * phi_p**3 + self.a4 * phi_p**4 + self.a5 * phi_p**5)
+
+    def gamma_tanh_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
+        phi = arctan2(ky, kx)
+        return self.a0 / np.abs(np.tanh(self.a1 + self.a2 * np.abs(cos(2*(phi+pi/4)))**self.a3))
 
     def gamma_step_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
@@ -294,37 +323,52 @@ class Conductivity:
 
         return gamma_step_array
 
+    def gamma_ndlsco_tl2201_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
+        phi = arctan2(ky, kx)
+        return self.a0 + self.a1 * np.abs(cos(2*phi))**12 + self.a2 * np.abs(cos(2*phi))**2
+
     def tau_total_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
-        epsilon = epsilon / self.bandObject.t
+        epsilon = epsilon
 
         ## Gamma epsilon^coeff_k
-        # gammaTot *= self.gamma_0 * np.ones_like(kx)
+        # gamma_tot *= self.gamma_0 * np.ones_like(kx)
         # if self.gamma_k!=0:
         #     # phi = arctan2(ky, kx)
-        #     gammaTot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
+        #     gamma_tot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
 
         # ## Gamma |epsilon|*cos(2*phi)
-        # gammaTot = (1 + self.a_epsilon_2 * epsilon**2)
-        # gammaTot *= self.gamma_0 * np.ones_like(kx)
+        # gamma_tot = (1 + self.a_epsilon_2 * epsilon**2)
+        # gamma_tot *= self.gamma_0 * np.ones_like(kx)
         # if self.gamma_k!=0:
-        #     gammaTot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
+        #     gamma_tot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
 
-        # gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
-        gammaTot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon) + self.a_epsilon_2 * epsilon**2
-        gammaTot *= self.gamma_0 * np.ones_like(kx)
+        # gamma_tot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
+        gamma_tot = self.gamma_0 * np.ones_like(kx)
+
+        if self.a_epsilon!=0 or self.a_abs_epsilon!=0 or self.a_T!=0 or self.a_epsilon_2!=0 or self.a_T2!=0:
+            gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 + self.a_T * (kB * self.T)**2)
+            # gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * self.T**2
+            gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * (kB * self.T)**2
+        if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
+            # gamma_tot += self.gamma_poly_Func(kx, ky, kz)
+            gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
+            # gamma_tot += self.gamma_ndlsco_tl2201_Func(kx, ky, kz)
         if self.gamma_k!=0:
-            gammaTot += self.gamma_k_Func(kx, ky, kz)
+            gamma_tot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_step!=0:
-            gammaTot += self.gamma_step_Func(kx, ky, kz)
+            gamma_tot += self.gamma_step_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
-            gammaTot += self.gamma_DOS_Func(vx, vy, vz)
+            gamma_tot += self.gamma_DOS_Func(vx, vy, vz)
         if self.factor_arcs!=1:
-            gammaTot *= self.factor_arcs_Func(kx, ky, kz)
+            gamma_tot *= self.factor_arcs_Func(kx, ky, kz)
 
-        return 1/gammaTot
+        return 1/gamma_tot
 
 
     def t_o_tau_func(self, espilon = 0):
@@ -461,7 +505,7 @@ class Conductivity:
     mpl.rcParams['pdf.fonttype'] = 3  # Output Type 3 (Type3) or Type 42 (TrueType), TrueType allows
     # editing the text in illustrator
 
-    def figScatteringColor(self, kz=0, mesh_xy=501):
+    def figScatteringColor(self, kz=0, gamma_min=None, gamma_max=None, mesh_xy=501):
         fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
         fig.subplots_adjust(left=0.10, right=0.85, bottom=0.20, top=0.9)
 
@@ -496,8 +540,11 @@ class Conductivity:
 
             line = axes.add_collection(lc)
 
-        gamma_max = max(gamma_max_list)
-        gamma_min = min(gamma_min_list)
+
+        if gamma_min == None:
+            gamma_min = min(gamma_min_list)
+        if gamma_max == None:
+            gamma_min = min(gamma_min_list)
         line.set_clim(gamma_min, gamma_max)
         cbar = fig.colorbar(line, ax=axes)
         cbar.minorticks_on()
@@ -682,10 +729,9 @@ class Conductivity:
         axes.remove()
 
         # Band name
-        fig.text(0.45, 0.92, "Band :: " +
-                    self.bandObject.bandname, fontsize=20, color='#00d900')
+        fig.text(0.72, 0.92, self.bandObject.band_name, fontsize=20, color='#00d900')
         try:
-            self.bandObject.M
+            self.bandObject._band_params["M"]
             fig.text(0.41, 0.92, "AF", fontsize=20,
                         color="#FF0000")
         except:
@@ -694,9 +740,9 @@ class Conductivity:
         # Band Formulas
         fig.text(0.45, 0.445, "Band formula", fontsize=16,
                     color='#008080')
-        fig.text(0.45, 0.4, r"$a$ = " + "{0:.2f}".format(self.bandObject.a) + r" $\AA$  ::  " +
-                            r"$b$ = " + "{0:.2f}".format(self.bandObject.b) + r" $\AA$  ::  " +
-                            r"$c$ = " + "{0:.2f}".format(self.bandObject.c) + r" $\AA$", fontsize=10)
+        fig.text(0.45, 0.4, r"$a$ = " + "{0:.2f}".format(self.bandObject.a) + r" $\AA$,  " +
+                            r"$b$ = " + "{0:.2f}".format(self.bandObject.b) + r" $\AA$,  " +
+                            r"$c$ = " + "{0:.2f}".format(self.bandObject.c) + r" $\AA$", fontsize=12)
 
         # r"$c$ " + "{0:.2f}".format(self.bandObject.c)
         bandFormulaE2D = r"$\epsilon_{\rm k}^{\rm 2D}$ = - $\mu$" +\
@@ -713,7 +759,7 @@ class Conductivity:
 
         # AF Band Formula
         try:
-            self.bandObject.M
+            self.bandObject._band_params["M"]
             if self.bandObject.electronPocket == True:
                 sign_symbol = "+"
             else:
@@ -736,46 +782,25 @@ class Conductivity:
         fig.text(0.45, 0.03, scatteringFormula, fontsize=10)
 
         # Parameters Bandstructure
-        fig.text(0.45, 0.85, "Band Parameters", fontsize=16,
+        fig.text(0.45, 0.92, "Band Parameters", fontsize=16,
                     color='#008080')
-        label_parameters = [r"$t$     =  " + "{0:.1f}".format(self.bandObject.t) + "    meV",
-                            r"$\mu$    =  " +
-                            "{0:+.3f}".format(self.bandObject.mu) +
-                            r"   $t$",
-                            r"$t^\prime$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tp) +
-                            r"   $t$",
-                            r"$t^{\prime\prime}$   =  " + "{0:+.3f}".format(
-                                self.bandObject.tpp) + r"   $t$",
-                            r"$t_{\rm z}$    =  " + "{0:+.3f}".format(
-                                self.bandObject.tz) + r"   $t$",
-                            r"$t_{\rm z}^{\prime}$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tz2) + r"   $t$",
-                            r"$t_{\rm z}^{\prime\prime}$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tz3) + r"   $t$",
-                            r"$t_{\rm z}^{\prime\prime\prime}$    =  " +
-                            "{0:+.3f}".format(self.bandObject.tz4) + r"   $t$"
-                            ]
+        label_parameters = [r"t = " + "{0:.1f}".format(self.bandObject.energy_scale) + " meV"] +\
+                           [key + " = " + "{0:+.3f}".format(value) + r" $t$" for (key, value) in sorted(self.bandObject._band_params.items()) if key!="t"]
+
         try:  # if it is a AF band
-            self.bandObject.M
+            self.bandObject._band_params["M"]
             label_parameters.append(
-                r"$\Delta_{\rm AF}$ =  " + "{0:+.3f}".format(self.bandObject.M) + r"   $t$")
+                r"$\Delta_{\rm AF}$ =  " + "{0:+.3f}".format(self.bandObject._band_params["M"]) + r"   $t$")
         except:
             None
 
-        h_label = 0.80
+        h_label = 0.88
         for label in label_parameters:
-            fig.text(0.45, h_label, label, fontsize=14)
-            h_label -= 0.043
-
-        # Band filling
-        fig.text(0.72, 0.85, "Band Filling =", fontsize=16,
-                    color='#008080')
-        fig.text(0.855, 0.85, "{0:.3f}".format(
-                    self.bandObject.n), fontsize=16, color='#000000')
+            fig.text(0.45, h_label, label, fontsize=12)
+            h_label -= 0.035
 
         # Scattering parameters
-        fig.text(0.72, 0.79, "Scattering Parameters",
+        fig.text(0.72, 0.86, "Scattering Parameters",
                     fontsize=16, color='#008080')
         label_parameters = [
             r"$\Gamma_{\rm 0}$       = " + "{0:.1f}".format(self.gamma_0) +
@@ -791,10 +816,10 @@ class Conductivity:
             r"$\Gamma_{\rm tot}^{\rm min}$     = " +
             "{0:.1f}".format(self.gamma_tot_min) + "   THz",
         ]
-        h_label = 0.74
+        h_label = 0.82
         for label in label_parameters:
-            fig.text(0.72, h_label, label, fontsize=14)
-            h_label -= 0.043
+            fig.text(0.72, h_label, label, fontsize=12)
+            h_label -= 0.035
 
         ## Inset FS ///////////////////////////////////////////////////////////#
         a = self.bandObject.a
@@ -854,7 +879,7 @@ class Conductivity:
                   (mesh_xy - 1) - 0.5) * 2 * pi / self.bandObject.a
             ky = (contour[:, 1] /
                   (mesh_xy - 1) - 0.5) * 2 * pi / self.bandObject.b
-            vx, vy, vz = self.bandObject.v_3D_func(kx, ky, 0)
+            vx, vy, vz = self.bandObject.v_3D_func(kx, ky, np.zeros_like(kx))
 
             gamma_kz0 = 1 / self.tau_total_func(kx, ky, 0, vx, vy, vz)
             gamma_max_list.append(np.max(gamma_kz0))
@@ -900,3 +925,4 @@ class Conductivity:
         #//////////////////////////////////////////////////////////////////////////////#
 
         return fig
+
