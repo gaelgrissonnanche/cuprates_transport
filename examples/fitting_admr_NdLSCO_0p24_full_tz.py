@@ -41,7 +41,7 @@ init_member = {
     "b": 3.75,
     "c": 13.2,
     "energy_scale": 190,
-    "band_params":{"mu":-0.3, "t": 1, "tp":-0.136, "tpp":0.136, "tz":0.25, "tz2":0, "tz3":0, "tz4":0},
+    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192, "tz2":0.06512192, "tz3":0.06512192, "tz4":0.06512192},
     "res_xy": 20,
     "res_z": 7,
     "fixdoping": 2,
@@ -51,7 +51,7 @@ init_member = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 45],
-    "gamma_0": 100,
+    "gamma_0": 15,
     "gamma_k": 0,
     "gamma_dos_max": 0,
     "power": 12,
@@ -74,12 +74,12 @@ ranges_dict = {
     # "tpp": [-0.10,0.04],
     # "tppp": [-0.1,0.1],
     # "tpppp": [-0.05,0.05],
-    # "tz": [0.06,0.08],
-    "tz2": [0.05,0.08],
-    "tz3": [0.05,0.08],
-    "tz4": [0.05,0.08],
-    # "mu": [-0.75,-0.9],
-    "gamma_0": [10,25],
+    "tz": [0.001,0.08],
+    "tz2": [0.001,0.08],
+    "tz3": [0.001,0.08],
+    "tz4": [0.001,0.08],
+    "mu": [-0.70,-0.9],
+    "gamma_0": [10,30],
     "gamma_k": [0,150],
     "power":[1, 20],
     # "gamma_dos_max": [0.1, 200],
@@ -109,15 +109,14 @@ ranges_dict = {
 
 # ## Data Nd-LSCO 0.21  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, factor_to_SI]
-data_dict[25, 0] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_0.dat", 0, 2, 90, 1]
-data_dict[25, 15] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_15.dat", 0, 2, 90, 1]
-data_dict[25, 30] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_30.dat", 0, 2, 90, 1]
-data_dict[25, 45] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_45.dat", 0, 2, 90, 1]
+data_dict[25, 0] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_0.dat", 0, 2, 90, 35.8e-5]
+data_dict[25, 15] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_15.dat", 0, 2, 90, 35.8e-5]
+data_dict[25, 30] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_30.dat", 0, 2, 90, 35.8e-5]
+data_dict[25, 45] = ["data/NdLSCO_0p21/NdLSCO_0p21_1808A_c_AS_T_25_H_45_phi_45.dat", 0, 2, 90, 35.8e-5]
 
 
 
 fitObject = FittingADMR(init_member, ranges_dict, data_dict, folder="sim/NdLSCO_0p24",
-                        method="differential_evolution")
-# fitObject.runFit()
-fitObject.bandObject.figMultipleFS2D()
-fitObject.fig_compare()
+                        method="ampgo", normalized_data=False)
+fitObject.runFit()
+# fitObject.fig_compare()

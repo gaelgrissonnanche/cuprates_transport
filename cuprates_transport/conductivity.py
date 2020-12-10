@@ -63,7 +63,7 @@ class Conductivity:
         self.a_epsilon     = a_epsilon # in THz/meV
         self.a_abs_epsilon = a_abs_epsilon # in THz/meV
         self.a_epsilon_2   = a_epsilon_2 # in THz/meV^2
-        self.a_T           = a_T # in THz/K
+        self.a_T           = a_T # in THz/K^2
         self.a_T2          = a_T2 # in THz/K^2
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k       = gamma_k # in THz
@@ -323,6 +323,13 @@ class Conductivity:
 
         return gamma_step_array
 
+    def gamma_ndlsco_tl2201_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
+        phi = arctan2(ky, kx)
+        return self.a0 + self.a1 * np.abs(cos(2*phi))**12 + self.a2 * np.abs(cos(2*phi))**2
+
     def tau_total_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
         """Computes the total lifetime based on the input model
         for the scattering rate"""
@@ -344,12 +351,14 @@ class Conductivity:
         # gamma_tot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
         gamma_tot = self.gamma_0 * np.ones_like(kx)
 
-        if self.a_epsilon!=0 or self.a_abs_epsilon!=0 or self.a_epsilon_2!=0:
-            gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 + (self.a_T * self.T)**2)
-            gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * self.T**2
+        if self.a_epsilon!=0 or self.a_abs_epsilon!=0 or self.a_T!=0 or self.a_epsilon_2!=0 or self.a_T2!=0:
+            gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 + self.a_T * (kB * self.T)**2)
+            # gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * self.T**2
+            gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * (kB * self.T)**2
         if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
-            gamma_tot += self.gamma_poly_Func(kx, ky, kz)
-            # gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
+            # gamma_tot += self.gamma_poly_Func(kx, ky, kz)
+            gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
+            # gamma_tot += self.gamma_ndlsco_tl2201_Func(kx, ky, kz)
         if self.gamma_k!=0:
             gamma_tot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_step!=0:
