@@ -15,19 +15,13 @@ Angstrom = 1e-10 # 1 A in meters
 ## ONE BAND Horio et al. ///////////////////////////////////////////////////////
 params = {
     "bandname": "LargePocket",
-    "a": 3.74767,
-    "b": 3.74767,
+    "a": 3.75,
+    "b": 3.75,
     "c": 13.2,
-    "t": 190,
-    "tp": -0.14,
-    "tpp": 0.07,
-    "tz": 0.07,
-    "tz2": 0.00,
-    "mu": -0.826,
-    "fixdoping": 0.24,
-    "numberOfKz": 61,
-    "mesh_ds": 1/100,
-    "T" : 0,
+    "energy_scale": 190,
+    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
+    "res_xy": 100,
+    "res_z": 61,
 }
 
 ## Molar Volume for NdLSCO
@@ -49,7 +43,7 @@ def dos_to_gamma(dos, V_molar):
 
 
 ## Array of parameters
-tz_array = np.array([0, 0.07]) # in units of t
+tz_array = np.array([0, 0.06512192]) # in units of t
 mu_array = np.linspace(-1.2, -0.54, 2000) # in units of t
 
 ## Bandstructure
@@ -62,17 +56,16 @@ gamma_matrix = np.empty((len(tz_array), len(mu_array)))
 mc_matrix = np.empty((len(tz_array), len(mu_array)))
 
 for i, tz in enumerate(tqdm(tz_array, ncols=80, unit="tz", desc="total tz")):
-    bandObject.tz = tz
+    bandObject["tz"] = tz
     if tz == 0:
-        bandObject.numberOfKz = 1
+        bandObject.res_z = 1
     else:
-        bandObject.numberOfKz = params["numberOfKz"]
+        bandObject.res_z = params["res_z"]
 
     for j, mu in enumerate(tqdm(mu_array, ncols=80, unit="mu", desc="tz = " + str(tz), leave=False)):
-        bandObject.mu = mu
+        bandObject["mu"] = mu
         bandObject.doping()
-        bandObject.discretize_FS()
-        bandObject.dos_k_func()
+        bandObject.runBandStructure(printDoping=True)
         bandObject.dos_epsilon_func()
         bandObject.mc_func()
 
@@ -104,7 +97,7 @@ for i, tz in enumerate(tz_array):
     Data_list.append(dos_epsilon_matrix[i, :])
     Data_list.append(gamma_matrix[i, :])
     Data_list.append(mc_matrix[i, :])
-    DataHeader = "p[tz=" + str(tz) + "]\tDOS(eV^-1)\tgamma(mJ/K^2mol)\tmc(per m0)\t"
+    DataHeader += "p[tz=" + str(tz) + "]\tDOS(eV^-1)\tgamma(mJ/K^2mol)\tmc(per m0)\t"
 
 Data = np.vstack(Data_list)
 Data = Data.transpose()

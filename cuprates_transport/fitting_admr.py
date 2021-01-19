@@ -195,7 +195,7 @@ class FittingADMR:
             out = minimize(self.compute_diff, self.pars)
         if self.method=="shgo":
             out = minimize(self.compute_diff, self.pars,
-                           method='shgo',sampling_method='sobol', options={"f_tol": 1e-16}, n = 100, iters=20)
+                           method='shgo', sampling_method='sobol', options={"f_tol": 1e-16}, n = 100, iters=20)
         if self.method=="differential_evolution":
             out = minimize(self.compute_diff, self.pars,
                            method='differential_evolution')

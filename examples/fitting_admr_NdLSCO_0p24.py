@@ -2,7 +2,7 @@ from numpy import deg2rad
 from cuprates_transport.fitting_admr import FittingADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-## ONE BAND Matt et al. ///////////////////////////////////////////////////////
+## AMPGO ///////////////////////////////////////////////////////
 init_member = {
     "bandname": "LargePocket",
     "a": 3.75,
@@ -14,13 +14,13 @@ init_member = {
     "res_z": 7,
     "fixdoping": 2,
     "T" : 0,
-    "Bamp": 45,
+    "Bamp": 35,
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
-    "Bphi_array": [0, 45],
+    "Bphi_array": [15, 30, 45],
     "gamma_0": 15,
-    "gamma_k": 0,
+    "gamma_k": 75,
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
@@ -73,32 +73,49 @@ ranges_dict = {
     # "tz4": [0,0.2],
     # "mu": [-1.0,-0.6],
     "gamma_0": [10,20],
-    # "gamma_k": [0,150],
+    "gamma_k": [30,100],
     # "power":[1, 20],
     # "gamma_dos_max": [0.1, 1000],
     # "factor_arcs" : [1, 300],
 }
 
 
-## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# ## Data Nd-LSCO 0.24 / H = 45T >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, rhozz_0] # rhozz_0 in SI units
+# data_dict[25, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+# data_dict[25, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+# data_dict[25, 30] = ["data/NdLSCO_0p24/0p25_30degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+# data_dict[25, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+
+# data_dict[20, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+# data_dict[20, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+# data_dict[20, 30] = ["data/NdLSCO_0p24/0p25_30degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+# data_dict[20, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+
+# data_dict[12, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+# data_dict[12, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+# data_dict[12, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+
+# data_dict[6, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+# data_dict[6, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+# data_dict[6, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+
+
+## Data Nd-LSCO 0.24 / H = 35T >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, rhozz_0] # rhozz_0 in SI units
-data_dict[25, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
-data_dict[25, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
-data_dict[25, 30] = ["data/NdLSCO_0p24/0p25_30degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
-data_dict[25, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+data_dict[25, 15] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi15/NdLSCO_0p25_rho_c-vs-theta_25K_H35T_phi=15deg.txt", 0, 1, 90, 6.71e-5]
+data_dict[25, 30] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi30/NdLSCO_0p25_rho_c-vs-theta_25K_H35T_phi=30deg.txt", 0, 1, 90, 6.71e-5]
+data_dict[25, 45] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi45/NdLSCO_0p25_rho_c-vs-theta_25K_H35T_phi=45deg.txt", 0, 1, 90, 6.71e-5]
 
-data_dict[20, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
-data_dict[20, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
-data_dict[20, 30] = ["data/NdLSCO_0p24/0p25_30degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
-data_dict[20, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+data_dict[20, 15] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi15/NdLSCO_0p25_rho_c-vs-theta_20K_H35T_phi=15deg.txt", 0, 1, 90, 6.55e-5]
+data_dict[20, 30] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi30/NdLSCO_0p25_rho_c-vs-theta_20K_H35T_phi=30deg.txt", 0, 1, 90, 6.55e-5]
+data_dict[20, 45] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi45/NdLSCO_0p25_rho_c-vs-theta_20K_H35T_phi=45deg.txt", 0, 1, 90, 6.55e-5]
 
-data_dict[12, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
-data_dict[12, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
-data_dict[12, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+data_dict[12, 15] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi15/NdLSCO_0p25_rho_c-vs-theta_12K_H35T_phi=15deg.txt", 0, 1, 77, 6.26e-5]
+data_dict[12, 45] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi45/NdLSCO_0p25_rho_c-vs-theta_12K_H35T_phi=45deg.txt", 0, 1, 77, 6.26e-5]
 
-data_dict[6, 0] = ["data/NdLSCO_0p24/0p25_0degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
-data_dict[6, 15] = ["data/NdLSCO_0p24/0p25_15degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
-data_dict[6, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+data_dict[6, 15] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi15/NdLSCO_0p25_rho_c-vs-theta_6K_H35T_phi=15deg.txt", 0, 1, 66, 6.03e-5]
+data_dict[6, 45] = ["data/NdLSCO_0p24/all_data_NdLSCO0p24/phi45/NdLSCO_0p25_rho_c-vs-theta_6K_H35T_phi=45deg.txt", 0, 1, 66, 6.03e-5]
 
 # ## Data Nd-LSCO 0.21  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 # data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, factor_to_SI]
