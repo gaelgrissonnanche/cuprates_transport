@@ -20,8 +20,8 @@ params = {
     "c": 13.2,
     "energy_scale": 190,
     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
-    "res_xy": 100,
-    "res_z": 61,
+    "res_xy": 500,
+    "res_z": 201,
 }
 
 ## Molar Volume for NdLSCO

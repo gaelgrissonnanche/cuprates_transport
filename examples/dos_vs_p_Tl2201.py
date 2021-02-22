@@ -10,21 +10,34 @@ meVolt = 1.602e-22 # 1 eV in Joule
 Angstrom = 1e-10 # 1 A in meters
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
+# Platé or Peets et al.
 params = {
-    "bandname": "HolePocket",
+    "bandname": "LargePocket",
     "a": 3.87,
     "b": 3.87,
     "c": 23.2,
-    "t": 181.25,
-    "tp": -0.28,
-    "tpp": 0.14,
-    "tz": 0.015,
-    "mu": -1.222,
-    "numberOfKz": 81,
-    "mesh_ds": 1/100,
-    "T": 0,
+    "energy_scale": 181.25,
+    "band_params":{"mu":-1.33, "t": 1, "tp":-0.42, "tpp":-0.021, "tppp": 0.111, "tpppp":-0.005, "tz":0.015},
+    "res_xy": 500,
+    "res_z": 201,
+    "epsilon_xy":  ( "-2 * t * (cos(a*kx) + cos(b*ky))"
+                   + "-4 * tp * cos(a*kx)*cos(b*ky)"
+                   + "-2 * tpp * (cos(2*a*kx) + cos(2*b*ky))"
+                   + "-2 * tppp * (cos(2 * kx * a) * cos(ky * b) + cos(kx * a) * cos(2 * ky * b))"
+                   + "-4 * tpppp * cos(2 * kx * a) * cos(2 * ky * b)"),
 }
 
+# # Horio et al
+# params = {
+#     "bandname": "LargePocket",
+#     "a": 3.87,
+#     "b": 3.87,
+#     "c": 23.2,
+#     "energy_scale": 181.25,
+#     "band_params":{"mu":-1.222, "t": 1, "tp":-0.28, "tpp":0.14, "tz":0.015},
+#     "res_xy": 500,
+#     "res_z": 201,
+# }
 
 ## Molar Volume for NdLSCO
 V_cell = params["a"] * params["b"] * params["c"] # in Angstrom^3
@@ -46,7 +59,7 @@ def dos_to_gamma(dos, V_molar):
 
 ## Array of parameters
 tz_array = np.array([0, 0.015]) # in units of t
-mu_array = np.linspace(-2.4, -1.1, 2000) # in units of t
+mu_array = np.linspace(-1.8, -0.8, 2000) # in units of t
 
 ## Bandstructure
 bandObject = BandStructure(**params)
@@ -58,17 +71,16 @@ gamma_matrix = np.empty((len(tz_array), len(mu_array)))
 mc_matrix = np.empty((len(tz_array), len(mu_array)))
 
 for i, tz in enumerate(tqdm(tz_array, ncols=80, unit="tz", desc="total tz")):
-    bandObject.tz = tz
+    bandObject["tz"] = tz
     if tz == 0:
-        bandObject.numberOfKz = 1
+        bandObject.res_z = 1
     else:
-        bandObject.numberOfKz = params["numberOfKz"]
+        bandObject.res_z = params["res_z"]
 
     for j, mu in enumerate(tqdm(mu_array, ncols=80, unit="mu", desc="tz = " + str(tz), leave=False)):
-        bandObject.mu = mu
+        bandObject["mu"] = mu
         bandObject.doping()
-        bandObject.discretize_FS()
-        bandObject.dos_k_func()
+        bandObject.runBandStructure(printDoping=True)
         bandObject.dos_epsilon_func()
         bandObject.mc_func()
 
@@ -100,7 +112,7 @@ for i, tz in enumerate(tz_array):
     Data_list.append(dos_epsilon_matrix[i, :])
     Data_list.append(gamma_matrix[i, :])
     Data_list.append(mc_matrix[i, :])
-    DataHeader = "p[tz=" + str(tz) + "]\tDOS(eV^-1)\tgamma(mJ/K^2mol)\tmc(per m0)\t"
+    DataHeader += "p[tz=" + str(tz) + "]\tDOS(eV^-1)\tgamma(mJ/K^2mol)\tmc(per m0)\t"
 
 Data = np.vstack(Data_list)
 Data = Data.transpose()

@@ -34,6 +34,7 @@ class Conductivity:
                  gamma_dos_max=0,
                  gamma_k=0, power=2,
                  a0=0, a1=0, a2=0, a3=0, a4=0, a5=0,
+                 l_path=0,
                  gamma_step=0, phi_step=0,
                  factor_arcs=1,
                  **trash):
@@ -63,8 +64,8 @@ class Conductivity:
         self.a_epsilon     = a_epsilon # in THz/meV
         self.a_abs_epsilon = a_abs_epsilon # in THz/meV
         self.a_epsilon_2   = a_epsilon_2 # in THz/meV^2
-        self.a_T           = a_T # in THz/K^2
-        self.a_T2          = a_T2 # in THz/K^2
+        self.a_T           = a_T # unitless
+        self.a_T2          = a_T2 # unitless
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k       = gamma_k # in THz
         self.power         = power
@@ -77,6 +78,7 @@ class Conductivity:
         self.a3 = a3
         self.a4 = a4
         self.a5 = a5
+        self.l_path = l_path # in Angstrom, mean free path for gamma_vF
 
         # Time parameters
         self.time_max = 8 * self.tau_total_max()  # in picoseconds
@@ -287,6 +289,13 @@ class Conductivity:
         dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (dos / dos_max)
 
+    def gamma_vF_Func(self, vx, vy, vz):
+        """vx, vy, vz are in Angstrom.meV
+           l_path is in Angstrom
+        """
+        vF = sqrt(vx**2 + vy**2 + vz**2) / (hbar / meV) * 1e-12 # in Angstrom / ps
+        return vF / self.l_path
+
     def gamma_k_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
@@ -352,9 +361,10 @@ class Conductivity:
         gamma_tot = self.gamma_0 * np.ones_like(kx)
 
         if self.a_epsilon!=0 or self.a_abs_epsilon!=0 or self.a_T!=0 or self.a_epsilon_2!=0 or self.a_T2!=0:
-            gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 + self.a_T * (kB * self.T)**2)
+            # gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 + self.a_T * (kB * self.T)**2)
+            gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 +  (self.a_T * kB * meV / hbar * 1e-12 * self.T)**2)
             # gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * self.T**2
-            gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * (kB * self.T)**2
+            gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * (kB * meV / hbar * 1e-12 * self.T)**2
         if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
             # gamma_tot += self.gamma_poly_Func(kx, ky, kz)
             gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
@@ -365,8 +375,11 @@ class Conductivity:
             gamma_tot += self.gamma_step_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
             gamma_tot += self.gamma_DOS_Func(vx, vy, vz)
+        if self.l_path != 0:
+            gamma_tot += self.gamma_vF_Func(vx, vy, vz)
         if self.factor_arcs!=1:
             gamma_tot *= self.factor_arcs_Func(kx, ky, kz)
+
 
         return 1/gamma_tot
 
@@ -413,14 +426,20 @@ class Conductivity:
             for example, if i = 0: vif = vxf """
 
         if self.Bamp != 0:
-            self.v_product = vft[i, :, 0] * np.sum(vft[j, :, :] * exp(-t_o_tau) * self.dtime, axis=1)
+            self.v_product = vft[i, :, 0] * np.sum(vft[j, :, :]
+                             * exp(-t_o_tau) * self.dtime, axis=1)
         else:
             self.v_product = vft[i, :, 0] * vft[j, :, 0] * (1 / t_o_tau)
         return self.v_product
 
     def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau, i, j):
-        sigma_epsilon = units_chambers / self.bandObject.numberOfBZ * \
-                        np.sum( dkf * dos_k * self.velocity_product(kft, vft, t_o_tau, i=i, j=j) )
+        sigma_epsilon = (units_chambers / self.bandObject.numberOfBZ *
+                        np.sum(dkf
+                               * dos_k
+                               * self.velocity_product(kft, vft, t_o_tau,
+                                                       i=i, j=j)
+                               )
+                        )
         return sigma_epsilon
 
     def integrand_coeff(self, epsilon, coeff_name):

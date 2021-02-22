@@ -153,7 +153,7 @@ params = {
 #     "data_T": 25,
 #     "data_p": 0.21
 # }
-
+#%%
 ## Create Bandstructure object
 bandObject = BandStructure(**params)
 
@@ -178,8 +178,13 @@ condObject = Conductivity(bandObject, **params)
 # # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
 # # condObject.figArcs()
 
+#%%
 # ## Compute ADMR
 amro1band = ADMR([condObject], **params)
 amro1band.runADMR()
 amro1band.fileADMR(folder="sim/NdLSCO_0p24")
 amro1band.figADMR(folder="sim/NdLSCO_0p24")
+
+# %%
+
+# %%
