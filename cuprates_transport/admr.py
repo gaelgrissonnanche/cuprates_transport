@@ -115,7 +115,7 @@ class ADMR:
         return file_name
 
     #---------------------------------------------------------------------------
-    def fileADMR(self, folder=""):
+    def fileADMR(self, folder="", filename=None):
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
         CondObject0 = self.initialCondObjectDict[self.bandNamesList[0]]
@@ -170,12 +170,15 @@ class ADMR:
         Data = Data.transpose()
 
         ## Build header ---------------------------------------------------------
-
-        np.savetxt(folder + "/Rzz_" + self.fileNameFunc() + ".dat", Data, fmt='%.7e',
+        if filename == None:
+            filename = folder + "/Rzz_" + self.fileNameFunc() + ".dat"
+        else:
+            filename = folder + "/" + filename
+        np.savetxt(filename, Data, fmt='%.7e',
         header = DataHeader, comments = "#")
 
 
-    def figADMR(self, fig_show=True, fig_save=True, folder=""):
+    def figADMR(self, fig_show=True, fig_save=True, folder="", filename=None):
         #///// RC Parameters //////#
         mpl.rcdefaults()
         mpl.rcParams['font.size'] = 24. # change the size of the font in every figure
@@ -242,9 +245,9 @@ class ADMR:
         xtics = 30. # space between two ticks
         mxtics = xtics / 2.  # space between two minor ticks
         majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
-        axes.xaxis.set_major_locator(MultipleLocator(xtics))
-        axes.xaxis.set_major_formatter(majorFormatter)
-        axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
+        # axes.xaxis.set_major_locator(MultipleLocator(xtics))
+        # axes.xaxis.set_major_formatter(majorFormatter)
+        # axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
         axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
         axes.locator_params(axis='y', nbins=6)
 
@@ -260,7 +263,11 @@ class ADMR:
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:
-            file_figures = PdfPages(folder + "/Rzz_" + self.fileNameFunc() + ".pdf")
+            if filename == None:
+                filename = folder + "/Rzz_" + self.fileNameFunc() + ".pdf"
+            else:
+                filename = folder + "/" + filename
+            file_figures = PdfPages(filename)
             for fig in fig_list:
                 file_figures.savefig(fig)
             file_figures.close()

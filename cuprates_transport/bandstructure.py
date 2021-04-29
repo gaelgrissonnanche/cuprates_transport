@@ -26,7 +26,7 @@ class BandStructure:
                  energy_scale,
                  band_params={"t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07, "mu":-0.83},
                  band_name="band_1",
-                 epsilon_xy = "", epsilon_z = "",
+                 epsilon_xy = "", epsilon_z = "", fudge_vF = "1",
                  res_xy=20, res_z=1,
                  **trash):
 
@@ -79,6 +79,9 @@ class BandStructure:
         else:
             epsilon_z = epsilon_z.replace("mu", "0") # replace is just to remove "mu" if the user has entered it by mistake
             self.epsilon_z_sym = sp.sympify(epsilon_z)
+
+        ## Fudge factor on velocity
+        self.fudge_vF = sp.sympify(fudge_vF)
 
         ## Create the dispersion and velocity functions
         self.e_3D_v_3D_definition()
@@ -172,9 +175,9 @@ class BandStructure:
         self.epsilon_sym = self.epsilon_xy_sym + self.epsilon_z_sym  - mu
 
         ## Velocity /////////////////////////////////////////////////////////////
-        self.v_sym = [sp.diff(self.epsilon_sym, kx),
-                      sp.diff(self.epsilon_sym, ky),
-                      sp.diff(self.epsilon_sym, kz)]
+        self.v_sym = [sp.diff(self.epsilon_sym, kx) / self.fudge_vF,
+                      sp.diff(self.epsilon_sym, ky) / self.fudge_vF,
+                      sp.diff(self.epsilon_sym, kz) / self.fudge_vF]
 
         ## Lambdafity ///////////////////////////////////////////////////////////
         epsilon_func = sp.lambdify(self.var_sym, self.epsilon_sym, 'numpy')
@@ -496,7 +499,7 @@ class BandStructure:
 
 
 ## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-class Pocket(BandStructure):
+class PiPiBandStructure(BandStructure):
     def __init__(self, electronPocket=False, reconstruction_3D=False, Q_vector=1, **kwargs):
         super().__init__(**kwargs)
         self._electronPocket    = electronPocket
@@ -522,7 +525,7 @@ class Pocket(BandStructure):
         self.var_sym = tuple(self.var_sym)
 
         ## Create the dispersion and velocity functions
-        self.e_3D_v_3D_AF_definition()
+        self.e_3D_v_3D_PiPi_definition()
 
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def _get_electronPocket(self):
@@ -544,7 +547,7 @@ class Pocket(BandStructure):
     Q_vector = property(_get_Q_vector, _set_Q_vector)
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def e_3D_v_3D_AF_definition(self):
+    def e_3D_v_3D_PiPi_definition(self):
 
         """Defines with Sympy the dispersion relation and
         symbolicly derives the velocity"""
@@ -569,20 +572,20 @@ class Pocket(BandStructure):
         else:
             self.epsilon_sym = self.epsilon_xy_sym
 
-        self.epsilon_AF_sym = 0.5 * (self.epsilon_sym + self.epsilon_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)])) + \
+        self.epsilon_PiPi_sym = 0.5 * (self.epsilon_sym + self.epsilon_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)])) + \
             sign_pocket * sp.sqrt(0.25*(self.epsilon_sym - self.epsilon_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)]))**2 + M**2)
 
         if self._reconstruction_3D == False:
-            self.epsilon_AF_sym += self.epsilon_z_sym
+            self.epsilon_PiPi_sym += self.epsilon_z_sym
 
-        self.epsilon_AF_sym += - mu
+        self.epsilon_PiPi_sym += - mu
 
         ## Velocity ////////////////////////////////////////////////////////////
-        self.v_AF_sym = [sp.diff(self.epsilon_AF_sym, kx), sp.diff(self.epsilon_AF_sym, ky), sp.diff(self.epsilon_AF_sym, kz)]
+        self.v_PiPi_sym = [sp.diff(self.epsilon_PiPi_sym, kx), sp.diff(self.epsilon_PiPi_sym, ky), sp.diff(self.epsilon_PiPi_sym, kz)]
 
         ## Lambdafity //////////////////////////////////////////////////////////
-        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_AF_sym, 'numpy')
-        v_func = sp.lambdify(self.var_sym, self.v_AF_sym, 'numpy')
+        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_PiPi_sym, 'numpy')
+        v_func = sp.lambdify(self.var_sym, self.v_PiPi_sym, 'numpy')
 
         ## Numba ////////////////////////////////////////////////////////////////
         self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
@@ -621,3 +624,77 @@ def setMuToDoping(bandIterable, pTarget, ptol=0.001):
 
 
 
+## Yang Rice Zhang Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+class YRZBandStructure(BandStructure):
+    def __init__(self, electronPocket=False, **kwargs):
+        super().__init__(**kwargs)
+        self._electronPocket = electronPocket
+        self.numberOfBZ = 1  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
+
+        ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        try:
+            assert self._band_params["M"] > 0.00001
+        except KeyError:
+            self._band_params["M"] = 0.00001
+            print("Warning! 'M' has to be defined; it has been added and set to 0.00001")
+        except AssertionError:
+            self._band_params["M"] = 0.00001
+            print("Warning! 'M' has to be > 0.00001; it has been set to 0.00001")
+
+        ## Build the symbolic variables
+        self.var_sym = [sp.Symbol('kx'), sp.Symbol('ky'), sp.Symbol('kz'),
+                        sp.Symbol('a'),  sp.Symbol('b'),  sp.Symbol('c')]
+        for params in sorted(self._band_params.keys()):
+            self.var_sym.append(sp.Symbol(params))
+        self.var_sym = tuple(self.var_sym)
+
+        ## Create the dispersion and velocity functions
+        self.e_3D_v_3D_YRZ_definition()
+
+    ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def _get_electronPocket(self):
+        return self._electronPocket
+    def _set_electronPocket(self, electronPocket):
+        print("You can only set this parameter when building the object")
+    electronPocket = property(_get_electronPocket, _set_electronPocket)
+
+    ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    def e_3D_v_3D_YRZ_definition(self):
+
+        """Defines with Sympy the dispersion relation and
+        symbolicly derives the velocity"""
+
+        ## Symbolic variables ///////////////////////////////////////////////////
+        kx = sp.Symbol('kx')
+        ky = sp.Symbol('ky')
+        kz = sp.Symbol('kz')
+        a  = sp.Symbol('a')
+        b  = sp.Symbol('b')
+        mu = sp.Symbol('mu')
+        t = sp.Symbol('t')
+        M  = sp.Symbol('M')
+
+        ## Dispersion //////////////////////////////////////////////////////////
+        if self._electronPocket == True:
+            sign_pocket = 1
+        else:
+            sign_pocket = -1
+
+        self.epsilon_sym = self.epsilon_xy_sym
+        self.epsilon0_sym = -2 * t * (sp.cos(kx*a) + sp.cos(ky*b))
+        self.epsilon_YRZ_sym = (0.5 * (self.epsilon_sym - self.epsilon0_sym)
+            + sign_pocket * sp.sqrt(0.25*(self.epsilon_sym + self.epsilon0_sym)**2
+                                  + (M*(sp.cos(kx*a) - sp.cos(ky*b)))**2))
+        self.epsilon_YRZ_sym += self.epsilon_z_sym
+        self.epsilon_YRZ_sym += - mu
+
+        ## Velocity ////////////////////////////////////////////////////////////
+        self.v_YRZ_sym = [sp.diff(self.epsilon_YRZ_sym, kx), sp.diff(self.epsilon_YRZ_sym, ky), sp.diff(self.epsilon_YRZ_sym, kz)]
+
+        ## Lambdafity //////////////////////////////////////////////////////////
+        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_YRZ_sym, 'numpy')
+        v_func = sp.lambdify(self.var_sym, self.v_YRZ_sym, 'numpy')
+
+        ## Numba ////////////////////////////////////////////////////////////////
+        self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
+        self.v_func = jit(v_func, nopython=True, parallel=True)
