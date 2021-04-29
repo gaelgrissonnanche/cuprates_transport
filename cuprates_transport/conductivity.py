@@ -31,6 +31,7 @@ class Conductivity:
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
                  gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0, a_T = 0, a_T2 = 0,
+                 a_asym=0, p_asym=0,
                  gamma_dos_max=0,
                  gamma_k=0, power=2,
                  a0=0, a1=0, a2=0, a3=0, a4=0, a5=0,
@@ -59,18 +60,24 @@ class Conductivity:
                                               self._N_epsilon)
 
 
-        # Scattering rate
-        self.gamma_0       = gamma_0 # in THz
+        # Scattering rate energy-dependent
         self.a_epsilon     = a_epsilon # in THz/meV
         self.a_abs_epsilon = a_abs_epsilon # in THz/meV
         self.a_epsilon_2   = a_epsilon_2 # in THz/meV^2
         self.a_T           = a_T # unitless
         self.a_T2          = a_T2 # unitless
+
+        # Scattering rate asymmetric Antoine Georger
+        self.a_asym = a_asym # in THz/meV
+        self.p_asym = p_asym # unitless
+
+        # Scattering rate k-dependent
+        self.gamma_0       = gamma_0 # in THz
         self.gamma_dos_max = gamma_dos_max # in THz
         self.gamma_k       = gamma_k # in THz
         self.power         = power
         self.gamma_step    = gamma_step
-        self.phi_step      = phi_step
+        self.phi_step      = np.deg2rad(phi_step)
         self.factor_arcs   = factor_arcs # factor * gamma_0 outsite AF FBZ
         self.a0 = a0
         self.a1 = a1
@@ -86,6 +93,10 @@ class Conductivity:
         self.dtime = self.time_max / self.N_time
         self.time_array = np.arange(0, self.time_max, self.dtime)
         self.dtime_array = np.append(0, self.dtime * np.ones_like(self.time_array))[:-1] # integrand for tau_function
+
+        ## Precision differential equation solver
+        self.rtol = 1e-4 # default is 1.49012e-8
+        self.atol = 1e-4 # default is 1.49012e-8
 
         # Time-dependent kf, vf
         self.kft = np.empty(1)
@@ -228,7 +239,7 @@ class Conductivity:
             # Flatten to get all the initial kf solved at the same time
             self.bandObject.kf.shape = (3 * len_kf,)
             # Sovle differential equation
-            self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.time_array, rtol = 1e-4, atol = 1e-4).transpose()
+            self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.time_array, rtol = self.rtol, atol = self.atol).transpose()
             # Reshape arrays
             self.bandObject.kf.shape = (3, len_kf)
             self.kft.shape = (3, len_kf, len_t)
@@ -339,32 +350,30 @@ class Conductivity:
         phi = arctan2(ky, kx)
         return self.a0 + self.a1 * np.abs(cos(2*phi))**12 + self.a2 * np.abs(cos(2*phi))**2
 
+    def gamma_skew_marginal_fl(self, epsilon):
+        return np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 +  (self.a_T * kB * meV / hbar * 1e-12 * self.T)**2)
+
+    def gamma_fl(self, epsilon):
+        return self.a_epsilon_2 * epsilon**2 + self.a_T2 * (kB * meV / hbar * 1e-12 * self.T)**2
+
+    def gamma_skew_planckian(self, epsilon):
+        x = epsilon / (kB * self.T)
+        x = np.where(x == 0, 1.0e-20, x)
+        return (self.a_asym * kB * self.T) * ((x + self.p_asym)/2) * np.cosh(x/2) / np.sinh((x + self.p_asym)/2) / np.cosh(self.p_asym/2)
+
     def tau_total_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
         """Computes the total lifetime based on the input model
         for the scattering rate"""
 
-        epsilon = epsilon
-
-        ## Gamma epsilon^coeff_k
-        # gamma_tot *= self.gamma_0 * np.ones_like(kx)
-        # if self.gamma_k!=0:
-        #     # phi = arctan2(ky, kx)
-        #     gamma_tot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
-
-        # ## Gamma |epsilon|*cos(2*phi)
-        # gamma_tot = (1 + self.a_epsilon_2 * epsilon**2)
-        # gamma_tot *= self.gamma_0 * np.ones_like(kx)
-        # if self.gamma_k!=0:
-        #     gamma_tot += self.gamma_k_Func(kx, ky, kz) * (self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))
-
-        # gamma_tot = 1 + self.a_epsilon * epsilon + self.a_abs_epsilon * sqrt((kB*self.T)**2 + np.abs(epsilon)**2) + self.a_epsilon_2*((kB*self.T)**2 + epsilon**2)
+        ## Initialize
         gamma_tot = self.gamma_0 * np.ones_like(kx)
 
-        if self.a_epsilon!=0 or self.a_abs_epsilon!=0 or self.a_T!=0 or self.a_epsilon_2!=0 or self.a_T2!=0:
-            # gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 + self.a_T * (kB * self.T)**2)
-            gamma_tot += np.sqrt((self.a_epsilon * epsilon + self.a_abs_epsilon * np.abs(epsilon))**2 +  (self.a_T * kB * meV / hbar * 1e-12 * self.T)**2)
-            # gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * self.T**2
-            gamma_tot += self.a_epsilon_2 * epsilon**2 + self.a_T2 * (kB * meV / hbar * 1e-12 * self.T)**2
+        if self.a_epsilon!=0 or self.a_abs_epsilon!=0 or self.a_T!=0:
+            gamma_tot += self.gamma_skew_marginal_fl(epsilon)
+        if self.a_epsilon_2!=0 or self.a_T2!=0:
+            gamma_tot += self.gamma_fl(epsilon)
+        if self.a_asym!=0 or self.p_asym!=0:
+            gamma_tot += self.gamma_skew_planckian(epsilon)
         if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
             # gamma_tot += self.gamma_poly_Func(kx, ky, kz)
             gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
@@ -384,7 +393,7 @@ class Conductivity:
         return 1/gamma_tot
 
 
-    def t_o_tau_func(self, espilon = 0):
+    def t_o_tau_func(self, epsilon = 0):
         ## Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
         ## Magnetic Field ON
         if self.Bamp !=0:
@@ -395,7 +404,7 @@ class Conductivity:
                                                           self.vft[0, :, :],
                                                           self.vft[1, :, :],
                                                           self.vft[2, :, :],
-                                                          espilon)), axis = 1)
+                                                          epsilon)), axis = 1)
         ## Magnetic Field OFF
         else:
             self.t_o_tau = 1 / self.tau_total_func(self.kft[0, :, 0],
@@ -404,7 +413,7 @@ class Conductivity:
                                                    self.vft[0, :, 0],
                                                    self.vft[1, :, 0],
                                                    self.vft[2, :, 0],
-                                                   espilon)
+                                                   epsilon)
 
     def tau_total_max(self):
         # Compute the tau_max (the longest time between two collisions)

@@ -20,6 +20,7 @@ params = {
     "c": 13.2,
     "energy_scale": 190,
     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
+    "fudge_vF": "1 + 5 * cos(2*atan2(ky, kx))**12",
     "res_xy": 500,
     "res_z": 201,
 }
@@ -43,8 +44,9 @@ def dos_to_gamma(dos, V_molar):
 
 
 ## Array of parameters
-tz_array = np.array([0, 0.06512192]) # in units of t
-mu_array = np.linspace(-1.2, -0.54, 2000) # in units of t
+tz_array = np.array([0.06512192]) # in units of t
+# mu_array = np.linspace(-0.75, -0.88, 20) # in units of t
+mu_array = np.array([-0.82439881])
 
 ## Bandstructure
 bandObject = BandStructure(**params)
@@ -135,8 +137,8 @@ fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6)) # (1,1) means one plot, and
 
 fig.subplots_adjust(left = 0.18, right = 0.82, bottom = 0.18, top = 0.95) # adjust the box of axes regarding the figure size
 
-axes2 = axes.twinx()
-axes2.set_axisbelow(True)
+# axes2 = axes.twinx()
+# axes2.set_axisbelow(True)
 
 ## Color map
 cmap = mpl.cm.get_cmap("viridis", len(tz_array))
@@ -149,27 +151,27 @@ colors[-1] = (1, 0, 0, 1)
 
 for i, tz in enumerate(tz_array):
     line = axes.plot(p_matrix[i,:], gamma_matrix[i,:], label=r"$\gamma$ ($t_{\rm z}$ = " + "{:.3f}".format(tz) + ")")
-    plt.setp(line, ls ="-", c = colors[i], lw = 2, marker = "")
+    plt.setp(line, ls ="-", c = colors[i], lw = 2, marker = "o")
 
-    line = axes2.plot(p_matrix[i,:], mc_matrix[i,:], label=r"$m_{\rm c}$")
-    plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "")
+    # line = axes2.plot(p_matrix[i,:], mc_matrix[i,:], label=r"$m_{\rm c}$")
+    # plt.setp(line, ls ="--", c = colors[i], lw = 2, marker = "s")
 
 
 #############################################
 axes.set_xlim(0.1,0.4)
 axes.tick_params(axis='x', which='major', pad=15)
 axes.tick_params(axis='y', which='major', pad=8)
-axes2.tick_params(axis='y', which='major', pad=8)
+# axes2.tick_params(axis='y', which='major', pad=8)
 axes.set_xlabel(r"$p$", labelpad = 8)
 axes.set_ylabel(r"$\gamma$ ( mJ / K$^2$ mol )")
-axes.set_ylim(0, 20)
-axes2.set_ylim(bottom=0)
-axes2.set_ylabel(r"$m_{\rm c}$", labelpad = 40, rotation = 270)
+axes.set_ylim(bottom=0)
+# axes2.set_ylim(bottom=0)
+# axes2.set_ylabel(r"$m_{\rm c}$", labelpad = 40, rotation = 270)
 #############################################
 
 
 axes.legend(loc = 2, fontsize = 14, frameon = False, numpoints=1, markerscale=1.0, handletextpad=0.5)
-axes2.legend(loc = 1, fontsize = 14, frameon = False, numpoints=1, markerscale=1.0, handletextpad=0.5)
+# axes2.legend(loc = 1, fontsize = 14, frameon = False, numpoints=1, markerscale=1.0, handletextpad=0.5)
 
 
 # ## Set ticks space and minor ticks space ############

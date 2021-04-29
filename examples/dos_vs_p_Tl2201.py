@@ -10,14 +10,31 @@ meVolt = 1.602e-22 # 1 eV in Joule
 Angstrom = 1e-10 # 1 A in meters
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
-# Platé or Peets et al.
+# # Platé et al.
+# params = {
+#     "bandname": "LargePocket",
+#     "a": 3.87,
+#     "b": 3.87,
+#     "c": 23.2,
+#     "energy_scale": 181.25,
+#     "band_params":{"mu":-1.33, "t": 1, "tp":-0.42, "tpp":-0.021, "tppp": 0.111, "tpppp":-0.005, "tz":0.015},
+#     "res_xy": 500,
+#     "res_z": 201,
+#     "epsilon_xy":  ( "-2 * t * (cos(a*kx) + cos(b*ky))"
+#                    + "-4 * tp * cos(a*kx)*cos(b*ky)"
+#                    + "-2 * tpp * (cos(2*a*kx) + cos(2*b*ky))"
+#                    + "-2 * tppp * (cos(2 * kx * a) * cos(ky * b) + cos(kx * a) * cos(2 * ky * b))"
+#                    + "-4 * tpppp * cos(2 * kx * a) * cos(2 * ky * b)"),
+# }
+
+# Palczewski et al. PRB 78, 0545232008
 params = {
     "bandname": "LargePocket",
     "a": 3.87,
     "b": 3.87,
     "c": 23.2,
-    "energy_scale": 181.25,
-    "band_params":{"mu":-1.33, "t": 1, "tp":-0.42, "tpp":-0.021, "tppp": 0.111, "tpppp":-0.005, "tz":0.015},
+    "energy_scale": 180.4,
+    "band_params":{"mu":-1.215, "t": 1, "tp":-0.2050, "tpp":0.239, "tppp": 0.0222, "tpppp":-0.0669, "tz":0.015},
     "res_xy": 500,
     "res_z": 201,
     "epsilon_xy":  ( "-2 * t * (cos(a*kx) + cos(b*ky))"

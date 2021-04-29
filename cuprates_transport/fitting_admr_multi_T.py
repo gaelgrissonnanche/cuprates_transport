@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
 
-from cuprates_transport.bandstructure import BandStructure, Pocket, setMuToDoping, doping
+from cuprates_transport.bandstructure import BandStructure, PiPiBandStructure, setMuToDoping, doping
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -54,7 +54,7 @@ class FittingADMR:
         if pipi_FSR==False:
             self.bandObject = BandStructure(**self.member_dict[self.data_T_list[0]])
         else:
-            self.bandObject = Pocket(**self.member_dict[self.data_T_list[0]])
+            self.bandObject = PiPiBandStructure(**self.member_dict[self.data_T_list[0]])
 
         self.condObject_dict = {}
         self.admrObject_dict = {}
