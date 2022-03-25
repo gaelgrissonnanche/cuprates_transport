@@ -375,8 +375,8 @@ class Conductivity:
         if self.a_asym!=0 or self.p_asym!=0:
             gamma_tot += self.gamma_skew_planckian(epsilon)
         if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
-            # gamma_tot += self.gamma_poly_Func(kx, ky, kz)
-            gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
+            gamma_tot += self.gamma_poly_Func(kx, ky, kz)
+            # gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
             # gamma_tot += self.gamma_ndlsco_tl2201_Func(kx, ky, kz)
         if self.gamma_k!=0:
             gamma_tot += self.gamma_k_Func(kx, ky, kz)

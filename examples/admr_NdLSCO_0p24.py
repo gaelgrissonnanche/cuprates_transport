@@ -48,11 +48,12 @@ params = {
     "Btheta_max": 90,
     "Btheta_step": 5,
     "Bphi_array": [0, 45],
-    "gamma_0": 11,
+    "gamma_0": 15,
     "gamma_k": 75,
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
+    # "epsilon_z":"+2*tz*cos(c*kz)"
     # "epsilon_z":"-2 * cos(c*kz/2)*(" +\
     #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
     #             "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
@@ -183,6 +184,13 @@ print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
 # # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
 # # condObject.figArcs()
 
+# sigmaxx_h = condObject.chambersFunc(0,0)
+# sigmaxy_h = condObject.chambersFunc(0,1)
+# sigmazz_h = condObject.chambersFunc(2,2)
+# print("1band-------------")
+# print("rhoxx =", 1/sigmaxx_h*1e8, "uOhm.cm")
+# print("rhozz =", 1/sigmazz_h*1e5, "mOhm.cm")
+# print("RH =", sigmaxy_h/(sigmaxx_h**2 + sigmaxy_h**2) * 1e9 / params["Bamp"], "mm^3 / C")
 
 # ## Compute ADMR
 amro1band = ADMR([condObject], **params)

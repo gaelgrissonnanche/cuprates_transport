@@ -320,7 +320,7 @@ class FittingADMR:
             #############################################
 
             #############################################
-            axes.set_xlim(0, 90)
+            axes.set_xlim(0, self.admrObject.Btheta_max)
             # axes.set_ylim(1+1.2*(min_y-1),1.2*(max_y-1)+1)
             axes.tick_params(axis='x', which='major', pad=7)
             axes.tick_params(axis='y', which='major', pad=8)
