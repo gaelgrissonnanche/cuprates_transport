@@ -170,10 +170,12 @@ class ADMR:
         Data = Data.transpose()
 
         ## Build header ---------------------------------------------------------
+        if folder != "":
+            folder += "/"
         if filename == None:
-            filename = folder + "/Rzz_" + self.fileNameFunc() + ".dat"
+            filename = folder + "Rzz_" + self.fileNameFunc() + ".dat"
         else:
-            filename = folder + "/" + filename
+            filename = folder + filename
         np.savetxt(filename, Data, fmt='%.7e',
         header = DataHeader, comments = "#")
 
@@ -263,10 +265,12 @@ class ADMR:
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:
+            if folder != "":
+                folder += "/"
             if filename == None:
-                filename = folder + "/Rzz_" + self.fileNameFunc() + ".pdf"
+                filename = folder + "Rzz_" + self.fileNameFunc() + ".pdf"
             else:
-                filename = folder + "/" + filename
+                filename = folder + filename
             file_figures = PdfPages(filename)
             for fig in fig_list:
                 file_figures.savefig(fig)

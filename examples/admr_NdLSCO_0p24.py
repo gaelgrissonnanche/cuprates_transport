@@ -182,7 +182,6 @@ print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
 # # condObject.figScatteringPhi(kz=0)
 # # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
-# # condObject.figArcs()
 
 # sigmaxx_h = condObject.chambersFunc(0,0)
 # sigmaxy_h = condObject.chambersFunc(0,1)
