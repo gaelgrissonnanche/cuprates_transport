@@ -21,13 +21,14 @@ try:
 except IndexError:
     switch = "LargePocket"
 
-band_switch = None
-# band_switch = "yamaji"
+# band_switch = None
+band_switch = "yamaji"
 # band_switch = "af"
 
-tau_switch = None
-tau_switch = "long"
-# tau_swhitch = "medium"
+# tau_switch = None
+tau_switch = "tau10"
+# tau_switch = "tau1"
+# tau_switch = "tau0.1"
 
 default_params = {
     "bandname": "LargePocket",
@@ -47,7 +48,7 @@ default_params = {
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
-    "Bphi_array": [0, 15, 30, 45],
+    "Bphi_array": [0],#, 15, 30, 45],
     "gamma_0": 15.1,
     "gamma_k": 84,
     "N_time": 500,
@@ -71,30 +72,36 @@ if band_switch in ["hp", "hpocket", "hole", "af", "AF"]:
 elif band_switch in ["free", "yamaji"]:
     default_params.update({
         "bandname": "yamaji",
-        "tp": -0.154,
-        "tpp": 0.074,
+        "tp": -0,
+        "tpp": 0,
         "tz": 0.,
         "tz4": 0.05,
         "free_term": 1.0,
         "mu": -0.7,
         "numberOfKz": 31,
-        "mesh_ds": 1/100,
+        "mesh_ds": 1/30,
         "Bphi_array": [0],
+        "gamma_k": 0,
     })
 
-if tau_switch in ["long", "full"]:
+if tau_switch in ["tau0.1"]:
     default_params.update({
         "gamma_0": 0.1,
         "gamma_k": 0,
-        "N_time": 1000,
         "Btheta_step": 1,
     }) 
-elif tau_switch in ["medium", "intermediate"]:
+elif tau_switch in ["tau1"]:
     default_params.update({
         "gamma_0": 1,
         "gamma_k": 0,
-        "N_time": 500,
+        "Btheta_step": 1,
     }) 
+elif tau_switch in ["tau10"]:
+    default_params.update({
+        "gamma_0": 10,
+        "gamma_k": 0,
+        "Btheta_step": 1,
+    })
 
 
 params = easy_args(default_params, out_dict=True)
@@ -187,7 +194,6 @@ color_labels = {  # copy-pasted from https://www.unicodeit.net
     # ajouter v^2 tau (champ nul)
     # ajouter vv̅ρ-(vv̅ρ)₀ pour phi
 }
-
 
 def fermiSurfacePlot(theta=0, phi=0, view_selected=0):  
     print(theta)
