@@ -21,7 +21,7 @@ kB = Boltzmann # J / K
 kB = kB / meV # meV / K
 
 ## This coefficient takes into accound all units and constant to prefactor the movement equation
-units_move_eq =  e * Angstrom**2 * picosecond * meV / hbar**2
+units_move_eq = 1# e * Angstrom**2 * picosecond * meV / hbar**2
 
 ## This coefficient takes into accound all units and constant to prefactor Chambers formula
 units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
