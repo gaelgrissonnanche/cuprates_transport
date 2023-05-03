@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from lmfit import minimize, Parameters, fit_report
 
-from cuprates_transport.bandstructure import Pocket
-from cuprates_transport.conductivity import Conductivity
-from cuprates_transport.admr import ADMR
+from gael_modified.bandstructure import Pocket
+from gael_modified.conductivity import Conductivity
+from gael_modified.admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 sample_name = r"Nd-LSCO $p$ = 0.21"

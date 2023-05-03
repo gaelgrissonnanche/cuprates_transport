@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
 
-from cuprates_transport.bandstructure import BandStructure, PiPiBandStructure, setMuToDoping, doping
-from cuprates_transport.admr import ADMR
-from cuprates_transport.conductivity import Conductivity
+from gael_modified.bandstructure import BandStructure, PiPiBandStructure, setMuToDoping, doping
+from gael_modified.admr import ADMR
+from gael_modified.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMR:

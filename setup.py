@@ -1,7 +1,7 @@
 from distutils.core import setup
 setup(
-  name = 'cuprates_transport',         # How you named your package folder (MyLib)
-  packages = ['cuprates_transport'],   # Chose the same as "name"
+  name = 'gael_modified',         # How you named your package folder (MyLib)
+  packages = ['gael_modified'],   # Chose the same as "name"
   version = '0.6',      # Start with a small number and increase it with every change you make
   license='gpl-3.0',        # Chose a license from here: https://help.github.com/articles/licensing-a-repository
   description = 'Computes Boltzmann transport from a tight binding model',   # Give a short description about your library

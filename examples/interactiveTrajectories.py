@@ -11,8 +11,8 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from skimage import measure
 from textwrap import dedent as d
-from cuprates_transport.bandstructure import BandStructure, Pocket
-from cuprates_transport.conductivity import Conductivity
+from gael_modified.bandstructure import BandStructure, Pocket
+from gael_modified.conductivity import Conductivity
 
 startTime = time.time()
 print('discretizing fermi surface')

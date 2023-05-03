@@ -1,4 +1,4 @@
-from cuprates_transport.fitting_admr import FittingADMR
+from gael_modified.fitting_admr import FittingADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 # ## Darren Peets paramters

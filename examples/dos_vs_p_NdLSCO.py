@@ -5,7 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator, FormatStrFormatter
 import os
-from cuprates_transport.bandstructure import BandStructure, Pocket, setMuToDoping, doping
+from gael_modified.bandstructure import BandStructure, Pocket, setMuToDoping, doping
 meVolt = 1.602e-22 # 1 eV in Joule
 Angstrom = 1e-10 # 1 A in meters
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#

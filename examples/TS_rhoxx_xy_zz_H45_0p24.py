@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
 
-from cuprates_transport.bandstructure import BandStructure
-from cuprates_transport.conductivity import Conductivity
-from cuprates_transport.admr import ADMR
+from gael_modified.bandstructure import BandStructure
+from gael_modified.conductivity import Conductivity
+from gael_modified.admr import ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 e = 1.6e-19 # C

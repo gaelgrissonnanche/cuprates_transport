@@ -1,5 +1,5 @@
 35.8e-5from numpy import deg2rad
-from cuprates_transport.fitting_admr_multi_T import FittingADMR
+from gael_modified.fitting_admr_multi_T import FittingADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 ## ONE BAND Matt et al. ///////////////////////////////////////////////////////
