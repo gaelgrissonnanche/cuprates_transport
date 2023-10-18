@@ -45,9 +45,9 @@ params = {
     "T" : 0,
     "Bamp": 45,
     "Btheta_min": 0,
-    "Btheta_max": 90,
+    "Btheta_max": 140,
     "Btheta_step": 5,
-    "Bphi_array": [0, 45],
+    "Bphi_array": [0],
     "gamma_0": 15,
     "gamma_k": 75,
     "gamma_dos_max": 0,
@@ -118,7 +118,7 @@ params = {
 #     # "a1": 8.49772756,
 #     # "a2": -141.605389,
 #     # "a3": 830.306324,
-#     # "a4": -1644.49799,
+#     # "a4": -144.49799,
 #     # "a5": 598.753854,
 # }
 
@@ -166,18 +166,19 @@ bandObject = BandStructure(**params)
 # bandObject.setMuToDoping(0.15)
 # print(bandObject["mu"])
 bandObject.runBandStructure(printDoping=True)
+# bandObject.figDiscretizeFS3D()
 # bandObject.mc_func()
 # print("mc = " + "{:.3f}".format(bandObject.mc))
 # bandObject.figMultipleFS2D()
 # # bandObject.figDiscretizeFS2D()
-
+# print(bandObject.kf.shape)
 
 # ## Compute conductivity
 condObject = Conductivity(bandObject, **params)
 condObject.runTransport()
 # condObject.figScatteringColor()
-condObject.omegac_tau_func()
-print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
+# condObject.omegac_tau_func()
+# print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
 # condObject.figOnekft()
 # # condObject.figScatteringPhi(kz=0)
 # # condObject.figScatteringPhi(kz=pi/bandObject.c)
@@ -194,5 +195,8 @@ print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
 # ## Compute ADMR
 amro1band = ADMR([condObject], **params)
 amro1band.runADMR()
-amro1band.fileADMR(folder="sim/NdLSCO_0p24")
+print("rzz(75)  = " + str(amro1band.rhozz_array[0][-8]))
+print("rzz(105) = " + str(amro1band.rhozz_array[0][-2]))
+print("delta    = " + str(amro1band.rhozz_array[0][-2] - amro1band.rhozz_array[0][-8]))
+# amro1band.fileADMR(folder="sim/NdLSCO_0p24")
 amro1band.figADMR(folder="sim/NdLSCO_0p24")

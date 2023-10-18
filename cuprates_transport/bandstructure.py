@@ -8,6 +8,9 @@ from numba import jit
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from copy import deepcopy
+import mcubes
+import pyvista as pv
+import pyacvd
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 # Constant //////
@@ -28,12 +31,18 @@ class BandStructure:
                  band_name="band_1",
                  epsilon_xy = "", epsilon_z = "", fudge_vF = "1",
                  res_xy=20, res_z=1,
+                 parallel=True,
                  **trash):
 
         self._energy_scale = energy_scale  # the value of "t" in meV
         self.a = a  # in Angstrom
         self.b = b  # in Angstrom
         self.c = c  # in Angstrom
+
+        self.parallel = parallel # deicdes if to run Numba in parallel or not,
+                                 # it increases the speed for a single instance
+                                 # but it decreases the speed if multiprocessing
+                                 # is running
 
         ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         try:
@@ -88,11 +97,12 @@ class BandStructure:
 
         ## Discretization
         self.res_xy_rough = 501 # number of subdivisions of the FBZ in units of Pi in the plane for to run the Marching Square
-        self.res_xy       = res_xy  # number of subdivisions of the FBZ in units of Pi in the plane for the Fermi surface
+        if res_xy % 2 == 0:
+            res_xy += 1
         if res_z % 2 == 0:  # make sure it is an odd number
             res_z += 1
+        self.res_xy = res_xy  # number of subdivisions of the FBZ in units of Pi in the plane for the Fermi surface
         self.res_z = res_z  # number of subdivisions of the FBZ in units of Pi in the plane
-        self.half_FS = True # if True, kz 0 -> 2pi, if False, kz -2pi to 2pi
 
         ## Fermi surface
         self.kf  = None # in Angstrom^-1
@@ -184,8 +194,12 @@ class BandStructure:
         v_func = sp.lambdify(self.var_sym, self.v_sym, 'numpy')
 
         ## Numba ////////////////////////////////////////////////////////////////
-        self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
-        self.v_func = jit(v_func, nopython=True, parallel=True)
+        if self.parallel is True:
+            self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
+            self.v_func = jit(v_func, nopython=True, parallel=True)
+        else:
+            self.epsilon_func = jit(epsilon_func, nopython=True)
+            self.v_func = jit(v_func, nopython=True)
 
 
     def bandParameters(self):
@@ -241,7 +255,7 @@ class BandStructure:
         # Number of electron in the Brillouin zone per plane
         n_per_kz = 2 * np.sum(np.greater_equal(0, epsilon), axis=(0, 1)) / Nz / self.numberOfBZ # 2 is for the spin
         p_per_kz = 1 - n_per_kz
-        return p_per_kz
+        return n_per_kz, p_per_kz
 
     def diffDoping(self, mu, ptarget):
         self._band_params["mu"] = mu
@@ -254,7 +268,6 @@ class BandStructure:
         """
         res_xy_rough: make denser rough meshgrid to interpolate after
         """
-
         ## Initialize kx and ky arrays
         if self.a == self.b: # tetragonal case
             kx_a = np.linspace(0, pi / self.a, self.res_xy_rough)
@@ -263,17 +276,9 @@ class BandStructure:
             kx_a = np.linspace(-pi / self.a, pi / self.a, 2*self.res_xy_rough)
             ky_a = np.linspace(-pi / self.b, pi / self.b, 2*self.res_xy_rough)
 
-
         ## Initialize kz array
-        if self.half_FS==True:
-            kz_a = np.linspace(0, 2 * pi / self.c, self.res_z)
-            # half of FBZ, 2*pi/c because bodycentered unit cell
-            dkz = 2 * (2 * pi / self.c / self.res_z) # integrand along z, in A^-1
-            # factor 2 for dkz is because integratation is only over half kz,
-            # so the final integral needs to be multiplied by 2.
-        else:
-            kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.res_z)
-            dkz = 4 * pi / self.c / self.res_z # integrand along z, in A^-1
+        kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.res_z)
+        dkz = kz_a[1] - kz_a[0] # integrand along z, in A^-1
 
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
@@ -301,10 +306,10 @@ class BandStructure:
                 number_of_points_on_contour = int(max(np.ceil(np.max(s) / (pi/self.res_xy)), 4)) # choose at least a minimum of 4 points per contour
                 number_of_points_per_kz += number_of_points_on_contour
 
-                dks = np.max(s) / (number_of_points_on_contour + 1) / self.a  # dk path
+                dks = np.max(s) / (number_of_points_on_contour-1) / self.a  # dk path
 
                 # regular spaced path, add one
-                s_int = np.linspace(0, np.max(s), number_of_points_on_contour + 1)
+                s_int = np.linspace(0, np.max(s), number_of_points_on_contour)
                 # interpolate and remove the last point (not to repeat)
                 x_int = np.interp(s_int, s, x)[:-1]
                 y_int = np.interp(s_int, s, y)[:-1]
@@ -346,6 +351,7 @@ class BandStructure:
         # dim -> (n, i0) = (xyz, position on FS)
         self.kf = np.vstack([kxf, kyf, kzf])
 
+        # self.marching_cube()
         # Compute Velocity at t = 0 on Fermi Surface
         vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
         # dim -> (n, i0) = (xyz, position on FS)
@@ -354,6 +360,164 @@ class BandStructure:
         ## Output message
         if PrintEnding == True:
             print("Band: " + self.band_name + ": discretized")
+
+    def marching_cube(self, epsilon=0):
+
+
+        # ## Generate a uniform meshgrid
+        # # dx = np.pi/self.a/(self.res_xy-1)
+        # # dy = np.pi/self.a/(self.res_xy-1)
+        # # dz = 2*np.pi/self.c/(self.res_z-1)
+        # # kx_a = np.arange(0, np.pi / self.a, dx)
+        # # ky_a = np.arange(0, np.pi / self.b, dy)
+        # # kz_a = np.arange(0, 2*np.pi / self.c, dz)
+        # kx_a = np.linspace(0, np.pi / self.a, self.res_xy)
+        # ky_a = np.linspace(0, np.pi / self.b, self.res_xy)
+        # kz_a = np.linspace(0, 2*np.pi / self.c, self.res_z)
+        # kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
+        # ## Use marching cubes to discritize the Fermi surface
+        # verts, faces, normals, _ = measure.marching_cubes(self.e_3D_func(kxx, kyy, kzz),
+        #         level=epsilon, spacing=(kx_a[1]-kx_a[0],
+        #                                 ky_a[1]-ky_a[0],
+        #                                 kz_a[1]-kz_a[0]),
+        #                                 method='lewiner')
+        # ## Shape of verts is: (N_verts, 3)
+        # ## Shape of faces is: (N_faces, 3)
+        # ## Shape of triangles is: (N_faces, 3, 3)
+        # ## Shape of sides is: (N_faces, 2, 3)
+        # ## Shape of normal_vecs is: (N_faces, 3)
+        # ## Shape of areas is: (N_faces)
+        # ## Compute areas of the triangles (defined by the faces)
+        # triangles = verts[faces]
+        # x_dump = verts[:,0]
+        # y_dump = verts[:,1]
+        # z_dump = verts[:,2]
+        # fx_dump = faces[:,0]
+        # fy_dump = faces[:,1]
+        # fz_dump = faces[:,2]
+        # tx_dump = triangles[:, 0, :]
+        # ty_dump = triangles[:, 1, :]
+        # tz_dump = triangles[:, 2, :]
+        # for i, angle in enumerate([pi / 2, pi, 3 * pi / 2]):
+        #     x_int_p, y_int_p = self.rotation(verts[:,0], verts[:,1], angle)
+        #     tx_int_p, ty_int_p = self.rotation(triangles[:, 0, :], triangles[:, 1, :], angle)
+        #     x_dump = np.append(x_dump, x_int_p)
+        #     y_dump = np.append(y_dump, y_int_p)
+        #     z_dump = np.append(z_dump, verts[:,2])
+        #     fx_dump = np.append(fx_dump, faces[:,0] + (i+1)*(verts.shape[0]))
+        #     fy_dump = np.append(fy_dump, faces[:,1] + (i+1)*(verts.shape[0]))
+        #     fz_dump = np.append(fz_dump, faces[:,2] + (i+1)*(verts.shape[0]))
+        #     tx_dump = np.append(tx_dump, tx_int_p)
+        #     ty_dump = np.append(ty_dump, ty_int_p)
+        #     tz_dump = np.append(tz_dump, triangles[:,2,:])
+        # verts = np.vstack((x_dump, y_dump, z_dump)).transpose()
+        # faces = np.vstack((fx_dump, fy_dump, fz_dump)).transpose()
+        # triangles = np.vstack((tx_dump, ty_dump, tz_dump)).transpose()
+
+        # ## Plot pyvista
+        # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
+        # mesh = pv.PolyData(verts, vfaces)
+        # ## Plot original mesh
+        # mesh.plot(show_edges=True) # , scalars='values')
+
+        kx_a = np.linspace(-np.pi / self.a, np.pi / self.a, self.res_xy)
+        ky_a = np.linspace(-np.pi / self.b, np.pi / self.b, self.res_xy)
+        kz_a = np.linspace(-2*np.pi / self.c, 2*np.pi / self.c, self.res_z)
+        kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
+        # Use marching cubes to discritize the Fermi surface
+        verts, faces, normals, values = measure.marching_cubes(self.e_3D_func(kxx, kyy, kzz),
+                level=epsilon, spacing=(kx_a[1]-kx_a[0],
+                                        ky_a[1]-ky_a[0],
+                                        kz_a[1]-kz_a[0]),
+                                        method='lewiner')
+        ## Shape of verts is: (N_verts, 3)
+        ## Shape of faces is: (N_faces, 3)
+        ## Shape of triangles is: (N_faces, 3, 3)
+        ## Shape of sides is: (N_faces, 2, 3)
+        ## Shape of normal_vecs is: (N_faces, 3)
+        ## Shape of areas is: (N_faces)
+        ## Recenter the Fermi surface after Marching Cube in the center of the BZ
+        verts[:,0] = verts[:,0] - np.pi/self.a
+        verts[:,1] = verts[:,1] - np.pi/self.b
+        verts[:,2] = verts[:,2] - 2*np.pi/self.c
+        triangles = verts[faces]
+
+
+
+        # ## Pyvista and PyACVD Remeshing
+        # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
+        # mesh = pv.PolyData(verts, vfaces)
+        # mesh['Normals'] = normals
+        # mesh['values'] = values
+        # ## Plot original mesh
+        # # mesh.plot(show_edges=True) # , scalars='values')
+        # ## Uniform mesh
+        # clus = pyacvd.Clustering(mesh)
+        # # if mesh is not dense enough for uniform remeshing
+        # # clus.subdivide(5)
+        # clus.cluster(20000)
+        # # remesh
+        # remesh = clus.create_mesh()
+        # # plot uniformly remeshed cow
+        # # remesh.plot(color='w', show_edges=True)
+        # verts = remesh.points
+        # faces = remesh.faces.reshape(-1, 4)[:, 1:]
+
+
+
+
+
+
+        ## Trimesh
+        # import trimesh
+        # mesh = trimesh.Trimesh(vertices=verts, faces=faces)
+        # # Define the number of points you want
+        # num_points = 1000
+        # # Sample uniformly on the surface of the mesh
+        # sampled_points, face_indices = trimesh.sample.sample_surface_even(mesh, num_points)
+        # # Generate a mesh from the sampled points
+        # sampled_mesh = trimesh.remesh.subdivide(sampled_points, face_indices)
+        # # 'sampled_mesh' will be a Trimesh object representing the sampled mesh with new faces
+        # verts = sampled_mesh.vertices
+        # faces = sampled_mesh.faces
+
+
+        # ## MCubes
+        # b_x = np.pi / self.a
+        # b_y = np.pi / self.b
+        # b_z = 2*np.pi / self.c
+        # 2*b_x/(self.res_xy-1)
+        # verts, faces = mcubes.marching_cubes_func((-b_x,-b_y,-b_z), # Lower bound
+        #                                            (b_x, b_y, b_z), # Upper bound
+        #                                             self.res_xy, # Number of samples in each dimension
+        #                                             self.res_xy,
+        #                                             self.res_z,
+        #                                             self.e_3D_func,
+        #                                             epsilon) # Isosurface value
+
+        ## Calculate areas
+        sides = np.diff(triangles, axis=-2) # vectors that represent the sides of the triangles
+        normal_vecs = np.cross(sides[...,0,:], sides[...,1,:]) # cross product of two vectors
+                            # of the faces to calculate the areas of the triangles
+        areas = np.linalg.norm(normal_vecs, axis=-1)/2 # calculate the area of the triangles
+                            # by taking the norm of the cross product vector and divide by 2
+
+        self.kf = (triangles[:,0,:] + triangles[:,1,:] + triangles[:,2,:]) / 3
+        self.kf = self.kf.transpose()
+        self.dkf = areas
+
+        # import visvis as vv
+        # vv.mesh(np.fliplr(verts), faces, normals, values)
+        # vv.use().Run()
+
+        # ## Compute weight of each kf in surface integral
+        # self.dkf = np.zeros(len(verts))
+        # verts_repeated = faces.flatten() # shape is (3*N_faces)
+        # weights = np.repeat(areas/3, 3)  #1/3 for the volume of an irregular triangular prism
+        # self.dkf += np.bincount(verts_repeated, weights)
+        # self.kf = verts
+        # self.kf = self.kf.transpose()
+
 
     def rotation(self, x, y, angle):
         xp = cos(angle) * x + sin(angle) * y

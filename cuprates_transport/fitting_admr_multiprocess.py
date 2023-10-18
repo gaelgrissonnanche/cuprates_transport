@@ -1,51 +1,54 @@
 import json
 import numpy as np
 import time
+import sys
 from copy import deepcopy
-from lmfit import minimize, Parameters, report_fit
+from psutil import cpu_count
+from multiprocessing import Pool, Value
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
+from scipy.optimize import differential_evolution
 
 from cuprates_transport.bandstructure import BandStructure, PiPiBandStructure, setMuToDoping, doping
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-class FittingADMR:
-    def __init__(self, init_member, ranges_dict, data_dict, pipi_FSR=False,
+class FittingADMRParallel:
+    def __init__(self, init_member, bounds_dict, data_dict, pipi_FSR=False,
                  folder="",
-                 method="differential_evolution",
-                 population=100, N_generation=20, mutation_s=0.1, crossing_p=0.9,
-                 normalized_data=True,
+                 normalized_data=True, popsize=15,
                  **trash):
         ## Initialize
-        self.init_member = deepcopy(init_member)
-        self.member      = deepcopy(init_member)
-        self.ranges_dict = ranges_dict
+        self.init_member = deepcopy(init_member) # contains all the parameters to calculate ADMR
+        self.member      = deepcopy(init_member) # contains all the parameters to calculate ADMR
+        self.bounds_dict = bounds_dict
         self.data_dict   = data_dict
+        self.init_time   = time.time()
+        self.popsize = popsize # the popsize for the differential evolution
         self.folder      = folder
         self.normalized_data = normalized_data
         self.pipi_FSR    = pipi_FSR
-        self.pars        = Parameters()
-        for param_name, param_range in self.ranges_dict.items():
-            if param_name in self.init_member.keys():
-                self.pars.add(param_name, value = self.init_member[param_name], min = param_range[0], max = param_range[-1])
-            elif param_name in self.init_member["band_params"].keys():
-                self.pars.add(param_name, value = self.init_member["band_params"][param_name], min = param_range[0], max = param_range[-1])
-        self.method      = method # "shgo", "differential_evolution", "leastsq"
-        ## Differential evolution
-        self.population  = population
-        self.N_generation= N_generation
-        self.mutation_s  = mutation_s
-        self.crossing_p  = crossing_p
+
+        ## Create the list sorted of the free parameters
+        self.pars = {} # dictionnary of free parameters to computre residual
+        self.free_pars_name  = sorted(self.bounds_dict.keys())
+        self.fixed_pars_name = np.setdiff1d(sorted(self.init_member.keys()),
+                                             self.free_pars_name)
+        ## Create tuple of bounds for scipy
+        self.bounds  = []
+        for free_name in self.free_pars_name:
+            self.bounds.append((self.bounds_dict[free_name][0],
+                                self.bounds_dict[free_name][1]))
+        self.bounds = tuple(self.bounds)
 
         ## Objects
         if pipi_FSR==False:
-            self.bandObject = BandStructure(**self.member)
+            self.bandObject = BandStructure(**self.member, parallel=False)
         else:
-            self.bandObject = PiPiBandStructure(**self.member)
+            self.bandObject = PiPiBandStructure(**self.member, parallel=False)
         self.condObject = None
         self.admrObject = None
 
@@ -61,28 +64,30 @@ class FittingADMR:
         self.rzz_data_dict    = {}
 
 
-    def produce_ADMR_object(self):
+    def generate_admr(self):
+        """Takes care of creating the ADMR object with the member values"""
         ## Update bandObject
-        for param_name in self.ranges_dict.keys():
+        for param_name in self.bounds_dict.keys():
                 if hasattr(self.bandObject, param_name):
                     setattr(self.bandObject, param_name, self.member[param_name])
                 if param_name in self.bandObject._band_params.keys():
                     self.bandObject[param_name] = self.member["band_params"][param_name]
-
-        ## Adjust the doping if need be
+        ## Adjust the doping if required
         if self.member["fixdoping"] >=-1 and self.member["fixdoping"] <=1:
             self.bandObject.setMuToDoping(self.member["fixdoping"])
             self.member["band_params"]["mu"] = self.bandObject["mu"]
-
+        ## Calculate the bandObject
         self.bandObject.runBandStructure()
+        ## Create Conductivity object
         self.condObject = Conductivity(self.bandObject, **self.member)
-        self.admrObject = ADMR([self.condObject], **self.member)
+        ## Create ADMR object
+        self.admrObject = ADMR([self.condObject], **self.member, progress_bar=False)
         self.admrObject.Btheta_array = self.Btheta_array
         self.admrObject.Bphi_array = self.Bphi_array
 
 
     def load_Bphi_data(self):
-        ## Create array of phi at the selected temperature
+        """Create array of phi angles at the selected temperature"""
         Bphi_array = []
         for t, phi in self.data_dict.keys():
             if (self.member["data_T"] == t) * np.isin(phi, np.array(self.member["Bphi_array"])):
@@ -92,19 +97,17 @@ class FittingADMR:
 
 
     def load_Btheta_data(self):
-        ## Create Initial Btheta
+        """Creates the theta angles at the selected temperatures and phi"""
         Btheta_array = np.arange(self.member["Btheta_min"],
                                  self.member["Btheta_max"] + self.member["Btheta_step"],
                                  self.member["Btheta_step"])
         ## Create Bphi
         self.load_Bphi_data()
-
         # Cut Btheta_array to theta_cut
         Btheta_cut_array = np.zeros(len(self.Bphi_array))
         for i, phi in enumerate(self.Bphi_array):
             Btheta_cut_array[i] = self.data_dict[self.member["data_T"], phi][3]
         Btheta_cut_min = np.min(Btheta_cut_array)  # minimum cut for Btheta_array
-
         # New Btheta_array with cut off if necessary
         self.Btheta_array = Btheta_array[Btheta_array <= Btheta_cut_min]
 
@@ -117,7 +120,6 @@ class FittingADMR:
         self.load_Btheta_data()
         ## Create array of phi at the selected temperature
         self.load_Bphi_data()
-
         ## Interpolate data over theta of simulation
         self.rzz_data_matrix = np.zeros((len(self.Bphi_array), len(self.Btheta_array)))
         self.rhozz_data_matrix = np.zeros((len(self.Bphi_array), len(self.Btheta_array)))
@@ -126,33 +128,29 @@ class FittingADMR:
             col_theta    = self.data_dict[self.member["data_T"], phi][1]
             col_rzz      = self.data_dict[self.member["data_T"], phi][2]
             rhozz_0      = self.data_dict[self.member["data_T"], phi][4]
-
+            ## Load data
             data = np.loadtxt(filename, dtype="float", comments="#")
             theta = data[:, col_theta]
             rzz   = data[:, col_rzz]
-
-            ## Order data
+            ## Sort data
             index_order = np.argsort(theta)
             theta = theta[index_order]
             rzz   = rzz[index_order]
-
+            ## Normalize data
             rzz  /= np.interp(0, theta, rzz)
             rzz_i = np.interp(self.Btheta_array, theta, rzz) # "i" is for interpolated
-
+            ## Store data
             self.rhozz_data_matrix[i, :] = rzz_i * rhozz_0
             self.rzz_data_matrix[i, :] = rzz_i
 
 
-    def compute_diff(self, pars):
+    def compute_diff(self, x):
         """Compute diff = sim - data matrix"""
-
-        self.pars = pars
-
-        start_total_time = time.time()
-
+        ## Creates the dictionnary of variables
+        for i, pars_name in enumerate(self.free_pars_name):
+            self.pars[pars_name] = x[i]
         ## Load data
         self.load_and_interp_data()
-
         ## Update Btheta & Bphi function of the data
         self.member["Bphi_array"]  = list(self.Bphi_array)
         self.member["Btheta_min"]  = float(np.min(self.Btheta_array)) # float need for JSON
@@ -160,67 +158,39 @@ class FittingADMR:
         self.member["Btheta_step"] = float(self.Btheta_array[1] - self.Btheta_array[0])
 
         ## Update member with fit parameters
-        for param_name in self.ranges_dict.keys():
-            if param_name in self.init_member.keys():
-                self.member[param_name] = self.pars[param_name].value
-            elif param_name in self.init_member["band_params"].keys():
-                self.member["band_params"][param_name] = self.pars[param_name].value
-            print(param_name + " : " + "{0:g}".format(self.pars[param_name].value))
+        for pars_name in self.free_pars_name:
+            if pars_name in self.init_member.keys():
+                self.member[pars_name] = self.pars[pars_name]
+            elif pars_name in self.init_member["band_params"].keys():
+                self.member["band_params"][pars_name] = self.pars[pars_name]
 
         ## Compute ADMR ------------------------------------------------------------
-        self.produce_ADMR_object()
+        start_total_time = time.time()
+        self.generate_admr()
         self.admrObject.runADMR()
 
-        self.nb_calls += 1
-        print("---- call #" + str(self.nb_calls) + " in %.6s seconds ----" % (time.time() - start_total_time))
-
+        ## Increment the global counter
+        global shared_num_member
+        ## += operation is not atomic, so we need to get a lock:
+        with shared_num_member.get_lock():
+            shared_num_member.value += 1
+        num_member = shared_num_member.value
+        num_gen = np.floor(num_member / (self.popsize*len(self.bounds))) + 1
+        print('Gen #' + str(int(num_gen)) + ' ----' +
+        'Member #' + str(num_member) + ' ----' +
+        'Time elapsed ' + " %.6s seconds" % (time.time() - self.init_time), end='\r')
+        sys.stdout.flush()
+#  - num_gen * (num_member % (self.popsize*len(self.bounds)))
         ## Compute diff
         diff_matrix = np.zeros_like(self.rzz_data_matrix)
         for i in range(self.Bphi_array.size):
-            if self.normalized_data==True:
+            if self.normalized_data is True:
                 diff_matrix[i, :] = self.rzz_data_matrix[i, :] - self.admrObject.rzz_array[i, :]
             else:
                 diff_matrix[i, :] = (self.rhozz_data_matrix[i, :] - self.admrObject.rhozz_array[i, :])*1e5
-
-        return diff_matrix.flatten()
-
-
-    def runFit(self, filename=None):
-        ## Initialize parameters
-
-        self.nb_calls = 0
-
-        ## Run fit algorithm
-        if self.method=="least_square":
-            out = minimize(self.compute_diff, self.pars)
-        if self.method=="shgo":
-            out = minimize(self.compute_diff, self.pars,
-                           method='shgo', sampling_method='sobol', options={"f_tol": 1e-16}, n = 100, iters=20)
-        if self.method=="differential_evolution":
-            out = minimize(self.compute_diff, self.pars,
-                           method='differential_evolution')
-        if self.method=="ampgo":
-            out = minimize(self.compute_diff, self.pars,
-                           method='ampgo')
-        else:
-            print("This method does not exist in the class")
-
-        ## Display fit report
-        report_fit(out)
-
-        ## Export final parameters from the fit
-        for param_name in self.ranges_dict.keys():
-            if param_name in self.init_member.keys():
-                self.member[param_name] = out.params[param_name].value
-            elif param_name in self.init_member["band_params"].keys():
-                self.member["band_params"][param_name] = out.params[param_name].value
-
-        ## Save BEST member to JSON
-        self.save_member_to_json(filename=filename)
-
-        ## Compute the FINAL member
-        self.fig_compare(fig_save=True, figname=filename)
-
+        self.condObject = None
+        self.admrObject = None
+        return np.sum(diff_matrix.flatten()**2)
 
     def load_member_from_json(self):
         with open(self.folder + "/" + self.json_name, "r") as f:
@@ -228,7 +198,7 @@ class FittingADMR:
 
 
     def save_member_to_json(self, filename=None):
-        self.produce_ADMR_object()
+        self.generate_admr()
         if filename==None:
             filename = "data_" + \
             "p" + "{0:.2f}".format(self.member["data_p"]) + "_" + \
@@ -269,7 +239,7 @@ class FittingADMR:
             self.rzz_data_dict[phi]    = rzz[theta<=Btheta_cut]
 
         ## Run ADMR
-        self.produce_ADMR_object()
+        self.generate_admr()
         self.admrObject.runADMR()
 
         ## Plot >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -366,16 +336,111 @@ class FittingADMR:
             file_figures.close()
 
 
+## Functions for fit -------------------------------------------------------------
+shared_num_member = None
+
+def init(num_member):
+    """store the counter for later use """
+    global shared_num_member
+    shared_num_member = num_member
+
+def runFit(init_member, bounds_dict, data_dict, filename=None,
+           popsize=15, mutation=(0.5, 1), recombination=0.7):
+    ## Create fitting object for parallel calculations
+    fit_object = FittingADMRParallel(init_member=init_member, bounds_dict=bounds_dict, data_dict=data_dict, popsize=popsize)
+    percent_workers = 100
+    num_cpu = cpu_count(logical=False)
+    num_workers = int(percent_workers / 100 * num_cpu)
+    print("# cpu cores: " + str(num_cpu))
+    print("# workers: " + str(num_workers))
+    ## Initialize counter
+    num_member = Value('i', 1)
+    ## Create pool of workers
+    pool = Pool(processes=num_workers,
+                initializer = init, initargs = (num_member, ))
+    ## Differential evolution
+    ## Run fit algorithm in parallel
+    res = differential_evolution(fit_object.compute_diff, fit_object.bounds,
+                                 updating='deferred', workers=pool.map,
+                                 popsize=popsize, mutation=mutation,
+                                 recombination=recombination, polish=False)
+    print(res.x)
+    print(res.fun)
+    pool.terminate()
+    # ## Display fit report
+    # report_fit(out)
+    # ## Export final parameters from the fit
+    for i, pars_name in enumerate(fit_object.free_pars_name):
+        if pars_name in fit_object.init_member.keys():
+            fit_object.member[pars_name] = res.x[i]
+        elif pars_name in fit_object.init_member["band_params"].keys():
+            fit_object.member["band_params"][pars_name] = res.x[i]
+        print(pars_name + " : " + "{0:g}".format(res.x[i]))
+    ## Save BEST member to JSON
+    fit_object.save_member_to_json(filename=filename)
+    ## Compute the FINAL member
+    fit_object.fig_compare(fig_save=True, figname=filename)
+    return fit_object.member
 
 
+if __name__ == '__main__':
+    ## ONE BAND Matt et al. ///////////////////////////////////////////////////////
+    init_member = {
+    "bandname": "LargePocket",
+    "a": 3.75,
+    "b": 3.75,
+    "c": 13.2,
+    "energy_scale": 190,
+    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
+    "res_xy": 20,
+    "res_z": 7,
+    # "fudge_vF": "1 + 5 * cos(2*atan2(ky, kx))**12",
+    "fixdoping": 2,
+    "T" : 0,
+    "Bamp": 45,
+    "Btheta_min": 0,
+    "Btheta_max": 90,
+    "Btheta_step": 5,
+    "Bphi_array": [0, 15, 30, 45],
+    "gamma_0": 15,
+    "gamma_k": 65.756,
+    "gamma_dos_max": 0,
+    "power": 12.21,
+    "factor_arcs": 1,
+    "data_T": 25,
+    "data_p": 0.24,
+    "epsilon_z": ""
+    }
 
+    ## For FIT
+    bounds_dict = {
+        "gamma_0": [10,30],
+        "gamma_k": [0,150],
+        "power":[1, 20],
+    }
 
+    ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, rhozz_0] # rhozz_0 in SI units
+    data_dict[25, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+    data_dict[25, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+    data_dict[25, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+    data_dict[25, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
 
+    data_dict[20, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+    data_dict[20, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+    data_dict[20, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+    data_dict[20, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
 
-# if __name__ == '__main__':
-#     admr = produce_ADMR_object(member)
-#     admr.runADMR()
-#     chi2 = compute_chi2(admr, data_dict, init_member["data_T"])
-#     print('deviation from experiment :',chi2)
-#     compare_plot(admr, member["experiment_p"], member["experiment_T"])
+    data_dict[12, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+    data_dict[12, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+    data_dict[12, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+
+    data_dict[6, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+    data_dict[6, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+    data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+
+    t0 = time.time()
+    runFit(init_member, bounds_dict, data_dict)
+    print("## Total time: ", time.time()-t0, "s")
+
 

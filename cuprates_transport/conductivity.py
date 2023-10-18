@@ -33,8 +33,10 @@ class Conductivity:
                  gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0, a_T = 0, a_T2 = 0,
                  a_asym=0, p_asym=0,
                  gamma_dos_max=0,
+                 gamma_cmfp_max=0,
                  gamma_k=0, power=2,
                  a0=0, a1=0, a2=0, a3=0, a4=0, a5=0,
+                 gamma_kpi4=0, powerpi4=0,
                  l_path=0,
                  gamma_step=0, phi_step=0,
                  factor_arcs=1,
@@ -74,6 +76,7 @@ class Conductivity:
         # Scattering rate k-dependent
         self.gamma_0       = gamma_0 # in THz
         self.gamma_dos_max = gamma_dos_max # in THz
+        self.gamma_cmfp_max = gamma_cmfp_max
         self.gamma_k       = gamma_k # in THz
         self.power         = power
         self.gamma_step    = gamma_step
@@ -85,6 +88,8 @@ class Conductivity:
         self.a3 = a3
         self.a4 = a4
         self.a5 = a5
+        self.gamma_kpi4 = gamma_kpi4
+        self.powerpi4 = powerpi4
         self.l_path = l_path # in Angstrom, mean free path for gamma_vF
 
         # Time parameters
@@ -237,11 +242,12 @@ class Conductivity:
         ## Magnetic Field ON
         if self.Bamp != 0:
             # Flatten to get all the initial kf solved at the same time
-            self.bandObject.kf.shape = (3 * len_kf,)
+            self.bandObject.kf = self.bandObject.kf.flatten()
             # Sovle differential equation
             self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.time_array, rtol = self.rtol, atol = self.atol).transpose()
             # Reshape arrays
-            self.bandObject.kf.shape = (3, len_kf)
+            self.bandObject.kf = np.reshape(self.bandObject.kf, (3, len_kf))
+            # self.bandObject.kf.shape = (3, len_kf)
             self.kft.shape = (3, len_kf, len_t)
             # Velocity function of time
             self.vft = np.empty_like(self.kft, dtype = np.float64)
@@ -275,9 +281,9 @@ class Conductivity:
         inverse_omegac_tau_k = prefactor * 2*pi*kf_perp / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))
         self.omegac_tau_k = 1 / inverse_omegac_tau_k
 
-        ## Integrated over the Fermi surface
-        inverse_omegac_tau = np.sum(prefactor * dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))) / self.bandObject.res_z  # divide by the number of kz to average over all kz
-        self.omegac_tau = 1 / inverse_omegac_tau
+        # ## Integrated over the Fermi surface
+        # inverse_omegac_tau = np.sum(prefactor * dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))) / self.bandObject.res_z  # divide by the number of kz to average over all kz
+        # self.omegac_tau = 1 / inverse_omegac_tau
 
 
 
@@ -300,6 +306,11 @@ class Conductivity:
         dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (dos / dos_max)
 
+    def gamma_cmfp_Func(self, vx, vy, vz):
+        vf = sqrt( vx**2 + vy**2 + vz**2 )
+        vf_max = np.max(self.bandObject.vf)  # value to normalize the DOS to a quantity without units
+        return self.gamma_cmfp_max * (vf / vf_max)
+
     def gamma_vF_Func(self, vx, vy, vz):
         """vx, vy, vz are in Angstrom.meV
            l_path is in Angstrom
@@ -311,8 +322,15 @@ class Conductivity:
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
-        phi = arctan2(ky, kx)
+        phi = arctan2(ky, kx) #+ np.pi/4
         return self.gamma_k * np.abs(cos(2*phi))**self.power
+
+    def gamma_coskpi4_Func(self, kx, ky, kz):
+        ## Make sure kx and ky are in the FBZ to compute Phi.
+        kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
+        ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
+        phi = arctan2(ky, kx) #+ np.pi/4
+        return self.gamma_kpi4 * np.abs(cos(2*(phi+1*pi/4)))**self.powerpi4
 
     def gamma_poly_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
@@ -320,7 +338,7 @@ class Conductivity:
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
         phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
-        return np.abs(self.a0 + self.a1 * phi_p + self.a2 * phi_p**2 + self.a3 * phi_p**3 + self.a4 * phi_p**4 + self.a5 * phi_p**5)
+        return self.a0 + np.abs(self.a1 * phi_p + self.a2 * phi_p**2 + self.a3 * phi_p**3 + self.a4 * phi_p**4 + self.a5 * phi_p**5)
 
     def gamma_tanh_Func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
@@ -375,15 +393,20 @@ class Conductivity:
         if self.a_asym!=0 or self.p_asym!=0:
             gamma_tot += self.gamma_skew_planckian(epsilon)
         if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
+            # gamma_tot += self.gamma_cosk_coskpi4_Func(kx, ky, kz)
             gamma_tot += self.gamma_poly_Func(kx, ky, kz)
             # gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
             # gamma_tot += self.gamma_ndlsco_tl2201_Func(kx, ky, kz)
+        if self.gamma_kpi4!=0:
+            gamma_tot += self.gamma_coskpi4_Func(kx, ky, kz)
         if self.gamma_k!=0:
             gamma_tot += self.gamma_k_Func(kx, ky, kz)
         if self.gamma_step!=0:
             gamma_tot += self.gamma_step_Func(kx, ky, kz)
         if self.gamma_dos_max!=0:
             gamma_tot += self.gamma_DOS_Func(vx, vy, vz)
+        if self.gamma_cmfp_max!=0:
+            gamma_tot += self.gamma_cmfp_Func(vx, vy, vz)
         if self.l_path != 0:
             gamma_tot += self.gamma_vF_Func(vx, vy, vz)
         if self.factor_arcs!=1:

@@ -232,7 +232,7 @@ class FittingADMR:
         return diff
 
 
-    def runFit(self):
+    def runFit(self, filename=None):
         ## Initialize parameters
 
         self.nb_calls = 0
@@ -269,10 +269,10 @@ class FittingADMR:
                     self.member_dict[T]["band_params"][param_name] = out.params[param_name].value
 
         ## Save BEST member to JSON
-        self.save_member_to_json()
+        self.save_member_to_json(filename=filename)
 
         ## Compute the FINAL member
-        self.fig_compare(fig_save=True)
+        self.fig_compare(fig_save=True, figname=filename)
 
 
     def load_member_from_json(self):
@@ -280,17 +280,20 @@ class FittingADMR:
             self.member_dict = json.load(f)
 
 
-    def save_member_to_json(self):
+    def save_member_to_json(self, filename=None):
         self.produce_ADMR_object()
-        path = self.folder + "/data_" + "p" + "{0:.2f}".format(self.member_dict[self.data_T_list[0]]["data_p"]) + "_T_"
-        for T in self.data_T_list:
-            path += "{0:.1f}".format(self.member_dict[T]["data_T"]) + "K_"
-        path += "fit_.json"
+        if filename==None:
+            path = self.folder + "/data_" + "p" + "{0:.2f}".format(self.member_dict[self.data_T_list[0]]["data_p"]) + "_T_"
+            for T in self.data_T_list:
+                path += "{0:.1f}".format(self.member_dict[T]["data_T"]) + "K_"
+            path += "fit_.json"
+        else:
+            path = self.folder + "/" + filename + ".json"
         with open(path, 'w') as f:
             json.dump(self.member_dict, f, indent=4)
 
 
-    def fig_compare(self, fig_show=True, fig_save=False):
+    def fig_compare(self, fig_show=True, fig_save=False, figname=None):
 
         ## Load data  ------------------------------------------------------------
         self.load_and_interp_data()
@@ -383,10 +386,14 @@ class FittingADMR:
 
         ## Save figures list --------------
         if fig_save == True:
-            path = self.folder + "/data_" + "p" + "{0:.2f}".format(self.member_dict[self.data_T_list[0]]["data_p"]) + "_T_"
-            for T in self.data_T_list:
-                path += "{0:.1f}".format(self.member_dict[T]["data_T"]) + "K_"
-            path += "fit_.pdf"
+            if figname==None:
+                path = self.folder + "/data_" + "p" + "{0:.2f}".format(self.member_dict[self.data_T_list[0]]["data_p"]) + "_T_"
+                for T in self.data_T_list:
+                    path += "{0:.1f}".format(self.member_dict[T]["data_T"]) + "K_"
+                path += "fit_.pdf"
+            else:
+                path = self.folder + "/" + figname + ".pdf"
+
             file_figures = PdfPages(path)
             for fig in fig_list:
                 file_figures.savefig(fig)

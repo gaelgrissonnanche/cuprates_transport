@@ -9,7 +9,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 class ADMR:
     def __init__(self, initialcondObjectList, Btheta_min=0, Btheta_max=110,
-                 Btheta_step=5, Bphi_array=[0, 15, 30, 45], **trash):
+                 Btheta_step=5, Bphi_array=[0, 15, 30, 45], progress_bar=True, **trash):
 
         # Band dictionary
         self.initialCondObjectDict = {} # will contain the condObject for each band, with key their bandname
@@ -20,6 +20,7 @@ class ADMR:
         self.bandNamesList = list(self.initialCondObjectDict.keys())
         self.totalHoleDoping = 1 - self.totalFilling # total bands hole doping over all bands
 
+        self.progress_bar = progress_bar # shows progress bar or not
 
         # Magnetic field
         self.Btheta_min   = Btheta_min    # in degrees
@@ -45,7 +46,11 @@ class ADMR:
 
         rhozz_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
 
-        for l, phi in enumerate(tqdm(self.Bphi_array, ncols=80, unit="phi", desc="ADMR")):
+        if self.progress_bar is True:
+            iterator = enumerate(tqdm(self.Bphi_array, ncols=80, unit="phi", desc="ADMR"))
+        else:
+            iterator = enumerate(self.Bphi_array)
+        for l, phi in iterator:
             for m, theta in enumerate(self.Btheta_array):
 
                 sigma_zz = 0
@@ -221,6 +226,7 @@ class ADMR:
             cmap = mpl.cm.get_cmap('jet', self.Bphi_array.size)
             colors = cmap(np.arange(self.Bphi_array.size))
         else:
+            # colors = ['#1A52A5', '#00D127', '#CE0000'][::-1]
             colors = ['#000000', '#3B528B', '#FF0000', '#C7E500']
 
         axes2 = axes.twinx()

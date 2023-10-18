@@ -56,32 +56,32 @@ init_member = {
 #     "epsilon_z": "- 2*tz*(cos(a*kx) - cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2) - 2*tz_d*cos(c/2*kz)",
 # }
 
-## For step scattering rate //////////////////////////////////////////////////////
-init_member = {
-    "bandname": "LargePocket",
-    "a": 3.75,
-    "b": 3.75,
-    "c": 13.2,
-    "energy_scale": 190,
-    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
-    "res_xy": 100,
-    "res_z": 7,
-    "fixdoping": 0.205,
-    "T" : 0,
-    "Bamp": 45,
-    "Btheta_min": 0,
-    "Btheta_max": 90,
-    "Btheta_step": 5,
-    "Bphi_array": [0, 15, 30, 45],
-    "gamma_0": 15,
-    "gamma_k": 65.756,
-    "gamma_dos_max": 0,
-    "power": 12.21,
-    "factor_arcs": 1,
-    "data_T": 25,
-    "data_p": 0.24,
-    "epsilon_z": ""
-}
+# ## For step scattering rate //////////////////////////////////////////////////////
+# init_member = {
+#     "bandname": "LargePocket",
+#     "a": 3.75,
+#     "b": 3.75,
+#     "c": 13.2,
+#     "energy_scale": 190,
+#     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
+#     "res_xy": 100,
+#     "res_z": 7,
+#     "fixdoping": 0.205,
+#     "T" : 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 90,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0, 15, 30, 45],
+#     "gamma_0": 15,
+#     "gamma_k": 65.756,
+#     "gamma_dos_max": 0,
+#     "power": 12.21,
+#     "factor_arcs": 1,
+#     "data_T": 25,
+#     "data_p": 0.24,
+#     "epsilon_z": ""
+# }
 ## For step scattering rate
 # init_member = {
 #     "bandname": "LargePocket",
@@ -183,5 +183,5 @@ data_dict[6, 45] = ["data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e
 
 fitObject = FittingADMR(init_member, ranges_dict, data_dict, folder="sim/NdLSCO_0p24",
                         method="least_square", normalized_data=True)
-# fitObject.runFit()
-fitObject.fig_compare()
+fitObject.runFit()
+# fitObject.fig_compare()
