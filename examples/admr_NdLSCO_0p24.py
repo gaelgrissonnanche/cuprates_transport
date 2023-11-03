@@ -30,6 +30,37 @@ from cuprates_transport.conductivity import Conductivity
 #     # "epsilon_z": "- 2*tz*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)",
 # }
 
+# ## ADMR absolute Published Nature ////////////////////////////////////////////////
+# params = {
+#     "band_name": "Nd-LSCO",
+#     "a": 3.75,
+#     "b": 3.75,
+#     "c": 13.2,
+#     "energy_scale": 160,
+#     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
+#     "res_xy": 50,
+#     "res_z": 15,
+#     "N_time": 1000,
+#     "T" : 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 140,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0],
+#     "gamma_0": 12.595,
+#     "gamma_k": 63.823,
+#     "gamma_dos_max": 0,
+#     "power": 12,
+#     "factor_arcs": 1,
+#     # "epsilon_z":"+2*tz*cos(c*kz)"
+#     # "epsilon_z":"-2 * cos(c*kz/2)*(" +\
+#     #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
+#     #             "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
+#     #             "-0.50 * tz3 *  cos(3 * kx * a / 2) * cos(3 * ky * b / 2)" +\
+#     #             "+0.25 * tz4 * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))" +\
+#     #             ")",
+# }
+
 
 ## ADMR absolute AMPGO /////////////////////////////////////////////////////
 params = {
@@ -47,7 +78,7 @@ params = {
     "Btheta_min": 0,
     "Btheta_max": 140,
     "Btheta_step": 5,
-    "Bphi_array": [0],
+    "Bphi_array": [0, 15, 30, 45],
     "gamma_0": 15,
     "gamma_k": 75,
     "gamma_dos_max": 0,

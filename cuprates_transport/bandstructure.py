@@ -8,9 +8,7 @@ from numba import jit
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from copy import deepcopy
-import mcubes
-import pyvista as pv
-import pyacvd
+# import mcubes
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 # Constant //////
@@ -443,8 +441,9 @@ class BandStructure:
         triangles = verts[faces]
 
 
-
         # ## Pyvista and PyACVD Remeshing
+        # import pyvista as pv
+        # import pyacvd
         # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
         # mesh = pv.PolyData(verts, vfaces)
         # mesh['Normals'] = normals
@@ -454,46 +453,76 @@ class BandStructure:
         # ## Uniform mesh
         # clus = pyacvd.Clustering(mesh)
         # # if mesh is not dense enough for uniform remeshing
-        # # clus.subdivide(5)
-        # clus.cluster(20000)
+        # clus.subdivide(5)
+        # clus.cluster(200)
         # # remesh
         # remesh = clus.create_mesh()
         # # plot uniformly remeshed cow
-        # # remesh.plot(color='w', show_edges=True)
+        # remesh.plot(color='w', show_edges=True)
         # verts = remesh.points
         # faces = remesh.faces.reshape(-1, 4)[:, 1:]
+        # triangles = verts[faces]
+
+
+        # from quad_mesh_simplify import simplify_mesh
+        # verts, faces = simplify_mesh(verts, faces, 200)
+        # triangles = verts[faces]
 
 
 
 
-
-
-        ## Trimesh
+        # # Trimesh
         # import trimesh
         # mesh = trimesh.Trimesh(vertices=verts, faces=faces)
-        # # Define the number of points you want
-        # num_points = 1000
-        # # Sample uniformly on the surface of the mesh
-        # sampled_points, face_indices = trimesh.sample.sample_surface_even(mesh, num_points)
-        # # Generate a mesh from the sampled points
-        # sampled_mesh = trimesh.remesh.subdivide(sampled_points, face_indices)
-        # # 'sampled_mesh' will be a Trimesh object representing the sampled mesh with new faces
-        # verts = sampled_mesh.vertices
-        # faces = sampled_mesh.faces
+        # # Decimate the mesh to obtain more quadrilateral elements
+        # # adjust the 'percentage' parameter as needed (lower values retain more triangles)
+        # quad_mesh = mesh.simplify_quadric_decimation(face_count=2000)
+        # # Now 'quad_mesh' contains a mesh with more quadrilateral elements
+        # verts = quad_mesh.vertices
+        # faces = quad_mesh.faces
+        # triangles = verts[faces]
+        # import pyvista as pv
+        # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
+        # mesh = pv.PolyData(verts, vfaces)
+        # mesh.plot(show_edges=True) # , scalars='values')
 
 
-        # ## MCubes
-        # b_x = np.pi / self.a
-        # b_y = np.pi / self.b
-        # b_z = 2*np.pi / self.c
-        # 2*b_x/(self.res_xy-1)
-        # verts, faces = mcubes.marching_cubes_func((-b_x,-b_y,-b_z), # Lower bound
-        #                                            (b_x, b_y, b_z), # Upper bound
-        #                                             self.res_xy, # Number of samples in each dimension
-        #                                             self.res_xy,
-        #                                             self.res_z,
-        #                                             self.e_3D_func,
-        #                                             epsilon) # Isosurface value
+
+        # ## Trimesh SYMMETRIES : Mirror
+        # kx_a = np.linspace(0, np.pi / self.a, int((self.res_xy-1)/2))
+        # ky_a = np.linspace(-np.pi / self.b, np.pi / self.b, self.res_xy)
+        # kz_a = np.linspace(-2*np.pi / self.c, 2*np.pi / self.c, self.res_z)
+        # kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
+        # # Use marching cubes to discritize the Fermi surface
+        # verts, faces, normals, values = measure.marching_cubes(self.e_3D_func(kxx, kyy, kzz),
+        #         level=epsilon, spacing=(kx_a[1]-kx_a[0],
+        #                                 ky_a[1]-ky_a[0],
+        #                                 kz_a[1]-kz_a[0]),
+        #                                 method='lewiner')
+        # ## Shape of verts is: (N_verts, 3)
+        # ## Shape of faces is: (N_faces, 3)
+        # ## Shape of triangles is: (N_faces, 3, 3)
+        # ## Shape of sides is: (N_faces, 2, 3)
+        # ## Shape of normal_vecs is: (N_faces, 3)
+        # ## Shape of areas is: (N_faces)
+        # ## Recenter the Fermi surface after Marching Cube in the center of the BZ
+        # verts[:,0] = verts[:,0]
+        # verts[:,1] = verts[:,1] - np.pi/self.b
+        # verts[:,2] = verts[:,2] - 2*np.pi/self.c
+
+        # import trimesh
+        # # Find vertices to be mirrored (for example, assuming symmetry along the x-axis)
+        # mirrored_vertices = verts * [-1, 1, 1]
+        # # Create a mirrored mesh
+        # mirrored_mesh = trimesh.Trimesh(vertices=np.vstack((verts, mirrored_vertices)), faces=np.vstack((faces, faces + len(verts))))
+        # verts = mirrored_mesh.vertices
+        # faces = mirrored_mesh.faces
+        # triangles = verts[faces]
+        # ## Plot mesh
+        # import pyvista as pv
+        # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
+        # mesh = pv.PolyData(verts, vfaces)
+        # mesh.plot(show_edges=True) # , scalars='values')
 
         ## Calculate areas
         sides = np.diff(triangles, axis=-2) # vectors that represent the sides of the triangles
@@ -502,21 +531,17 @@ class BandStructure:
         areas = np.linalg.norm(normal_vecs, axis=-1)/2 # calculate the area of the triangles
                             # by taking the norm of the cross product vector and divide by 2
 
-        self.kf = (triangles[:,0,:] + triangles[:,1,:] + triangles[:,2,:]) / 3
-        self.kf = self.kf.transpose()
-        self.dkf = areas
-
-        # import visvis as vv
-        # vv.mesh(np.fliplr(verts), faces, normals, values)
-        # vv.use().Run()
-
-        # ## Compute weight of each kf in surface integral
-        # self.dkf = np.zeros(len(verts))
-        # verts_repeated = faces.flatten() # shape is (3*N_faces)
-        # weights = np.repeat(areas/3, 3)  #1/3 for the volume of an irregular triangular prism
-        # self.dkf += np.bincount(verts_repeated, weights)
-        # self.kf = verts
+        # self.kf = (triangles[:,0,:] + triangles[:,1,:] + triangles[:,2,:]) / 3
         # self.kf = self.kf.transpose()
+        # self.dkf = areas
+
+        ## Compute weight of each kf in surface integral
+        self.dkf = np.zeros(len(verts))
+        verts_repeated = faces.flatten() # shape is (3*N_faces)
+        weights = np.repeat(areas/3, 3)  #1/3 for the volume of an irregular triangular prism
+        self.dkf += np.bincount(verts_repeated, weights)
+        self.kf = verts
+        self.kf = self.kf.transpose()
 
 
     def rotation(self, x, y, angle):
