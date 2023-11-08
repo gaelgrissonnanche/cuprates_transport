@@ -27,7 +27,7 @@ from cuprates_transport.conductivity import Conductivity
 #     "gamma_dos_max": 0,
 #     "power": 2,
 #     "factor_arcs": 1,
-#     # "epsilon_z": "- 2*tz*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)",
+#     # "e_z": "- 2*tz*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)",
 # }
 
 # ## ADMR absolute Published Nature ////////////////////////////////////////////////
@@ -52,8 +52,8 @@ from cuprates_transport.conductivity import Conductivity
 #     "gamma_dos_max": 0,
 #     "power": 12,
 #     "factor_arcs": 1,
-#     # "epsilon_z":"+2*tz*cos(c*kz)"
-#     # "epsilon_z":"-2 * cos(c*kz/2)*(" +\
+#     # "e_z":"+2*tz*cos(c*kz)"
+#     # "e_z":"-2 * cos(c*kz/2)*(" +\
 #     #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
 #     #             "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
 #     #             "-0.50 * tz3 *  cos(3 * kx * a / 2) * cos(3 * ky * b / 2)" +\
@@ -71,7 +71,7 @@ params = {
     "energy_scale": 190,
     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
     "res_xy": 20,
-    "res_z": 7,
+    "res_z": 11,
     "N_time": 1000,
     "T" : 0,
     "Bamp": 45,
@@ -84,8 +84,8 @@ params = {
     "gamma_dos_max": 0,
     "power": 12,
     "factor_arcs": 1,
-    # "epsilon_z":"+2*tz*cos(c*kz)"
-    # "epsilon_z":"-2 * cos(c*kz/2)*(" +\
+    # "e_z":"+2*tz*cos(c*kz)"
+    # "e_z":"-2 * cos(c*kz/2)*(" +\
     #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
     #             "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
     #             "-0.50 * tz3 *  cos(3 * kx * a / 2) * cos(3 * ky * b / 2)" +\
@@ -192,6 +192,7 @@ params = {
 
 ## Create Bandstructure object
 bandObject = BandStructure(**params)
+# bandObject.march_square = True
 
 ## Discretize Fermi surface
 # bandObject.setMuToDoping(0.15)

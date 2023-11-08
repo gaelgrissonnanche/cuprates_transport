@@ -1,4 +1,4 @@
-35.8e-5from numpy import deg2rad
+from numpy import deg2rad
 from cuprates_transport.fitting_admr_multi_T import FittingADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

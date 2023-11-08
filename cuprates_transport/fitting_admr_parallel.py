@@ -27,7 +27,7 @@ class FittingADMRParallel:
         self.bounds_dict = bounds_dict
         self.data_dict   = data_dict
         self.init_time   = time.time()
-        self.popsize = popsize # the popsize for the differential evolution
+        self.popsize     = popsize # the popsize for the differential evolution
         self.folder      = folder
         self.normalized_data = normalized_data
         self.pipi_FSR    = pipi_FSR

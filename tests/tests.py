@@ -1,7 +1,7 @@
 import unittest
 from copy import deepcopy
 import numpy as np
-from cuprates_transport.bandstructure import BandStructure, Pocket, setMuToDoping, doping
+from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -21,15 +21,10 @@ class TestTransport(unittest.TestCase):
             "res_z": 7,
             "T" : 0,
             "Bamp": 45,
-            "Btheta_min": 0,
-            "Btheta_max": 90,
-            "Btheta_step": 5,
             "Bphi_array": [0, 15, 30, 45],
             "gamma_0": 15.1,
             "gamma_k": 66,
-            "gamma_dos_max": 0,
             "power": 12,
-            "factor_arcs": 1,
         }
 
     def test_doping(self):
@@ -43,9 +38,7 @@ class TestTransport(unittest.TestCase):
         bandObject = BandStructure(**TestTransport.params)
 
         ## Discretize
-        bandObject.doping()
-        bandObject.discretize_FS()
-        bandObject.dos_k_func()
+        bandObject.runBandStructure()
 
         ## Conductivity
         condObject = Conductivity(bandObject, **TestTransport.params)
@@ -53,7 +46,7 @@ class TestTransport(unittest.TestCase):
         condObject.runTransport()
         condObject.chambersFunc(i=2, j=2)
 
-        self.assertEqual(np.round(condObject.sigma[2,2],3), 18817.908)
+        self.assertEqual(np.round(condObject.sigma[2,2],3), 25819.083)
 
 
     def test_conductivity_T_0(self):
@@ -62,16 +55,14 @@ class TestTransport(unittest.TestCase):
         bandObject = BandStructure(**TestTransport.params)
 
         ## Discretize
-        bandObject.doping()
-        bandObject.discretize_FS()
-        bandObject.dos_k_func()
+        bandObject.runBandStructure()
 
         ## Conductivity
         condObject = Conductivity(bandObject, **TestTransport.params)
         condObject.runTransport()
         condObject.chambersFunc(i=2, j=2)
 
-        self.assertEqual(np.round(condObject.sigma[2,2],3), 18103.539)
+        self.assertEqual(np.round(condObject.sigma[2,2],3), 24999.56)
 
 
     def test_conductivity_T(self):
@@ -83,16 +74,14 @@ class TestTransport(unittest.TestCase):
         bandObject = BandStructure(**params)
 
         ## Discretize
-        bandObject.doping()
-        bandObject.discretize_FS()
-        bandObject.dos_k_func()
+        bandObject.runBandStructure()
 
         ## Conductivity
         condObject = Conductivity(bandObject, **params)
         condObject.runTransport()
         condObject.chambersFunc(i=2, j=2, coeff_name="sigma")
 
-        self.assertEqual(np.round(condObject.sigma[2,2],3), 17946.592)
+        self.assertEqual(np.round(condObject.sigma[2,2],3), 24200.735)
 
 if __name__ == '__main__':
     unittest.main()

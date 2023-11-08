@@ -27,7 +27,7 @@ class BandStructure:
                  energy_scale,
                  band_params={"t": 1, "tp":-0.136, "tpp":0.068, "tz":0.07, "mu":-0.83},
                  band_name="band_1",
-                 epsilon_xy = "", epsilon_z = "", fudge_vF = "1",
+                 e_xy = "", e_z = "",
                  res_xy=20, res_z=1,
                  parallel=True,
                  **trash):
@@ -37,7 +37,7 @@ class BandStructure:
         self.b = b  # in Angstrom
         self.c = c  # in Angstrom
 
-        self.parallel = parallel # deicdes if to run Numba in parallel or not,
+        self.parallel = parallel # decides if to run Numba in parallel or not,
                                  # it increases the speed for a single instance
                                  # but it decreases the speed if multiprocessing
                                  # is running
@@ -71,24 +71,21 @@ class BandStructure:
         self.var_sym = tuple(self.var_sym)
 
         ## Build the symbolic in-plane dispersion
-        self.epsilon_sym = None # intialize this attribute
-        if epsilon_xy=="":
-            self.epsilon_xy_sym = sp.sympify("- 2*t*(cos(a*kx) + cos(b*ky))" +\
+        self.e_3D_sym = None # intialize this attribute
+        if e_xy=="":
+            self.e_xy_sym = sp.sympify("- 2*t*(cos(a*kx) + cos(b*ky))" +\
                                              "- 4*tp*cos(a*kx)*cos(b*ky)" +\
                                              "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))")
         else:
-            epsilon_xy = epsilon_xy.replace("mu", "0") # replace is just to remove "mu" if the user has entered it by mistake
-            self.epsilon_xy_sym = sp.sympify(epsilon_xy)
+            e_xy = e_xy.replace("mu", "0") # replace is just to remove "mu" if the user has entered it by mistake
+            self.e_xy_sym = sp.sympify(e_xy)
 
         ## Build the symbolic out-of-plane dispersion
-        if epsilon_z=="":
-            self.epsilon_z_sym = sp.sympify("- 2*tz*(cos(a*kx) - cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)")
+        if e_z=="":
+            self.e_z_sym = sp.sympify("- 2*tz*(cos(a*kx) - cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)")
         else:
-            epsilon_z = epsilon_z.replace("mu", "0") # replace is just to remove "mu" if the user has entered it by mistake
-            self.epsilon_z_sym = sp.sympify(epsilon_z)
-
-        ## Fudge factor on velocity
-        self.fudge_vF = sp.sympify(fudge_vF)
+            e_z = e_z.replace("mu", "0") # replace is just to remove "mu" if the user has entered it by mistake
+            self.e_z_sym = sp.sympify(e_z)
 
         ## Create the dispersion and velocity functions
         self.e_3D_v_3D_definition()
@@ -101,6 +98,7 @@ class BandStructure:
             res_z += 1
         self.res_xy = res_xy  # number of subdivisions of the FBZ in units of Pi in the plane for the Fermi surface
         self.res_z = res_z  # number of subdivisions of the FBZ in units of Pi in the plane
+        self.march_square = False # wether to use or not the marching square for higher symmetries
 
         ## Fermi surface
         self.kf  = None # in Angstrom^-1
@@ -139,6 +137,7 @@ class BandStructure:
     def set_band_param(self, key, val):
         self[key] = val
 
+
     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def _get_energy_scale(self):
         return self._energy_scale
@@ -146,6 +145,7 @@ class BandStructure:
         self._energy_scale = energy_scale
         self.erase_Fermi_surface()
     energy_scale = property(_get_energy_scale, _set_energy_scale)
+
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runBandStructure(self, epsilon=0, printDoping=False):
@@ -169,26 +169,22 @@ class BandStructure:
 
 
     def e_3D_v_3D_definition(self):
-
         """Defines with Sympy the dispersion relation and
         symbolicly derives the velocity"""
-
         ## Symbolic variables ///////////////////////////////////////////////////
         kx = sp.Symbol('kx')
         ky = sp.Symbol('ky')
         kz = sp.Symbol('kz')
         mu = sp.Symbol('mu')
-
         ## Dispersion 3D ////////////////////////////////////////////////////////
-        self.epsilon_sym = self.epsilon_xy_sym + self.epsilon_z_sym  - mu
-
+        self.e_3D_sym = self.e_xy_sym + self.e_z_sym  - mu
         ## Velocity /////////////////////////////////////////////////////////////
-        self.v_sym = [sp.diff(self.epsilon_sym, kx) / self.fudge_vF,
-                      sp.diff(self.epsilon_sym, ky) / self.fudge_vF,
-                      sp.diff(self.epsilon_sym, kz) / self.fudge_vF]
+        self.v_sym = [sp.diff(self.e_3D_sym, kx),
+                      sp.diff(self.e_3D_sym, ky),
+                      sp.diff(self.e_3D_sym, kz)]
 
         ## Lambdafity ///////////////////////////////////////////////////////////
-        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_sym, 'numpy')
+        epsilon_func = sp.lambdify(self.var_sym, self.e_3D_sym, 'numpy')
         v_func = sp.lambdify(self.var_sym, self.v_sym, 'numpy')
 
         ## Numba ////////////////////////////////////////////////////////////////
@@ -203,11 +199,14 @@ class BandStructure:
     def bandParameters(self):
         return [self.a, self.b, self.c] + [value * self.energy_scale for (key, value) in sorted(self._band_params.items())]
 
+
     def e_3D_func(self, kx, ky, kz):
         return self.epsilon_func(kx, ky, kz, *self.bandParameters())
 
+
     def v_3D_func(self, kx, ky, kz):
         return self.v_func(kx, ky, kz, *self.bandParameters())
+
 
     def mc_func(self):
         """
@@ -220,53 +219,119 @@ class BandStructure:
         prefactor = (hbar)**2 / (2 * pi) / self.res_z # divide by the number of kz to average over all kz
         self.mc = prefactor * np.sum(dks / vf_perp) / m0
 
-    def dispersionMesh(self, resX=500, resY=500, resZ=11):
-        kx_a = np.linspace(-pi / self.a, pi / self.a, resX)
-        ky_a = np.linspace(-pi / self.b, pi / self.b, resY)
-        kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, resZ)
-        kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-        epsilon = self.e_3D_func(kxx, kyy, kzz)
-        return epsilon
 
-    def updateFilling(self, resX=500, resY=500, resZ=11):
-        epsilon = self.dispersionMesh(resX, resY, resZ)
-        kVolume = epsilon.shape[0] * epsilon.shape[1] * epsilon.shape[2]
-        self.n = 2 * np.sum(np.greater_equal(0, epsilon)) / kVolume / self.numberOfBZ # 2 is for the spin
+    def dispersion_grid(self, res_x=500, res_y=500, res_z=11):
+        kx_a = np.linspace(-pi / self.a, pi / self.a, res_x)
+        ky_a = np.linspace(-pi / self.b, pi / self.b, res_y)
+        kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, res_z)
+        kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
+        e_3D = self.e_3D_func(kxx, kyy, kzz)
+        return e_3D, kxx, kyy, kzz, kx_a, ky_a, kz_a
+
+
+    def update_filling(self, res_x=500, res_y=500, res_z=11):
+        e_3D, _, _, _, _, _, _ = self.dispersion_grid(res_x, res_y, res_z)
+        kVolume = e_3D.shape[0] * e_3D.shape[1] * e_3D.shape[2]
+        self.n = 2 * np.sum(np.greater_equal(0, e_3D)) / kVolume / self.numberOfBZ # 2 is for the spin
         self.p = 1 - self.n
         return self.n
 
-    def doping(self, resX=500, resY=500, resZ=11, printDoping=False):
-        self.updateFilling(resX,resY,resZ)
+
+    def doping(self, res_x=500, res_y=500, res_z=11, printDoping=False):
+        self.update_filling(res_x,res_y,res_z)
         if printDoping==True:
             print(self.band_name + " :: " + "p=" + "{0:.3f}".format(self.p))
         return self.p
 
-    def filling(self, resX=500, resY=500, resZ=11):
-        self.updateFilling(resX,resY,resZ)
+
+    def filling(self, res_x=500, res_y=500, res_z=11):
+        self.update_filling(res_x,res_y,res_z)
         print("n = " + "{0:.3f}".format(self.n))
         return self.n
 
-    def dopingPerkz(self, resX=500, resY=500, resZ=11):
-        epsilon = self.dispersionMesh(resX, resY, resZ)
+
+    def doping_per_kz(self, res_x=500, res_y=500, res_z=11):
+        e_3D, _, _, _, _, _, _ = self.dispersion_grid(res_x, res_y, res_z)
         # Number of k in the Brillouin zone per plane
-        Nz = epsilon.shape[0] * epsilon.shape[1]
+        Nz = e_3D.shape[0] * e_3D.shape[1]
         # Number of electron in the Brillouin zone per plane
-        n_per_kz = 2 * np.sum(np.greater_equal(0, epsilon), axis=(0, 1)) / Nz / self.numberOfBZ # 2 is for the spin
+        n_per_kz = 2 * np.sum(np.greater_equal(0, e_3D), axis=(0, 1)) / Nz / self.numberOfBZ # 2 is for the spin
         p_per_kz = 1 - n_per_kz
         return n_per_kz, p_per_kz
 
-    def diffDoping(self, mu, ptarget):
+
+    def diff_doping(self, mu, p_target):
         self._band_params["mu"] = mu
-        return self.doping() - ptarget
+        return self.doping() - p_target
 
-    def setMuToDoping(self, pTarget, ptol=0.001):
-        self._band_params["mu"] = optimize.brentq(self.diffDoping, -10, 10, args=(pTarget,), xtol=ptol)
 
-    def discretize_fermi_surface(self, epsilon=0, PrintEnding=False):
+    def set_mu_to_doping(self, p_target, ptol=0.001):
+        self._band_params["mu"] = optimize.brentq(self.diff_doping, -10, 10,
+                                                  args=(p_target,), xtol=ptol)
+
+
+    def discretize_fermi_surface(self, epsilon=0):
+        if self.march_square==True:
+            self.kf, self.dkf = self.marching_square(epsilon)
+        else:
+            self.kf, self.dkf = self.marching_cube(epsilon)
+        # Compute Velocity at t = 0 on Fermi Surface
+        vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
+        # dim -> (n, i0) = (xyz, position on FS)
+        self.vf = np.vstack([vx, vy, vz])
+
+
+    def marching_cube(self, epsilon=0):
+        """Marching cube algorithm used to discretize the Fermi surface
+        It returns: - kf with dimensions (xyz, position on FS)
+                    - dkf with dimensions (position on FS)"""
+
+        ## Generate a uniform meshgrid
+        e_3D, _, _, _, kx_a, ky_a, kz_a = self.dispersion_grid(self.res_xy,
+                                                        self.res_xy, self.res_z)
+        # Use marching cubes to discritize the Fermi surface
+        verts, faces, _, _ = measure.marching_cubes(e_3D,
+                level=epsilon, spacing=(kx_a[1]-kx_a[0],
+                                        ky_a[1]-ky_a[0],
+                                        kz_a[1]-kz_a[0]),
+                                        method='lewiner')
+                                    #---- Shape of verts is: (N_verts, 3)
+                                    #---- Shape of faces is: (N_faces, 3)
+                                    #---- Shape of triangles is: (N_faces, 3, 3)
+                                    #---- Shape of sides is: (N_faces, 2, 3)
+                                    #---- Shape of normal_vecs is: (N_faces, 3)
+                                    #---- Shape of areas is: (N_faces)
+
+        ## Recenter the Fermi surface after Marching Cube in the center of the BZ
+        verts[:,0] = verts[:,0] - kx_a[-1]
+        verts[:,1] = verts[:,1] - ky_a[-1]
+        verts[:,2] = verts[:,2] - kz_a[-1]
+        triangles = verts[faces]
+
+        ## Calculate areas
+        sides = np.diff(triangles, axis=-2) # vectors that represent the sides of the triangles
+        normal_vecs = np.cross(sides[...,0,:], sides[...,1,:]) # cross product of two vectors
+                            # of the faces to calculate the areas of the triangles
+        areas = np.linalg.norm(normal_vecs, axis=-1)/2 # calculate the area of the triangles
+                            # by taking the norm of the cross product vector and divide by 2
+
+        ## Compute weight of each kf in surface integral
+        dkf = np.zeros(len(verts))
+        verts_repeated = faces.flatten() # shape is (3*N_faces)
+        weights = np.repeat(areas/3, 3)  #1/3 for the volume of an irregular triangular prism
+        dkf += np.bincount(verts_repeated, weights)
+        kf = verts.transpose()
+        return kf, dkf
+
+
+    def marching_square(self, epsilon=0):
         """
-        res_xy_rough: make denser rough meshgrid to interpolate after
+        Marching square algorithm used to discretize the Fermi surface per slices
+        It returns: - kf with dimensions (xyz, position on FS)
+                    - dkf with dimensions (position on FS)
         """
         ## Initialize kx and ky arrays
+        ## res_xy_rough: make denser rough meshgrid to interpolate after
         if self.a == self.b: # tetragonal case
             kx_a = np.linspace(0, pi / self.a, self.res_xy_rough)
             ky_a = np.linspace(0, pi / self.b, self.res_xy_rough)
@@ -277,6 +342,11 @@ class BandStructure:
         ## Initialize kz array
         kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.res_z)
         dkz = kz_a[1] - kz_a[0] # integrand along z, in A^-1
+        # kz_a = np.linspace(0, 2 * pi / self.c, self.res_z)
+        #      # half of FBZ, 2*pi/c because bodycentered unit cell
+        # dkz = 2 * (2 * pi / self.c / (self.res_z-1)) # integrand along z, in A^-1
+        #      # factor 2 for dkz is because integratation is only over half kz,
+        #      # so the final integral needs to be multiplied by 2.
 
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
@@ -297,6 +367,7 @@ class BandStructure:
                     x = (contour[:, 0] / (2*self.res_xy_rough - 1) - 0.5) * 2*pi
                     y = (contour[:, 1] / (2*self.res_xy_rough - 1) - 0.5) * 2*pi / (self.b / self.a) # anisotropy
 
+                # path
                 ds = sqrt(np.diff(x)**2 + np.diff(y)**2)  # segment lengths
                 s = np.zeros_like(x)  # arrays of zeros
                 s[1:] = np.cumsum(ds)  # integrate path, s[0] = 0
@@ -304,11 +375,9 @@ class BandStructure:
                 number_of_points_on_contour = int(max(np.ceil(np.max(s) / (pi/self.res_xy)), 4)) # choose at least a minimum of 4 points per contour
                 number_of_points_per_kz += number_of_points_on_contour
 
-                dks = np.max(s) / (number_of_points_on_contour-1) / self.a  # dk path
-
-                # regular spaced path, add one
-                s_int = np.linspace(0, np.max(s), number_of_points_on_contour)
                 # interpolate and remove the last point (not to repeat)
+                s_int = np.linspace(0, np.max(s), number_of_points_on_contour) # path
+                dks = (s_int[1]- s_int[0]) / self.a  # dk path
                 x_int = np.interp(s_int, s, x)[:-1]
                 y_int = np.interp(s_int, s, y)[:-1]
 
@@ -326,19 +395,19 @@ class BandStructure:
                 # Put in an array /////////////////////////////////////////////////////#
                 if i == 0 and j == 0:  # for first contour and first kz
                     kxf = x_int / self.a
-                    kyf = y_int / self.a
+                    kyf = y_int / self.b
                     # self.a (and not b) because anisotropy is taken into account earlier
                     kzf = kz * np.ones_like(x_int)
+                    dkf = dks * dkz * np.ones_like(x_int)
                     self.dks = dks * np.ones_like(x_int)
                     self.dkz = dkz * np.ones_like(x_int)
-                    self.dkf = dks * dkz * np.ones_like(x_int)
                 else:
                     kxf = np.append(kxf, x_int / self.a)
-                    kyf = np.append(kyf, y_int / self.a)
+                    kyf = np.append(kyf, y_int / self.b)
                     kzf = np.append(kzf, kz * np.ones_like(x_int))
+                    dkf = np.append(dkf, dks * dkz * np.ones_like(x_int))
                     self.dks = np.append(self.dks, dks * np.ones_like(x_int))
                     self.dkz = np.append(self.dkz, dkz * np.ones_like(x_int))
-                    self.dkf = np.append(self.dkf, dks * dkz * np.ones_like(x_int))
 
             if self.a == self.b:
                 # discretize one fourth of FS, therefore need * 4
@@ -346,208 +415,31 @@ class BandStructure:
             else:
                 self.number_of_points_per_kz_list.append(number_of_points_per_kz)
 
+
+        # if self.half_FS==True:
+        #     kz_a = np.linspace(0, 2 * pi / self.c, self.res_z)
+        #     # half of FBZ, 2*pi/c because bodycentered unit cell
+        #     dkz = 2 * (2 * pi / self.c / self.res_z) # integrand along z, in A^-1
+        #     # factor 2 for dkz is because integratation is only over half kz,
+        #     # so the final integral needs to be multiplied by 2.
+        # else:
+        #     kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.res_z)
+        #     dkz = 4 * pi / self.c / self.res_z # integrand along z, in A^-1
+
+
+
         # dim -> (n, i0) = (xyz, position on FS)
-        self.kf = np.vstack([kxf, kyf, kzf])
+        kf = np.vstack([kxf, kyf, kzf])
 
-        # self.marching_cube()
-        # Compute Velocity at t = 0 on Fermi Surface
-        vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
-        # dim -> (n, i0) = (xyz, position on FS)
-        self.vf = np.vstack([vx, vy, vz])
+        return kf, dkf
 
-        ## Output message
-        if PrintEnding == True:
-            print("Band: " + self.band_name + ": discretized")
-
-    def marching_cube(self, epsilon=0):
-
-
-        # ## Generate a uniform meshgrid
-        # # dx = np.pi/self.a/(self.res_xy-1)
-        # # dy = np.pi/self.a/(self.res_xy-1)
-        # # dz = 2*np.pi/self.c/(self.res_z-1)
-        # # kx_a = np.arange(0, np.pi / self.a, dx)
-        # # ky_a = np.arange(0, np.pi / self.b, dy)
-        # # kz_a = np.arange(0, 2*np.pi / self.c, dz)
-        # kx_a = np.linspace(0, np.pi / self.a, self.res_xy)
-        # ky_a = np.linspace(0, np.pi / self.b, self.res_xy)
-        # kz_a = np.linspace(0, 2*np.pi / self.c, self.res_z)
-        # kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-        # ## Use marching cubes to discritize the Fermi surface
-        # verts, faces, normals, _ = measure.marching_cubes(self.e_3D_func(kxx, kyy, kzz),
-        #         level=epsilon, spacing=(kx_a[1]-kx_a[0],
-        #                                 ky_a[1]-ky_a[0],
-        #                                 kz_a[1]-kz_a[0]),
-        #                                 method='lewiner')
-        # ## Shape of verts is: (N_verts, 3)
-        # ## Shape of faces is: (N_faces, 3)
-        # ## Shape of triangles is: (N_faces, 3, 3)
-        # ## Shape of sides is: (N_faces, 2, 3)
-        # ## Shape of normal_vecs is: (N_faces, 3)
-        # ## Shape of areas is: (N_faces)
-        # ## Compute areas of the triangles (defined by the faces)
-        # triangles = verts[faces]
-        # x_dump = verts[:,0]
-        # y_dump = verts[:,1]
-        # z_dump = verts[:,2]
-        # fx_dump = faces[:,0]
-        # fy_dump = faces[:,1]
-        # fz_dump = faces[:,2]
-        # tx_dump = triangles[:, 0, :]
-        # ty_dump = triangles[:, 1, :]
-        # tz_dump = triangles[:, 2, :]
-        # for i, angle in enumerate([pi / 2, pi, 3 * pi / 2]):
-        #     x_int_p, y_int_p = self.rotation(verts[:,0], verts[:,1], angle)
-        #     tx_int_p, ty_int_p = self.rotation(triangles[:, 0, :], triangles[:, 1, :], angle)
-        #     x_dump = np.append(x_dump, x_int_p)
-        #     y_dump = np.append(y_dump, y_int_p)
-        #     z_dump = np.append(z_dump, verts[:,2])
-        #     fx_dump = np.append(fx_dump, faces[:,0] + (i+1)*(verts.shape[0]))
-        #     fy_dump = np.append(fy_dump, faces[:,1] + (i+1)*(verts.shape[0]))
-        #     fz_dump = np.append(fz_dump, faces[:,2] + (i+1)*(verts.shape[0]))
-        #     tx_dump = np.append(tx_dump, tx_int_p)
-        #     ty_dump = np.append(ty_dump, ty_int_p)
-        #     tz_dump = np.append(tz_dump, triangles[:,2,:])
-        # verts = np.vstack((x_dump, y_dump, z_dump)).transpose()
-        # faces = np.vstack((fx_dump, fy_dump, fz_dump)).transpose()
-        # triangles = np.vstack((tx_dump, ty_dump, tz_dump)).transpose()
-
-        # ## Plot pyvista
-        # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
-        # mesh = pv.PolyData(verts, vfaces)
-        # ## Plot original mesh
-        # mesh.plot(show_edges=True) # , scalars='values')
-
-        kx_a = np.linspace(-np.pi / self.a, np.pi / self.a, self.res_xy)
-        ky_a = np.linspace(-np.pi / self.b, np.pi / self.b, self.res_xy)
-        kz_a = np.linspace(-2*np.pi / self.c, 2*np.pi / self.c, self.res_z)
-        kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-        # Use marching cubes to discritize the Fermi surface
-        verts, faces, normals, values = measure.marching_cubes(self.e_3D_func(kxx, kyy, kzz),
-                level=epsilon, spacing=(kx_a[1]-kx_a[0],
-                                        ky_a[1]-ky_a[0],
-                                        kz_a[1]-kz_a[0]),
-                                        method='lewiner')
-        ## Shape of verts is: (N_verts, 3)
-        ## Shape of faces is: (N_faces, 3)
-        ## Shape of triangles is: (N_faces, 3, 3)
-        ## Shape of sides is: (N_faces, 2, 3)
-        ## Shape of normal_vecs is: (N_faces, 3)
-        ## Shape of areas is: (N_faces)
-        ## Recenter the Fermi surface after Marching Cube in the center of the BZ
-        verts[:,0] = verts[:,0] - np.pi/self.a
-        verts[:,1] = verts[:,1] - np.pi/self.b
-        verts[:,2] = verts[:,2] - 2*np.pi/self.c
-        triangles = verts[faces]
-
-
-        # ## Pyvista and PyACVD Remeshing
-        # import pyvista as pv
-        # import pyacvd
-        # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
-        # mesh = pv.PolyData(verts, vfaces)
-        # mesh['Normals'] = normals
-        # mesh['values'] = values
-        # ## Plot original mesh
-        # # mesh.plot(show_edges=True) # , scalars='values')
-        # ## Uniform mesh
-        # clus = pyacvd.Clustering(mesh)
-        # # if mesh is not dense enough for uniform remeshing
-        # clus.subdivide(5)
-        # clus.cluster(200)
-        # # remesh
-        # remesh = clus.create_mesh()
-        # # plot uniformly remeshed cow
-        # remesh.plot(color='w', show_edges=True)
-        # verts = remesh.points
-        # faces = remesh.faces.reshape(-1, 4)[:, 1:]
-        # triangles = verts[faces]
-
-
-        # from quad_mesh_simplify import simplify_mesh
-        # verts, faces = simplify_mesh(verts, faces, 200)
-        # triangles = verts[faces]
-
-
-
-
-        # # Trimesh
-        # import trimesh
-        # mesh = trimesh.Trimesh(vertices=verts, faces=faces)
-        # # Decimate the mesh to obtain more quadrilateral elements
-        # # adjust the 'percentage' parameter as needed (lower values retain more triangles)
-        # quad_mesh = mesh.simplify_quadric_decimation(face_count=2000)
-        # # Now 'quad_mesh' contains a mesh with more quadrilateral elements
-        # verts = quad_mesh.vertices
-        # faces = quad_mesh.faces
-        # triangles = verts[faces]
-        # import pyvista as pv
-        # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
-        # mesh = pv.PolyData(verts, vfaces)
-        # mesh.plot(show_edges=True) # , scalars='values')
-
-
-
-        # ## Trimesh SYMMETRIES : Mirror
-        # kx_a = np.linspace(0, np.pi / self.a, int((self.res_xy-1)/2))
-        # ky_a = np.linspace(-np.pi / self.b, np.pi / self.b, self.res_xy)
-        # kz_a = np.linspace(-2*np.pi / self.c, 2*np.pi / self.c, self.res_z)
-        # kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-        # # Use marching cubes to discritize the Fermi surface
-        # verts, faces, normals, values = measure.marching_cubes(self.e_3D_func(kxx, kyy, kzz),
-        #         level=epsilon, spacing=(kx_a[1]-kx_a[0],
-        #                                 ky_a[1]-ky_a[0],
-        #                                 kz_a[1]-kz_a[0]),
-        #                                 method='lewiner')
-        # ## Shape of verts is: (N_verts, 3)
-        # ## Shape of faces is: (N_faces, 3)
-        # ## Shape of triangles is: (N_faces, 3, 3)
-        # ## Shape of sides is: (N_faces, 2, 3)
-        # ## Shape of normal_vecs is: (N_faces, 3)
-        # ## Shape of areas is: (N_faces)
-        # ## Recenter the Fermi surface after Marching Cube in the center of the BZ
-        # verts[:,0] = verts[:,0]
-        # verts[:,1] = verts[:,1] - np.pi/self.b
-        # verts[:,2] = verts[:,2] - 2*np.pi/self.c
-
-        # import trimesh
-        # # Find vertices to be mirrored (for example, assuming symmetry along the x-axis)
-        # mirrored_vertices = verts * [-1, 1, 1]
-        # # Create a mirrored mesh
-        # mirrored_mesh = trimesh.Trimesh(vertices=np.vstack((verts, mirrored_vertices)), faces=np.vstack((faces, faces + len(verts))))
-        # verts = mirrored_mesh.vertices
-        # faces = mirrored_mesh.faces
-        # triangles = verts[faces]
-        # ## Plot mesh
-        # import pyvista as pv
-        # vfaces = np.column_stack((np.ones(len(faces),) * 3, faces)).astype(int)
-        # mesh = pv.PolyData(verts, vfaces)
-        # mesh.plot(show_edges=True) # , scalars='values')
-
-        ## Calculate areas
-        sides = np.diff(triangles, axis=-2) # vectors that represent the sides of the triangles
-        normal_vecs = np.cross(sides[...,0,:], sides[...,1,:]) # cross product of two vectors
-                            # of the faces to calculate the areas of the triangles
-        areas = np.linalg.norm(normal_vecs, axis=-1)/2 # calculate the area of the triangles
-                            # by taking the norm of the cross product vector and divide by 2
-
-        # self.kf = (triangles[:,0,:] + triangles[:,1,:] + triangles[:,2,:]) / 3
-        # self.kf = self.kf.transpose()
-        # self.dkf = areas
-
-        ## Compute weight of each kf in surface integral
-        self.dkf = np.zeros(len(verts))
-        verts_repeated = faces.flatten() # shape is (3*N_faces)
-        weights = np.repeat(areas/3, 3)  #1/3 for the volume of an irregular triangular prism
-        self.dkf += np.bincount(verts_repeated, weights)
-        self.kf = verts
-        self.kf = self.kf.transpose()
 
 
     def rotation(self, x, y, angle):
         xp = cos(angle) * x + sin(angle) * y
         yp = -sin(angle) * x + cos(angle) * y
         return xp, yp
+
 
     def dos_k_func(self):
         """
@@ -556,6 +448,7 @@ class BandStructure:
         dos_k in  meV^1 Angstrom^-1
         """
         self.dos_k = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
+
 
     def dos_epsilon_func(self):
         """
@@ -646,7 +539,7 @@ class BandStructure:
         fig, axes = plt.subplots(1, 1, figsize=(8.5, 5.6))
         fig.subplots_adjust(left=0.01, right=0.75, bottom=0.20, top=0.9)
 
-        doping_per_kz = self.dopingPerkz(resZ=5)[2:]
+        doping_per_kz = self.doping_per_kz(res_z=5)[2:]
         fig.text(0.63,0.84, r"$k_{\rm z}$ = 0,      $p$ $\in$ $k_{\rm z}$ = " + str(np.round(doping_per_kz[0], 3)), color = "#FF0000", fontsize = 18)
         fig.text(0.63,0.78, r"$k_{\rm z}$ = $\pi/c$,   $p$ $\in$ $k_{\rm z}$ = " + str(np.round(doping_per_kz[1], 3)), color = "#00DC39", fontsize = 18)
         fig.text(0.63,0.72, r"$k_{\rm z}$ = 2$\pi/c$, $p$ $\in$ $k_{\rm z}$ = " + str(np.round(doping_per_kz[2], 3)), color = "#6577FF", fontsize = 18)
@@ -757,15 +650,15 @@ class PiPiBandStructure(BandStructure):
             sign_pocket = -1
 
         if self._reconstruction_3D == True:
-            self.epsilon_sym = self.epsilon_xy_sym + self.epsilon_z_sym
+            self.e_3D_sym = self.e_xy_sym + self.e_z_sym
         else:
-            self.epsilon_sym = self.epsilon_xy_sym
+            self.e_3D_sym = self.e_xy_sym
 
-        self.epsilon_PiPi_sym = 0.5 * (self.epsilon_sym + self.epsilon_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)])) + \
-            sign_pocket * sp.sqrt(0.25*(self.epsilon_sym - self.epsilon_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)]))**2 + M**2)
+        self.epsilon_PiPi_sym = 0.5 * (self.e_3D_sym + self.e_3D_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)])) + \
+            sign_pocket * sp.sqrt(0.25*(self.e_3D_sym - self.e_3D_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)]))**2 + M**2)
 
         if self._reconstruction_3D == False:
-            self.epsilon_PiPi_sym += self.epsilon_z_sym
+            self.epsilon_PiPi_sym += self.e_z_sym
 
         self.epsilon_PiPi_sym += - mu
 
@@ -787,7 +680,7 @@ def doping(bandIterable, printDoping=False):
     if printDoping == True:
         print("------------------------------------------------")
     for band in bandIterable:
-        band.updateFilling()
+        band.update_filling()
         totalFilling += band.n
         if printDoping == True:
             print(band.band_name + ": band filling = " + "{0:.3f}".format(band.n))
@@ -797,15 +690,15 @@ def doping(bandIterable, printDoping=False):
         print("------------------------------------------------")
     return doping
 
-def dopingCondition(mu,ptarget,bandIterable):
+def dopingCondition(mu,p_target,bandIterable):
     print("mu = " + "{0:.3f}".format(mu))
     for band in bandIterable:
         band.mu = mu
-    return doping(bandIterable) - ptarget
+    return doping(bandIterable) - p_target
 
-def setMuToDoping(bandIterable, pTarget, ptol=0.001):
-    print("Computing mu for hole doping = " + "{0:.3f}".format(pTarget))
-    mu = optimize.brentq(dopingCondition, -10, 10, args=(pTarget ,bandIterable), xtol=ptol)
+def set_mu_to_doping(bandIterable, p_target, ptol=0.001):
+    print("Computing mu for hole doping = " + "{0:.3f}".format(p_target))
+    mu = optimize.brentq(dopingCondition, -10, 10, args=(p_target ,bandIterable), xtol=ptol)
     for band in bandIterable:
         band.mu = mu
 
@@ -869,12 +762,12 @@ class YRZBandStructure(BandStructure):
         else:
             sign_pocket = -1
 
-        self.epsilon_sym = self.epsilon_xy_sym
+        self.e_3D_sym = self.e_xy_sym
         self.epsilon0_sym = -2 * t * (sp.cos(kx*a) + sp.cos(ky*b))
-        self.epsilon_YRZ_sym = (0.5 * (self.epsilon_sym - self.epsilon0_sym)
-            + sign_pocket * sp.sqrt(0.25*(self.epsilon_sym + self.epsilon0_sym)**2
+        self.epsilon_YRZ_sym = (0.5 * (self.e_3D_sym - self.epsilon0_sym)
+            + sign_pocket * sp.sqrt(0.25*(self.e_3D_sym + self.epsilon0_sym)**2
                                   + (M*(sp.cos(kx*a) - sp.cos(ky*b)))**2))
-        self.epsilon_YRZ_sym += self.epsilon_z_sym
+        self.epsilon_YRZ_sym += self.e_z_sym
         self.epsilon_YRZ_sym += - mu
 
         ## Velocity ////////////////////////////////////////////////////////////
