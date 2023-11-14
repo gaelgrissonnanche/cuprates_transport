@@ -343,7 +343,6 @@ def fit_admr_parallel(init_member, bounds_dict, data_dict, filename=None,
            popsize=15, mutation=(0.5, 1), recombination=0.7, percent_workers=100):
     ## Create fitting object for parallel calculations
     fit_object = FittingADMRParallel(init_member=init_member, bounds_dict=bounds_dict, data_dict=data_dict, popsize=popsize)
-    percent_workers = 100
     num_cpu = cpu_count(logical=False)
     num_workers = int(percent_workers / 100 * num_cpu)
     print("# cpu cores: " + str(num_cpu))
@@ -406,7 +405,7 @@ if __name__ == '__main__':
     bounds_dict = {
         "gamma_0": [10,30],
         "gamma_k": [0,150],
-        "power":[1, 20],
+        "power": [1, 20],
     }
 
     ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -430,7 +429,7 @@ if __name__ == '__main__':
     data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
 
     t0 = time.time()
-    runFit(init_member, bounds_dict, data_dict)
+    fit_admr_parallel(init_member, bounds_dict, data_dict, popsize=15, percent_workers=100)
     print("## Total time: ", time.time()-t0, "s")
 
 
