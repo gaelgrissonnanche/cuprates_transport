@@ -17,7 +17,7 @@ from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMRParallel:
-    def __init__(self, init_member, bounds_dict, data_dict, pipi_FSR=False,
+    def __init__(self, admrObject, init_member, bounds_dict, data_dict,
                  folder="",
                  normalized_data=True, popsize=15,
                  **trash):
@@ -30,7 +30,6 @@ class FittingADMRParallel:
         self.popsize     = popsize # the popsize for the differential evolution
         self.folder      = folder
         self.normalized_data = normalized_data
-        self.pipi_FSR    = pipi_FSR
 
         ## Create the list sorted of the free parameters
         self.pars = {} # dictionnary of free parameters to computre residual
@@ -45,12 +44,15 @@ class FittingADMRParallel:
         self.bounds = tuple(self.bounds)
 
         ## Objects
-        if pipi_FSR==False:
-            self.bandObject = BandStructure(**self.member, parallel=False)
-        else:
-            self.bandObject = PiPiBandStructure(**self.member, parallel=False)
-        self.condObject = None
-        self.admrObject = None
+        self.admrObject = admrObject
+        for
+        self.admrObject.condObject.bandObject.parallel = False
+        # if pipi_FSR==False:
+        #     self.bandObject = BandStructure(**self.member, parallel=False)
+        # else:
+        #     self.bandObject = PiPiBandStructure(**self.member, parallel=False)
+        # self.condObject = None
+        # self.admrObject = None
 
         ## Empty spaces
         self.nb_calls     = 0
@@ -191,6 +193,7 @@ class FittingADMRParallel:
         self.condObject = None
         self.admrObject = None
         return np.sum(diff_matrix.flatten()**2)
+
 
     def load_member_from_json(self):
         with open(self.folder + "/" + self.json_name, "r") as f:
@@ -339,10 +342,14 @@ def init(num_member):
     shared_num_member = num_member
 
 
-def fit_admr_parallel(init_member, bounds_dict, data_dict, filename=None,
-           popsize=15, mutation=(0.5, 1), recombination=0.7, percent_workers=100):
+def fit_admr_parallel(init_member, bounds_dict, data_dict,
+                    normalized_data=True, filename=None,
+                    popsize=15, mutation=(0.5, 1), recombination=0.7,
+                    percent_workers=100):
     ## Create fitting object for parallel calculations
-    fit_object = FittingADMRParallel(init_member=init_member, bounds_dict=bounds_dict, data_dict=data_dict, popsize=popsize)
+    fit_object = FittingADMRParallel(init_member=init_member,
+                bounds_dict=bounds_dict, data_dict=data_dict, popsize=popsize,
+                normalized_data=normalized_data)
     num_cpu = cpu_count(logical=False)
     num_workers = int(percent_workers / 100 * num_cpu)
     print("# cpu cores: " + str(num_cpu))
@@ -383,10 +390,10 @@ if __name__ == '__main__':
     "a": 3.75,
     "b": 3.75,
     "c": 13.2,
-    "energy_scale": 190,
-    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
-    "res_xy": 20,
-    "res_z": 7,
+    "energy_scale": 160,
+    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.0590233},
+    "res_xy": 40,
+    "res_z": 11,
     "fixdoping": 2,
     "T" : 0,
     "Bamp": 45,
@@ -397,15 +404,19 @@ if __name__ == '__main__':
     "gamma_0": 15,
     "gamma_k": 65.756,
     "power": 12.21,
-    "data_T": 25,
+    "data_T": 6,
     "data_p": 0.24,
+    # "epsilon_z": "- 2*tz*(cos(a*kx) - cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)" +\
+    #              "- 2*tzp*cos(c*kz)",
     }
 
     ## For FIT
     bounds_dict = {
-        "gamma_0": [10,30],
-        "gamma_k": [0,150],
+        "gamma_0": [7,15],
+        "gamma_k": [0,100],
         "power": [1, 20],
+    #    "tz": [0.03, 0.09],
+    #    "tzp": [-0.03, 0.03],
     }
 
     ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
@@ -429,7 +440,7 @@ if __name__ == '__main__':
     data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
 
     t0 = time.time()
-    fit_admr_parallel(init_member, bounds_dict, data_dict, popsize=15, percent_workers=100)
+    fit_admr_parallel(init_member, bounds_dict, data_dict, normalized_data=False, popsize=20)
     print("## Total time: ", time.time()-t0, "s")
 
 

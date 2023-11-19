@@ -49,7 +49,7 @@ class Conductivity:
         self._Bamp   = Bamp # in Tesla
         self._Btheta = Btheta
         self._Bphi   = Bphi
-        self._B_vector = self.BFunc() # np array fo Bx,By,Bz
+        self._B_vector = self.B_func() # np array fo Bx,By,Bz
         self.omegac_tau = None
 
         # Temperature and energy integration
@@ -133,21 +133,21 @@ class Conductivity:
         return self._Bamp
     def _set_Bamp(self, Bamp):
         self._Bamp = Bamp
-        self._B_vector = self.BFunc()
+        self._B_vector = self.B_func()
     Bamp = property(_get_Bamp, _set_Bamp)
 
     def _get_Bphi(self):
         return self._Bphi
     def _set_Bphi(self, Bphi):
         self._Bphi = Bphi
-        self._B_vector = self.BFunc()
+        self._B_vector = self.B_func()
     Bphi = property(_get_Bphi, _set_Bphi)
 
     def _get_Btheta(self):
         return self._Btheta
     def _set_Btheta(self, Btheta):
         self._Btheta = Btheta
-        self._B_vector = self.BFunc()
+        self._B_vector = self.B_func()
     Btheta = property(_get_Btheta, _set_Btheta)
 
     def _get_N_time(self):
@@ -200,7 +200,7 @@ class Conductivity:
 
             for epsilon in self.epsilon_array:
                 self.bandObject.runBandStructure(epsilon = epsilon, printDoping=False)
-                self.solveMovementFunc()
+                self.solve_movement()
                 self.t_o_tau_func(epsilon)
                 self.dos_k_epsilon[epsilon]      = self.bandObject.dos_k
                 self.dkf_epsilon[epsilon]        = self.bandObject.dkf
@@ -212,14 +212,14 @@ class Conductivity:
             self.bandObject.runBandStructure(epsilon = 0, printDoping=False)
             # this last one is to be sure the bandObject is at the FS at the end
         else:
-            self.solveMovementFunc()
+            self.solve_movement()
             self.t_o_tau_func()
 
         self.gamma_tot_max = 1 / self.tau_total_min() # in THz
         self.gamma_tot_min = 1 / self.tau_total_max() # in THz
 
 
-    def BFunc(self):
+    def B_func(self):
         B = self._Bamp * np.array([sin(self._Btheta*pi/180) * cos(self._Bphi*pi/180),
                                    sin(self._Btheta*pi/180) * sin(self._Bphi*pi/180),
                                    cos(self._Btheta*pi/180)])
@@ -235,7 +235,7 @@ class Conductivity:
         return np.vstack((product_x, product_y, product_z))
 
 
-    def solveMovementFunc(self):
+    def solve_movement(self):
         len_t = self.time_array.shape[0]
         len_kf = self.bandObject.kf.shape[1]
 
@@ -244,7 +244,7 @@ class Conductivity:
             # Flatten to get all the initial kf solved at the same time
             self.bandObject.kf = self.bandObject.kf.flatten()
             # Sovle differential equation
-            self.kft = odeint(self.diffEqFunc, self.bandObject.kf, self.time_array, rtol = self.rtol, atol = self.atol).transpose()
+            self.kft = odeint(self.movement_equation, self.bandObject.kf, self.time_array, rtol = self.rtol, atol = self.atol).transpose()
             # Reshape arrays
             self.bandObject.kf = np.reshape(self.bandObject.kf, (3, len_kf))
             # self.bandObject.kf.shape = (3, len_kf)
@@ -260,7 +260,7 @@ class Conductivity:
             self.vft[0, :, 0], self.vft[1, :, 0], self.vft[2, :, 0] = self.bandObject.vf[0, :], self.bandObject.vf[1, :], self.bandObject.vf[2, :]
 
 
-    def diffEqFunc(self, k, t):
+    def movement_equation(self, k, t):
         len_k = int(k.shape[0]/3)
         k.shape = (3, len_k) # reshape the flatten k
         vx, vy, vz =  self.bandObject.v_3D_func(k[0,:], k[1,:], k[2,:])
@@ -287,7 +287,7 @@ class Conductivity:
 
 
 
-    def factor_arcs_Func(self, kx, ky, kz):
+    def factor_arcs_func(self, kx, ky, kz):
         # line ky = kx + pi
         d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
         d2 = ky * self.bandObject.b - kx * self.bandObject.a + pi  # line ky = kx - pi
@@ -301,38 +301,38 @@ class Conductivity:
         return factor_out_of_FBZ_AF
 
 
-    def gamma_DOS_Func(self, vx, vy, vz):
+    def gamma_DOS_func(self, vx, vy, vz):
         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
         dos_max = np.max(self.bandObject.dos_k)  # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (dos / dos_max)
 
-    def gamma_cmfp_Func(self, vx, vy, vz):
+    def gamma_cmfp_func(self, vx, vy, vz):
         vf = sqrt( vx**2 + vy**2 + vz**2 )
         vf_max = np.max(self.bandObject.vf)  # value to normalize the DOS to a quantity without units
         return self.gamma_cmfp_max * (vf / vf_max)
 
-    def gamma_vF_Func(self, vx, vy, vz):
+    def gamma_vF_func(self, vx, vy, vz):
         """vx, vy, vz are in Angstrom.meV
            l_path is in Angstrom
         """
         vF = sqrt(vx**2 + vy**2 + vz**2) / (hbar / meV) * 1e-12 # in Angstrom / ps
         return vF / self.l_path
 
-    def gamma_k_Func(self, kx, ky, kz):
+    def gamma_k_func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx) #+ np.pi/4
         return self.gamma_k * np.abs(cos(2*phi))**self.power
 
-    def gamma_coskpi4_Func(self, kx, ky, kz):
+    def gamma_coskpi4_func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx) #+ np.pi/4
         return self.gamma_kpi4 * np.abs(cos(2*(phi+1*pi/4)))**self.powerpi4
 
-    def gamma_poly_Func(self, kx, ky, kz):
+    def gamma_poly_func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
@@ -340,28 +340,25 @@ class Conductivity:
         phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
         return self.a0 + np.abs(self.a1 * phi_p + self.a2 * phi_p**2 + self.a3 * phi_p**3 + self.a4 * phi_p**4 + self.a5 * phi_p**5)
 
-    def gamma_tanh_Func(self, kx, ky, kz):
+    def gamma_tanh_func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
         return self.a0 / np.abs(np.tanh(self.a1 + self.a2 * np.abs(cos(2*(phi+pi/4)))**self.a3))
 
-    def gamma_step_Func(self, kx, ky, kz):
+    def gamma_step_func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
         phi = arctan2(ky, kx)
-
         index_low = (np.mod(phi, pi/2) >= (pi/4 - self.phi_step)) * (np.mod(phi, pi/2) <= (pi/4 + self.phi_step))
         index_high = np.logical_not(index_low)
-
         gamma_step_array = np.zeros_like(phi)
         gamma_step_array[index_high] = self.gamma_step
-
         return gamma_step_array
 
-    def gamma_ndlsco_tl2201_Func(self, kx, ky, kz):
+    def gamma_ndlsco_tl2201_func(self, kx, ky, kz):
         ## Make sure kx and ky are in the FBZ to compute Phi.
         kx = np.remainder(kx + pi / self.bandObject.a, 2*pi / self.bandObject.a) - pi / self.bandObject.a
         ky = np.remainder(ky + pi / self.bandObject.b, 2*pi / self.bandObject.b) - pi / self.bandObject.b
@@ -393,24 +390,24 @@ class Conductivity:
         if self.a_asym!=0 or self.p_asym!=0:
             gamma_tot += self.gamma_skew_planckian(epsilon)
         if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
-            # gamma_tot += self.gamma_cosk_coskpi4_Func(kx, ky, kz)
-            gamma_tot += self.gamma_poly_Func(kx, ky, kz)
-            # gamma_tot += self.gamma_tanh_Func(kx, ky, kz)
-            # gamma_tot += self.gamma_ndlsco_tl2201_Func(kx, ky, kz)
+            # gamma_tot += self.gamma_cosk_coskpi4_func(kx, ky, kz)
+            gamma_tot += self.gamma_poly_func(kx, ky, kz)
+            # gamma_tot += self.gamma_tanh_func(kx, ky, kz)
+            # gamma_tot += self.gamma_ndlsco_tl2201_func(kx, ky, kz)
         if self.gamma_kpi4!=0:
-            gamma_tot += self.gamma_coskpi4_Func(kx, ky, kz)
+            gamma_tot += self.gamma_coskpi4_func(kx, ky, kz)
         if self.gamma_k!=0:
-            gamma_tot += self.gamma_k_Func(kx, ky, kz)
+            gamma_tot += self.gamma_k_func(kx, ky, kz)
         if self.gamma_step!=0:
-            gamma_tot += self.gamma_step_Func(kx, ky, kz)
+            gamma_tot += self.gamma_step_func(kx, ky, kz)
         if self.gamma_dos_max!=0:
-            gamma_tot += self.gamma_DOS_Func(vx, vy, vz)
+            gamma_tot += self.gamma_DOS_func(vx, vy, vz)
         if self.gamma_cmfp_max!=0:
-            gamma_tot += self.gamma_cmfp_Func(vx, vy, vz)
+            gamma_tot += self.gamma_cmfp_func(vx, vy, vz)
         if self.l_path != 0:
-            gamma_tot += self.gamma_vF_Func(vx, vy, vz)
+            gamma_tot += self.gamma_vF_func(vx, vy, vz)
         if self.factor_arcs!=1:
-            gamma_tot *= self.factor_arcs_Func(kx, ky, kz)
+            gamma_tot *= self.factor_arcs_func(kx, ky, kz)
 
 
         return 1/gamma_tot
@@ -453,24 +450,25 @@ class Conductivity:
                                           vf[0, :], vf[1, :], vf[2, :]))
 
 
-    def velocity_product(self, kft, vft, t_o_tau, i, j):
+    def velocity_product(self, kft, vft, t_o_tau):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0: vif = vxf """
-
         if self.Bamp != 0:
-            self.v_product = vft[i, :, 0] * np.sum(vft[j, :, :]
-                             * exp(-t_o_tau) * self.dtime, axis=1)
+            vi = vft[:, :, 0] # (3, len_kf)
+            vj = np.sum(vft[:, :, :] * exp(-t_o_tau) * self.dtime, axis=2) # (3, len_kf)
+            self.v_product = np.einsum('ji,ki->jki',vi,vj) # (3, 3, len_kf)
+                                        # with 3, 3 the indices for i, j in sigma
         else:
-            self.v_product = vft[i, :, 0] * vft[j, :, 0] * (1 / t_o_tau)
+            self.v_product = np.einsum('ji,ki->jki', vft[:, :, 0], vft[:, :, 0] * (1 / t_o_tau))
         return self.v_product
 
-    def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau, i, j):
+
+    def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau):
         sigma_epsilon = (units_chambers / self.bandObject.numberOfBZ *
                         np.sum(dkf
                                * dos_k
-                               * self.velocity_product(kft, vft, t_o_tau,
-                                                       i=i, j=j)
-                               )
+                               * self.velocity_product(kft, vft, t_o_tau)
+                               , axis=2)
                         )
         return sigma_epsilon
 
@@ -484,7 +482,7 @@ class Conductivity:
         else:
             print("!Warming! You have not enter a correct coefficient name")
 
-    def chambersFunc(self, i, j, coeff_name="sigma"):
+    def chambers_func(self, coeff_name="sigma"):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
 
@@ -494,9 +492,8 @@ class Conductivity:
             coeff_tot = self.sigma_epsilon(self.bandObject.dos_k,
                                                   self.bandObject.dkf,
                                                   self.kft, self.vft,
-                                                  self.t_o_tau,
-                                                  i=i, j=j)
-            self.sigma[i, j] = coeff_tot
+                                                  self.t_o_tau)
+            self.sigma = coeff_tot
         else:
             coeff_tot = 0
             d_epsilon = self.epsilon_array[1] - self.epsilon_array[0]
@@ -505,19 +502,18 @@ class Conductivity:
                                                    self.dkf_epsilon[epsilon],
                                                    self.kft_epsilon[epsilon],
                                                    self.vft_epsilon[epsilon],
-                                                   self.t_o_tau_epsilon[epsilon],
-                                                   i=i, j=j)
+                                                   self.t_o_tau_epsilon[epsilon])
                 # Sum over the energie
                 coeff_tot += d_epsilon * (- self.dfdE(epsilon)) * \
                              self.integrand_coeff(epsilon, coeff_name) * sigma_epsilon
 
             # Send to right transport coefficient
             if coeff_name == "sigma":
-                self.sigma[i, j] = coeff_tot
+                self.sigma = coeff_tot
             elif coeff_name == "alpha":
-                self.alpha[i, j] = coeff_tot
+                self.alpha = coeff_tot
             elif coeff_name == "beta":
-                self.beta[i, j]  = coeff_tot
+                self.beta  = coeff_tot
             else:
                 print("!Warming! You have not enter a correct coefficient name")
 

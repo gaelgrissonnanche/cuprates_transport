@@ -8,19 +8,20 @@ from matplotlib.backends.backend_pdf import PdfPages
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
-    def __init__(self, initialcondObjectList, Btheta_min=0, Btheta_max=110,
-                 Btheta_step=5, Bphi_array=[0, 15, 30, 45], progress_bar=True, **trash):
+    def __init__(self, condObject_list, Btheta_min=0, Btheta_max=110,
+                 Btheta_step=5, Bphi_array=[0, 15, 30, 45], show_progress=True, **trash):
 
         # Band dictionary
-        self.initialCondObjectDict = {} # will contain the condObject for each band, with key their bandname
-        self.totalFilling = 0 # total bands filling (of electron) over all bands
-        for condObject in initialcondObjectList:
-            self.totalFilling += condObject.bandObject.n
-            self.initialCondObjectDict[condObject.bandObject.band_name] = condObject
-        self.bandNamesList = list(self.initialCondObjectDict.keys())
-        self.totalHoleDoping = 1 - self.totalFilling # total bands hole doping over all bands
+        self.condObject_dict = {} # will contain the condObject for each band, with key their bandname
+        self.total_filling = 0 # total bands filling (of electron) over all bands
+        for condObject in condObject_list:
+            self.total_filling += condObject.bandObject.n
+            self.condObject_dict[condObject.bandObject.band_name] = condObject
+        self.band_names = list(self.condObject_dict.keys())
+        self.total_hole_doping = 1 - self.total_filling # total bands hole doping over all bands
 
-        self.progress_bar = progress_bar # shows progress bar or not
+        ## Miscellaneous
+        self.show_progress = show_progress # shows progress bar or not
 
         # Magnetic field
         self.Btheta_min   = Btheta_min    # in degrees
@@ -28,12 +29,6 @@ class ADMR:
         self.Btheta_step  = Btheta_step  # in degrees
         self.Btheta_array = np.arange(self.Btheta_min, self.Btheta_max + self.Btheta_step, self.Btheta_step)
         self.Bphi_array = np.array(Bphi_array)
-
-        # Conductivity dictionaries
-        self.condObjectDict = {} # will implicitely contain all results of runADMR
-        self.kftDict = {}
-        self.vftDict = {}
-        self.vproductDict = {}
 
         # Resistivity array rho_zz
         self.rhozz_array = None
@@ -43,43 +38,31 @@ class ADMR:
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
-
         rhozz_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
-
-        if self.progress_bar is True:
+        if self.show_progress is True:
             iterator = enumerate(tqdm(self.Bphi_array, ncols=80, unit="phi", desc="ADMR"))
         else:
             iterator = enumerate(self.Bphi_array)
         for l, phi in iterator:
             for m, theta in enumerate(self.Btheta_array):
-
                 sigma_zz = 0
-                for (band_name, iniCondObject) in list(self.initialCondObjectDict.items()):
-
-                    iniCondObject.Bphi = phi
-                    iniCondObject.Btheta = theta
-
-                    iniCondObject.runTransport()
-                    sigma_zz += iniCondObject.chambersFunc(i=2, j=2)
-
-                    # Store in dictionaries
-                    self.condObjectDict[band_name, phi, theta] = iniCondObject
-                    self.kftDict[band_name, phi, theta] = iniCondObject.kft
-                    self.vftDict[band_name, phi, theta] = iniCondObject.vft
-                    self.vproductDict[band_name, phi, theta] = iniCondObject.v_product
-
-                rhozz_array[l, m] = 1 / sigma_zz
-
+                for (band_name, condObject) in list(self.condObject_dict.items()):
+                    condObject.Bphi = phi
+                    condObject.Btheta = theta
+                    condObject.runTransport()
+                    condObject.chambers_func()
+                    rho = np.linalg.inv(condObject.sigma)
+                rhozz_array[l, m] = rho[2,2]
         rhozz_0_array = np.outer(rhozz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rhozz_array = rhozz_array
         self.rzz_array = rhozz_array / rhozz_0_array
 
     #---------------------------------------------------------------------------
-    def fileNameFunc(self):
+    def file_name_func(self):
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
-        CondObject0 = self.initialCondObjectDict[self.bandNamesList[0]]
-        bandObject0 = CondObject0.bandObject
+        condObject0 = self.condObject_dict[self.band_names[0]]
+        bandObject0 = condObject0.bandObject
 
         # Detect if bands come from the AF reconstruction
         try:
@@ -89,22 +72,22 @@ class ADMR:
             bandAF = False
 
         # Create the list of parameters for the filename
-        file_parameters_list  = [r"p"   + "{0:.3f}".format(self.totalHoleDoping),
-                                 r"T"   + "{0:.0f}".format(CondObject0.T),
-                                 r"B"   + "{0:.0f}".format(CondObject0.Bamp),
+        file_parameters_list  = [r"p"   + "{0:.3f}".format(self.total_hole_doping),
+                                 r"T"   + "{0:.0f}".format(condObject0.T),
+                                 r"B"   + "{0:.0f}".format(condObject0.Bamp),
                                  r"t" + "{0:.1f}".format(bandObject0.energy_scale)] +\
         [key + "{0:.3f}".format(value) for (key, value) in sorted(bandObject0._band_params.items()) if key!="t"]
 
         if bandAF == True:
             file_parameters_list.append(r"M" + "{0:.3f}".format(bandObject0._band_params["M"]))
 
-        for (band_name, iniCondObject) in self.initialCondObjectDict.items():
+        for (band_name, condObject) in self.condObject_dict.items():
             file_parameters_list.extend([band_name,
-                                         r"gzero" + "{0:.1f}".format(iniCondObject.gamma_0),
-                                         r"gdos" + "{0:.1f}".format(iniCondObject.gamma_dos_max),
-                                         r"gk"  + "{0:.1f}".format(iniCondObject.gamma_k),
-                                         r"pwr" + "{0:.1f}".format(iniCondObject.power),
-                                         r"arc" + "{0:.1f}".format(iniCondObject.factor_arcs)
+                                         r"gzero" + "{0:.1f}".format(condObject.gamma_0),
+                                         r"gdos" + "{0:.1f}".format(condObject.gamma_dos_max),
+                                         r"gk"  + "{0:.1f}".format(condObject.gamma_k),
+                                         r"pwr" + "{0:.1f}".format(condObject.power),
+                                         r"arc" + "{0:.1f}".format(condObject.factor_arcs)
                                         ])
 
         if bandAF == True:
@@ -123,8 +106,8 @@ class ADMR:
     def fileADMR(self, folder="", filename=None):
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
-        CondObject0 = self.initialCondObjectDict[self.bandNamesList[0]]
-        bandObject0 = CondObject0.bandObject
+        condObject0 = self.condObject_dict[self.band_names[0]]
+        bandObject0 = condObject0.bandObject
 
         # Detect if bands come from the AF reconstruction
         try:
@@ -144,7 +127,7 @@ class ADMR:
                 rhozzMatrix = np.vstack((rhozzMatrix, self.rhozz_array[l,:]))
                 rhozzHeader += "rho_zz(phi=" + str(self.Bphi_array[l])+ ")[Ohm.m]\t"
 
-        Data = np.vstack((self.Btheta_array, rhozzMatrix, CondObject0.Bamp * Ones))
+        Data = np.vstack((self.Btheta_array, rhozzMatrix, condObject0.Bamp * Ones))
         Data = np.vstack((Data, np.round(bandObject0.energy_scale,0) * Ones))
         DataHeader = "theta[deg]\t" + rhozzHeader + "B[T]\tt[meV]\t"
 
@@ -160,12 +143,12 @@ class ADMR:
         DataHeader += "res_xy\tres_z\t"
 
         condHeader = ""
-        for (band_name, iniCondObject) in self.initialCondObjectDict.items():
+        for (band_name, condObject) in self.condObject_dict.items():
             Data = np.vstack((Data,
-                              iniCondObject.gamma_0 * Ones,
-                              iniCondObject.gamma_dos_max * Ones,
-                              iniCondObject.gamma_k * Ones,
-                              iniCondObject.power   * Ones))
+                              condObject.gamma_0 * Ones,
+                              condObject.gamma_dos_max * Ones,
+                              condObject.gamma_k * Ones,
+                              condObject.power   * Ones))
             condHeader += band_name + "_g_0[THz]\t" + \
                           band_name + "_g_dos_max[THz]\t" + \
                           band_name + "_g_k[THz]\t" + \
@@ -178,7 +161,7 @@ class ADMR:
         if folder != "":
             folder += "/"
         if filename == None:
-            filename = folder + "Rzz_" + self.fileNameFunc() + ".dat"
+            filename = folder + "Rzz_" + self.file_name_func() + ".dat"
         else:
             filename = folder + filename
         np.savetxt(filename, Data, fmt='%.7e',
@@ -214,12 +197,12 @@ class ADMR:
 
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
-        CondObject0 = self.initialCondObjectDict[self.bandNamesList[0]]
+        condObject0 = self.condObject_dict[self.band_names[0]]
 
         # Labels
-        fig.text(0.99, 0.9, r"$T$ = " + "{0:.0f}".format(CondObject0.T) + " K", ha="right")
-        fig.text(0.99, 0.84, r"$B$ = " + "{0:.0f}".format(CondObject0.Bamp) + " T", ha="right")
-        fig.text(0.99, 0.78, r"$p$ = " + "{0:.3f}".format(self.totalHoleDoping), ha="right")
+        fig.text(0.99, 0.9, r"$T$ = " + "{0:.0f}".format(condObject0.T) + " K", ha="right")
+        fig.text(0.99, 0.84, r"$B$ = " + "{0:.0f}".format(condObject0.Bamp) + " T", ha="right")
+        fig.text(0.99, 0.78, r"$p$ = " + "{0:.3f}".format(self.total_hole_doping), ha="right")
 
         ## Colors
         if self.Bphi_array.size > 4:
@@ -266,15 +249,15 @@ class ADMR:
             plt.show()
 
         ## Parameters figures ///////////////////////////////////////////////////#
-        for iniCondObject in self.initialCondObjectDict.values():
-            fig_list.append(iniCondObject.figParameters(fig_show=fig_show))
+        for condObject in self.condObject_dict.values():
+            fig_list.append(condObject.figParameters(fig_show=fig_show))
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:
             if folder != "":
                 folder += "/"
             if filename == None:
-                filename = folder + "Rzz_" + self.fileNameFunc() + ".pdf"
+                filename = folder + "Rzz_" + self.file_name_func() + ".pdf"
             else:
                 filename = folder + filename
             file_figures = PdfPages(filename)

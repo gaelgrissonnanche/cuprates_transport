@@ -44,7 +44,7 @@ class TestTransport(unittest.TestCase):
         condObject = Conductivity(bandObject, **TestTransport.params)
         condObject.Bamp = 0
         condObject.runTransport()
-        condObject.chambersFunc(i=2, j=2)
+        condObject.chambers_func()
 
         self.assertEqual(np.round(condObject.sigma[2,2],3), 25819.083)
 
@@ -60,7 +60,7 @@ class TestTransport(unittest.TestCase):
         ## Conductivity
         condObject = Conductivity(bandObject, **TestTransport.params)
         condObject.runTransport()
-        condObject.chambersFunc(i=2, j=2)
+        condObject.chambers_func()
 
         self.assertEqual(np.round(condObject.sigma[2,2],3), 24999.56)
 
@@ -79,7 +79,7 @@ class TestTransport(unittest.TestCase):
         ## Conductivity
         condObject = Conductivity(bandObject, **params)
         condObject.runTransport()
-        condObject.chambersFunc(i=2, j=2, coeff_name="sigma")
+        condObject.chambers_func(coeff_name="sigma")
 
         self.assertEqual(np.round(condObject.sigma[2,2],3), 24200.735)
 
