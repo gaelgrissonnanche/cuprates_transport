@@ -244,15 +244,15 @@ condObject.runTransport()
 # # condObject.figScatteringPhi(kz=0)
 # # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
-condObject.chambers_func()
-rho = linalg.inv(condObject.sigma).transpose()
-rhoxx = rho[0,0]
-rhoxy = rho[0,1]
-rhozz = rho[2,2]
-print("1band-------------")
-print("rhoxx =", rhoxx*1e8, "uOhm.cm")
-print("rhozz =", rhozz*1e5, "mOhm.cm")
-print("RH =", rhoxy * 1e9 / params["Bamp"], "mm^3 / C")
+
+# rho = linalg.inv(condObject.sigma).transpose()
+# rhoxx = rho[0,0]
+# rhoxy = rho[0,1]
+# rhozz = rho[2,2]
+# print("1band-------------")
+# print("rhoxx =", rhoxx*1e8, "uOhm.cm")
+# print("rhozz =", rhozz*1e5, "mOhm.cm")
+# print("RH =", rhoxy * 1e9 / params["Bamp"], "mm^3 / C")
 
 # ## Compute ADMR
 amro1band = ADMR([condObject], **params)

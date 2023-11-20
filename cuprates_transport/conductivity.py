@@ -196,8 +196,7 @@ class Conductivity:
             self.dkf_epsilon        = {}
             self.kft_epsilon        = {}
             self.vft_epsilon        = {}
-            self.t_o_tau_epsilon = {}
-
+            self.t_o_tau_epsilon    = {}
             for epsilon in self.epsilon_array:
                 self.bandObject.runBandStructure(epsilon = epsilon, printDoping=False)
                 self.solve_movement()
@@ -211,9 +210,11 @@ class Conductivity:
                 ## Create properties for tmax, etc.
             self.bandObject.runBandStructure(epsilon = 0, printDoping=False)
             # this last one is to be sure the bandObject is at the FS at the end
+            self.chambers_func()
         else:
             self.solve_movement()
             self.t_o_tau_func()
+            self.chambers_func()
 
         self.gamma_tot_max = 1 / self.tau_total_min() # in THz
         self.gamma_tot_min = 1 / self.tau_total_max() # in THz
@@ -238,16 +239,13 @@ class Conductivity:
     def solve_movement(self):
         len_t = self.time_array.shape[0]
         len_kf = self.bandObject.kf.shape[1]
-
         ## Magnetic Field ON
         if self.Bamp != 0:
             # Flatten to get all the initial kf solved at the same time
-            self.bandObject.kf = self.bandObject.kf.flatten()
+            kf0 = self.bandObject.kf.flatten()
             # Sovle differential equation
-            self.kft = odeint(self.movement_equation, self.bandObject.kf, self.time_array, rtol = self.rtol, atol = self.atol).transpose()
+            self.kft = odeint(self.movement_equation, kf0, self.time_array, rtol = self.rtol, atol = self.atol).transpose()
             # Reshape arrays
-            self.bandObject.kf = np.reshape(self.bandObject.kf, (3, len_kf))
-            # self.bandObject.kf.shape = (3, len_kf)
             self.kft.shape = (3, len_kf, len_t)
             # Velocity function of time
             self.vft = np.empty_like(self.kft, dtype = np.float64)
@@ -286,7 +284,7 @@ class Conductivity:
         # self.omegac_tau = 1 / inverse_omegac_tau
 
 
-
+    ## List of scatterint rate models --------------------------------------------
     def factor_arcs_func(self, kx, ky, kz):
         # line ky = kx + pi
         d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
@@ -408,8 +406,6 @@ class Conductivity:
             gamma_tot += self.gamma_vF_func(vx, vy, vz)
         if self.factor_arcs!=1:
             gamma_tot *= self.factor_arcs_func(kx, ky, kz)
-
-
         return 1/gamma_tot
 
 
@@ -465,11 +461,7 @@ class Conductivity:
 
     def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau):
         sigma_epsilon = (units_chambers / self.bandObject.numberOfBZ *
-                        np.sum(dkf
-                               * dos_k
-                               * self.velocity_product(kft, vft, t_o_tau)
-                               , axis=2)
-                        )
+         np.sum(dkf * dos_k * self.velocity_product(kft, vft, t_o_tau), axis=2))
         return sigma_epsilon
 
     def integrand_coeff(self, epsilon, coeff_name):
@@ -485,9 +477,7 @@ class Conductivity:
     def chambers_func(self, coeff_name="sigma"):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
-
         #!!! Add a error message if asking for alpha and beta at T != 0
-
         if self._T == 0:
             coeff_tot = self.sigma_epsilon(self.bandObject.dos_k,
                                                   self.bandObject.dkf,
@@ -495,7 +485,9 @@ class Conductivity:
                                                   self.t_o_tau)
             self.sigma = coeff_tot
         else:
-            coeff_tot = 0
+            sigma_tot = 0
+            alpha_tot = 0
+            beta_tot = 0
             d_epsilon = self.epsilon_array[1] - self.epsilon_array[0]
             for epsilon in self.epsilon_array:
                 sigma_epsilon = self.sigma_epsilon(self.dos_k_epsilon[epsilon],
@@ -504,20 +496,16 @@ class Conductivity:
                                                    self.vft_epsilon[epsilon],
                                                    self.t_o_tau_epsilon[epsilon])
                 # Sum over the energie
-                coeff_tot += d_epsilon * (- self.dfdE(epsilon)) * \
-                             self.integrand_coeff(epsilon, coeff_name) * sigma_epsilon
+                sigma_tot += d_epsilon * (- self.dfdE(epsilon)) * \
+                             self.integrand_coeff(epsilon, "sigma") * sigma_epsilon
+                alpha_tot += d_epsilon * (- self.dfdE(epsilon)) * \
+                             self.integrand_coeff(epsilon, "alpha") * sigma_epsilon
+                beta_tot  += d_epsilon * (- self.dfdE(epsilon)) * \
+                             self.integrand_coeff(epsilon, "beta") * sigma_epsilon
+            self.sigma = sigma_tot
+            self.alpha = alpha_tot
+            self.beta  = beta_tot
 
-            # Send to right transport coefficient
-            if coeff_name == "sigma":
-                self.sigma = coeff_tot
-            elif coeff_name == "alpha":
-                self.alpha = coeff_tot
-            elif coeff_name == "beta":
-                self.beta  = coeff_tot
-            else:
-                print("!Warming! You have not enter a correct coefficient name")
-
-        return coeff_tot
 
     def dfdE(self, epsilon):
         if self._T == 0:
@@ -651,8 +639,6 @@ class Conductivity:
         axes.set_xlabel(r"$\phi$", labelpad = 8)
         axes.set_ylabel(r"$\Gamma_{\rm tot}$ ( THz )", labelpad=8)
         axes2.set_ylabel(r"$v_{\rm z}$", rotation = 270, labelpad =25, color="#80ff80")
-
-
 
         kz = np.round(kz/(np.pi/self.bandObject.c), 1)
         fig.text(0.97, 0.05, r"$k_{\rm z}$ = " + "{0:g}".format(kz) + r"$\pi$/c", ha="right", color="r", fontsize = 20)

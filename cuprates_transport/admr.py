@@ -45,13 +45,13 @@ class ADMR:
             iterator = enumerate(self.Bphi_array)
         for l, phi in iterator:
             for m, theta in enumerate(self.Btheta_array):
-                sigma_zz = 0
+                sigma_tensor = 0
                 for (band_name, condObject) in list(self.condObject_dict.items()):
                     condObject.Bphi = phi
                     condObject.Btheta = theta
                     condObject.runTransport()
-                    condObject.chambers_func()
-                    rho = np.linalg.inv(condObject.sigma)
+                    sigma_tensor += condObject.sigma
+                rho = np.linalg.inv(sigma_tensor)
                 rhozz_array[l, m] = rho[2,2]
         rhozz_0_array = np.outer(rhozz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rhozz_array = rhozz_array
