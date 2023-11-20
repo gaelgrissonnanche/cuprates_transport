@@ -474,10 +474,9 @@ class Conductivity:
         else:
             print("!Warming! You have not enter a correct coefficient name")
 
-    def chambers_func(self, coeff_name="sigma"):
+    def chambers_func(self):
         """ Index i and j represent x, y, z = 0, 1, 2
             for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
-        #!!! Add a error message if asking for alpha and beta at T != 0
         if self._T == 0:
             coeff_tot = self.sigma_epsilon(self.bandObject.dos_k,
                                                   self.bandObject.dkf,
@@ -512,6 +511,7 @@ class Conductivity:
             return 1
         """Returns in fact dfdE * t in order to get epsilon unitless"""
         return -1 / (4 * kB * self._T) / (cosh(epsilon / (2*kB * self._T)))**2
+
 
     def energyCutOff(self, dfdE_cut):
         if self._T != 0:
