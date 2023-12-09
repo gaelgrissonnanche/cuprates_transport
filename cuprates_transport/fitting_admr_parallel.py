@@ -17,13 +17,13 @@ from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMRParallel:
-    def __init__(self, admrObject, init_member, bounds_dict, data_dict,
+    def __init__(self, params_init, bounds_dict, data_dict,
                  folder="",
                  normalized_data=True, popsize=15,
                  **trash):
         ## Initialize
-        self.init_member = deepcopy(init_member) # contains all the parameters to calculate ADMR
-        self.member      = deepcopy(init_member) # contains all the parameters to calculate ADMR
+        self.params_init = deepcopy(params_init) # contains all the parameters to calculate ADMR
+        self.params      = deepcopy(params_init) # contains all the parameters to calculate ADMR
         self.bounds_dict = bounds_dict
         self.data_dict   = data_dict
         self.init_time   = time.time()
@@ -31,28 +31,25 @@ class FittingADMRParallel:
         self.folder      = folder
         self.normalized_data = normalized_data
 
-        ## Create the list sorted of the free parameters
-        self.pars = {} # dictionnary of free parameters to computre residual
-        self.free_pars_name  = sorted(self.bounds_dict.keys())
-        self.fixed_pars_name = np.setdiff1d(sorted(self.member.keys()),
-                                             self.free_pars_name)
+        ## Create the dictionnary of sorted of the free parameters
+        self.free_params = {keys: None for keys in sorted(self.bounds_dict.keys())}
+        self.free_params_name = sorted(self.free_params.keys())
+
         ## Create tuple of bounds for scipy
         self.bounds  = []
-        for free_name in self.free_pars_name:
-            self.bounds.append((self.bounds_dict[free_name][0],
-                                self.bounds_dict[free_name][1]))
+        for free_names in self.free_params_name:
+            self.bounds.append((self.bounds_dict[free_names][0],
+                                self.bounds_dict[free_names][1]))
         self.bounds = tuple(self.bounds)
 
-        ## Objects
-        self.admrObject = admrObject
-        for
-        self.admrObject.condObject.bandObject.parallel = False
-        # if pipi_FSR==False:
-        #     self.bandObject = BandStructure(**self.member, parallel=False)
-        # else:
-        #     self.bandObject = PiPiBandStructure(**self.member, parallel=False)
-        # self.condObject = None
-        # self.admrObject = None
+        ## Create ADMR Objects
+        self.admrObjects = {}
+        for data_T in self.params_init.keys()[0]:
+            condObjects = []
+            for band_name in self.params_init.keys()[1]:
+                bandObject = BandStructure(**params_init[data_T, band_name], parallel=True)
+                condObjects.append(Conductivity(bandObject, **params_init[data_T, band_name]))
+            self.admrObject[data_T] = ADMR(condObjects, **params_init[data_T, band_name])
 
         ## Empty spaces
         self.nb_calls     = 0
@@ -68,55 +65,55 @@ class FittingADMRParallel:
         ## Load data
         self.load_and_interp_data()
         ## Update Btheta & Bphi as a function of the angles in the data
-        self.member["Bphi_array"]  = list(self.Bphi_array)
-        self.member["Btheta_min"]  = float(np.min(self.Btheta_array)) # float need for JSON
-        self.member["Btheta_max"]  = float(np.max(self.Btheta_array))
-        self.member["Btheta_step"] = float(self.Btheta_array[1] - self.Btheta_array[0])
+        self.params["Bphi_array"]  = list(self.Bphi_array)
+        self.params["Btheta_min"]  = float(np.min(self.Btheta_array)) # float need for JSON
+        self.params["Btheta_max"]  = float(np.max(self.Btheta_array))
+        self.params["Btheta_step"] = float(self.Btheta_array[1] - self.Btheta_array[0])
 
 
     def generate_admr(self):
         """Takes care of creating the ADMR object with the member values"""
         ## Update bandObject
         for param_name in self.bounds_dict.keys():
-                if hasattr(self.bandObject, param_name):
-                    setattr(self.bandObject, param_name, self.member[param_name])
-                if param_name in self.bandObject._band_params.keys():
-                    self.bandObject[param_name] = self.member["band_params"][param_name]
+                if hasattr(self.admrObject.condObject_dict.bandObject, param_name):
+                    setattr(self.admrObject.condObject_dict.bandObject, param_name, self.params[param_name])
+                if param_name in self.admrObject.condObject_dict.bandObject._band_params.keys():
+                    self.admrObject.condObject_dict.bandObject[param_name] = self.params["band_params"][param_name]
         ## Adjust the doping if required
-        if self.member["fixdoping"] >=-1 and self.member["fixdoping"] <=1:
-            self.bandObject.setMuToDoping(self.member["fixdoping"])
-            self.member["band_params"]["mu"] = self.bandObject["mu"]
+        if self.params["fixdoping"] >=-1 and self.params["fixdoping"] <=1:
+            self.bandObject.setMuToDoping(self.params["fixdoping"])
+            self.params["band_params"]["mu"] = self.bandObject["mu"]
         ## Calculate the bandObject
         self.bandObject.runBandStructure()
         ## Create Conductivity object
-        self.condObject = Conductivity(self.bandObject, **self.member)
+        self.condObject = Conductivity(self.bandObject, **self.params)
         ## Create ADMR object
-        self.admrObject = ADMR([self.condObject], **self.member, progress_bar=False)
+        self.admrObject = ADMR([self.condObject], **self.params, progress_bar=False)
         self.admrObject.Btheta_array = self.Btheta_array
         self.admrObject.Bphi_array = self.Bphi_array
 
 
-    def load_Bphi_data(self):
+    def load_Bphi_data(self, T):
         """Create array of phi angles at the selected temperature"""
         Bphi_array = []
         for t, phi in self.data_dict.keys():
-            if (self.member["data_T"] == t) * np.isin(phi, np.array(self.member["Bphi_array"])):
+            if (self.params["data_T"] == t) * np.isin(phi, np.array(self.params["Bphi_array"])):
                 Bphi_array.append(float(phi)) # put float for JSON
         Bphi_array.sort()
-        self.Bphi_array = np.array(Bphi_array)
+        return np.array(Bphi_array)
 
 
     def load_Btheta_data(self):
         """Creates the theta angles at the selected temperatures and phi"""
-        Btheta_array = np.arange(self.member["Btheta_min"],
-                                 self.member["Btheta_max"] + self.member["Btheta_step"],
-                                 self.member["Btheta_step"])
+        Btheta_array = np.arange(self.params["Btheta_min"],
+                                 self.params["Btheta_max"] + self.params["Btheta_step"],
+                                 self.params["Btheta_step"])
         ## Create Bphi
         self.load_Bphi_data()
         # Cut Btheta_array to theta_cut
         Btheta_cut_array = np.zeros(len(self.Bphi_array))
         for i, phi in enumerate(self.Bphi_array):
-            Btheta_cut_array[i] = self.data_dict[self.member["data_T"], phi][3]
+            Btheta_cut_array[i] = self.data_dict[self.params["data_T"], phi][3]
         Btheta_cut_min = np.min(Btheta_cut_array)  # minimum cut for Btheta_array
         # New Btheta_array with cut off if necessary
         self.Btheta_array = Btheta_array[Btheta_array <= Btheta_cut_min]
@@ -134,10 +131,10 @@ class FittingADMRParallel:
         self.rzz_data_matrix = np.zeros((len(self.Bphi_array), len(self.Btheta_array)))
         self.rhozz_data_matrix = np.zeros((len(self.Bphi_array), len(self.Btheta_array)))
         for i, phi in enumerate(self.Bphi_array):
-            filename     = self.data_dict[self.member["data_T"], phi][0]
-            col_theta    = self.data_dict[self.member["data_T"], phi][1]
-            col_rzz      = self.data_dict[self.member["data_T"], phi][2]
-            rhozz_0      = self.data_dict[self.member["data_T"], phi][4]
+            filename     = self.data_dict[self.params["data_T"], phi][0]
+            col_theta    = self.data_dict[self.params["data_T"], phi][1]
+            col_rzz      = self.data_dict[self.params["data_T"], phi][2]
+            rhozz_0      = self.data_dict[self.params["data_T"], phi][4]
             ## Load data
             data = np.loadtxt(filename, dtype="float", comments="#")
             theta = data[:, col_theta]
@@ -157,14 +154,14 @@ class FittingADMRParallel:
     def compute_diff(self, x):
         """Compute diff = sim - data matrix"""
         ## Creates the dictionnary of variables with updated values
-        for i, pars_name in enumerate(self.free_pars_name):
-            self.pars[pars_name] = x[i]
+        for i, pars_name in enumerate(self.free_params_name):
+            self.free_params[pars_name] = x[i]
         ## Update member with fit parameters
-        for pars_name in self.free_pars_name:
-            if pars_name in self.member.keys():
-                self.member[pars_name] = self.pars[pars_name]
-            elif pars_name in self.member["band_params"].keys():
-                self.member["band_params"][pars_name] = self.pars[pars_name]
+        for pars_name in self.free_params_name:
+            if pars_name in self.params.keys():
+                self.params[pars_name] = self.free_params[pars_name]
+            elif pars_name in self.params["band_params"].keys():
+                self.params["band_params"][pars_name] = self.free_params[pars_name]
 
         ## Compute ADMR ------------------------------------------------------------
         start_total_time = time.time()
@@ -197,28 +194,28 @@ class FittingADMRParallel:
 
     def load_member_from_json(self):
         with open(self.folder + "/" + self.json_name, "r") as f:
-            self.member = json.load(f)
+            self.params = json.load(f)
 
 
     def save_member_to_json(self, filename=None):
         self.generate_admr()
         if filename==None:
             filename = "data_" + \
-            "p" + "{0:.2f}".format(self.member["data_p"]) + "_" + \
-            "T" + "{0:.1f}".format(self.member["data_T"]) + "_fit_" + self.admrObject.fileNameFunc()
+            "p" + "{0:.2f}".format(self.params["data_p"]) + "_" + \
+            "T" + "{0:.1f}".format(self.params["data_T"]) + "_fit_" + self.admrObject.fileNameFunc()
         path = self.folder + "/" + filename + ".json"
         with open(path, 'w') as f:
-            json.dump(self.member, f, indent=4)
+            json.dump(self.params, f, indent=4)
 
 
     def fig_compare(self, fig_show=True, fig_save=False, figname=None):
         ## Load non-interpolated data ------------------------------------------
         Btheta_cut = np.max(self.Btheta_array)
         for i, phi in enumerate(self.Bphi_array):
-            filename     = self.data_dict[self.member["data_T"], phi][0]
-            col_theta    = self.data_dict[self.member["data_T"], phi][1]
-            col_rzz      = self.data_dict[self.member["data_T"], phi][2]
-            rhozz_0      = self.data_dict[self.member["data_T"], phi][4]
+            filename     = self.data_dict[self.params["data_T"], phi][0]
+            col_theta    = self.data_dict[self.params["data_T"], phi][1]
+            col_rzz      = self.data_dict[self.params["data_T"], phi][2]
+            rhozz_0      = self.data_dict[self.params["data_T"], phi][4]
 
             data  = np.loadtxt(filename, dtype="float", comments="#")
             theta = data[:, col_theta]
@@ -251,10 +248,10 @@ class FittingADMRParallel:
             axes.axhline(y = 1, ls ="--", c ="k", linewidth = 0.6)
 
         #############################################
-        fig.text(0.84, 0.89, r"$B$ = " + str(self.member["Bamp"]) + " T", fontsize=14)
-        fig.text(0.84,0.84, r"$T$ (data) = " + str(self.member["data_T"]) + " K", fontsize=14)
-        fig.text(0.84,0.79, r"$T$ (sim) = " + str(self.member["T"]) + " K", fontsize=14)
-        fig.text(0.84,0.74, r"$p$ (data) = " + "{0:.2f}".format(self.member["data_p"]), fontsize=14)
+        fig.text(0.84, 0.89, r"$B$ = " + str(self.params["Bamp"]) + " T", fontsize=14)
+        fig.text(0.84,0.84, r"$T$ (data) = " + str(self.params["data_T"]) + " K", fontsize=14)
+        fig.text(0.84,0.79, r"$T$ (sim) = " + str(self.params["T"]) + " K", fontsize=14)
+        fig.text(0.84,0.74, r"$p$ (data) = " + "{0:.2f}".format(self.params["data_p"]), fontsize=14)
         fig.text(0.84,0.69, r"$p$ (sim) = " + "{0:.3f}".format(self.admrObject.totalHoleDoping), fontsize=14)
         #############################################
 
@@ -324,8 +321,8 @@ class FittingADMRParallel:
         if fig_save == True:
             if figname==None:
                 figname = "data_" + \
-                "p" + "{0:.2f}".format(self.member["data_p"]) + "_" + \
-                "T" + "{0:.1f}".format(self.member["data_T"]) + "_fit_" + self.admrObject.fileNameFunc()
+                "p" + "{0:.2f}".format(self.params["data_p"]) + "_" + \
+                "T" + "{0:.1f}".format(self.params["data_T"]) + "_fit_" + self.admrObject.fileNameFunc()
             path = self.folder + "/" + figname + ".pdf"
             file_figures = PdfPages(path)
             for fig in fig_list:
@@ -342,12 +339,12 @@ def init(num_member):
     shared_num_member = num_member
 
 
-def fit_admr_parallel(init_member, bounds_dict, data_dict,
+def fit_admr_parallel(params_init, bounds_dict, data_dict,
                     normalized_data=True, filename=None,
                     popsize=15, mutation=(0.5, 1), recombination=0.7,
                     percent_workers=100):
     ## Create fitting object for parallel calculations
-    fit_object = FittingADMRParallel(init_member=init_member,
+    fit_object = FittingADMRParallel(params_init=params_init,
                 bounds_dict=bounds_dict, data_dict=data_dict, popsize=popsize,
                 normalized_data=normalized_data)
     num_cpu = cpu_count(logical=False)
@@ -384,40 +381,56 @@ def fit_admr_parallel(init_member, bounds_dict, data_dict,
 
 
 if __name__ == '__main__':
-    ## ONE BAND Matt et al. ///////////////////////////////////////////////////////
-    init_member = {
-    "bandname": "LargePocket",
-    "a": 3.75,
-    "b": 3.75,
-    "c": 13.2,
-    "energy_scale": 160,
-    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.0590233},
-    "res_xy": 40,
-    "res_z": 11,
-    "fixdoping": 2,
-    "T" : 0,
-    "Bamp": 45,
-    "Btheta_min": 0,
-    "Btheta_max": 90,
-    "Btheta_step": 5,
-    "Bphi_array": [0, 15, 30, 45],
-    "gamma_0": 15,
-    "gamma_k": 65.756,
-    "power": 12.21,
-    "data_T": 6,
-    "data_p": 0.24,
-    # "epsilon_z": "- 2*tz*(cos(a*kx) - cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)" +\
-    #              "- 2*tzp*cos(c*kz)",
+    ## Shared parameters at all temperatures /////////////////////////////////////
+    params_common = {
+                    "a": 3.75,
+                    "b": 3.75,
+                    "c": 13.2,
+                    "energy_scale": 160,
+                    "band_params":{ "mu":-0.82439881,
+                                    "t": 1,
+                                    "tp":-0.13642799,
+                                    "tpp":0.06816836,
+                                    "tz":0.0590233 },
+                    "res_xy": 40,
+                    "res_z": 11,
+                    "fixdoping": 2,
+                    "T" : 0,
+                    "Bamp": 45,
+                    "Btheta_min": 0,
+                    "Btheta_max": 90,
+                    "Btheta_step": 5,
+                    "Bphi_array": [0, 15, 30, 45],
     }
-
-    ## For FIT
-    bounds_dict = {
-        "gamma_0": [7,15],
-        "gamma_k": [0,100],
-        "power": [1, 20],
-    #    "tz": [0.03, 0.09],
-    #    "tzp": [-0.03, 0.03],
-    }
+    ## Parameters different at all temperatures
+    params_init = {} # keys are [data_T, band_name, parameter]
+    params_init[6, "band1"] = {**params_common,
+                                "gamma_0": 15,
+                                "gamma_k": 65.756,
+                                "power": 12.21,
+                                }
+    params_init[12, "band1"] = {**params_common,
+                                "gamma_0": 15,
+                                "gamma_k": 65.756,
+                                "power": 12.21,
+                                }
+    ## Boundaries ////////////////////////////////////////////////////////////////
+    bounds_dict = {}
+    # keys are [data_T, band_name, parameter]
+    bounds_dict[6, "band1"] = {
+                            "gamma_0": [7,15],
+                            "gamma_k": [0,100],
+                            "power": [1, 20],
+                            }
+    bounds_dict[12, "band1"] = {
+                        "gamma_0": [7,15],
+                        "gamma_k": [0,100],
+                        "power": [1, 20],
+                        }
+    bounds_dict["all", "band1"] = {
+                        #    "tz": [0.03, 0.09],
+                        #    "tzp": [-0.03, 0.03],
+                            }
 
     ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, rhozz_0] # rhozz_0 in SI units
@@ -440,7 +453,7 @@ if __name__ == '__main__':
     data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
 
     t0 = time.time()
-    fit_admr_parallel(init_member, bounds_dict, data_dict, normalized_data=False, popsize=20)
+    fit_admr_parallel(params_init, bounds_dict, data_dict, normalized_data=False, popsize=20)
     print("## Total time: ", time.time()-t0, "s")
 
 

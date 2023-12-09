@@ -8,7 +8,6 @@ from numba import jit
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from copy import deepcopy
-# import mcubes
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 # Constant //////
@@ -74,8 +73,8 @@ class BandStructure:
         self.e_3D_sym = None # intialize this attribute
         if e_xy=="":
             self.e_xy_sym = sp.sympify("- 2*t*(cos(a*kx) + cos(b*ky))" +\
-                                             "- 4*tp*cos(a*kx)*cos(b*ky)" +\
-                                             "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))")
+                                       "- 4*tp*cos(a*kx)*cos(b*ky)" +\
+                                       "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))")
         else:
             e_xy = e_xy.replace("mu", "0") # replace is just to remove "mu" if the user has entered it by mistake
             self.e_xy_sym = sp.sympify(e_xy)
@@ -150,7 +149,6 @@ class BandStructure:
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runBandStructure(self, epsilon=0, printDoping=False):
         self.discretize_fermi_surface(epsilon=epsilon)
-        self.dos_k_func()
         self.doping(printDoping=printDoping)
 
 
@@ -182,12 +180,10 @@ class BandStructure:
         self.v_sym = [sp.diff(self.e_3D_sym, kx),
                       sp.diff(self.e_3D_sym, ky),
                       sp.diff(self.e_3D_sym, kz)]
-
         ## Lambdafity ///////////////////////////////////////////////////////////
         epsilon_func = sp.lambdify(self.var_sym, self.e_3D_sym, 'numpy')
         v_func = sp.lambdify(self.var_sym, self.v_sym, 'numpy')
-
-        ## Numba ////////////////////////////////////////////////////////////////
+        ## Just in Time Compile with Numba ///////////////////////////////////////
         if self.parallel is True:
             self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
             self.v_func = jit(v_func, nopython=True, parallel=True)
@@ -279,13 +275,17 @@ class BandStructure:
         vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
         # dim -> (n, i0) = (xyz, position on FS)
         self.vf = np.vstack([vx, vy, vz])
+        # Density of State of k, dos_k in  meV^1 Angstrom^-1
+        # dos_k = 1 / (|grad(E)|) here = 1 / (|v|), because in the def of vf, hbar = 1
+        self.dos_k = 1 / sqrt(self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2)
 
 
     def marching_cube(self, epsilon=0):
-        """Marching cube algorithm used to discretize the Fermi surface
+        """
+        Marching cube algorithm used to discretize the Fermi surface
         It returns: - kf with dimensions (xyz, position on FS)
-                    - dkf with dimensions (position on FS)"""
-
+                    - dkf with dimensions (position on FS)
+        """
         ## Generate a uniform meshgrid
         e_3D, _, _, _, kx_a, ky_a, kz_a = self.dispersion_grid(self.res_xy,
                                                         self.res_xy, self.res_z)
@@ -301,20 +301,17 @@ class BandStructure:
                                     #---- Shape of sides is: (N_faces, 2, 3)
                                     #---- Shape of normal_vecs is: (N_faces, 3)
                                     #---- Shape of areas is: (N_faces)
-
         ## Recenter the Fermi surface after Marching Cube in the center of the BZ
         verts[:,0] = verts[:,0] - kx_a[-1]
         verts[:,1] = verts[:,1] - ky_a[-1]
         verts[:,2] = verts[:,2] - kz_a[-1]
         triangles = verts[faces]
-
         ## Calculate areas
         sides = np.diff(triangles, axis=-2) # vectors that represent the sides of the triangles
         normal_vecs = np.cross(sides[...,0,:], sides[...,1,:]) # cross product of two vectors
                             # of the faces to calculate the areas of the triangles
         areas = np.linalg.norm(normal_vecs, axis=-1)/2 # calculate the area of the triangles
                             # by taking the norm of the cross product vector and divide by 2
-
         ## Compute weight of each kf in surface integral
         dkf = np.zeros(len(verts))
         verts_repeated = faces.flatten() # shape is (3*N_faces)
@@ -338,26 +335,17 @@ class BandStructure:
         else: # orthorhombic
             kx_a = np.linspace(-pi / self.a, pi / self.a, 2*self.res_xy_rough)
             ky_a = np.linspace(-pi / self.b, pi / self.b, 2*self.res_xy_rough)
-
         ## Initialize kz array
         kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.res_z)
         dkz = kz_a[1] - kz_a[0] # integrand along z, in A^-1
-        # kz_a = np.linspace(0, 2 * pi / self.c, self.res_z)
-        #      # half of FBZ, 2*pi/c because bodycentered unit cell
-        # dkz = 2 * (2 * pi / self.c / (self.res_z-1)) # integrand along z, in A^-1
-        #      # factor 2 for dkz is because integratation is only over half kz,
-        #      # so the final integral needs to be multiplied by 2.
-
+        # Meshgrid for kx and ky
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
-
         ## Loop over the kz array
         for j, kz in enumerate(kz_a):
             contours = measure.find_contours(self.e_3D_func(kxx, kyy, kz), epsilon)
             number_of_points_per_kz = 0
-
             ## Loop over the different pieces of Fermi surfaces
             for i, contour in enumerate(contours):
-
                 # Contour come in units proportionnal to size of meshgrid
                 # one want to scale to units of kx and ky
                 if self.a == self.b:
@@ -366,7 +354,6 @@ class BandStructure:
                 else:
                     x = (contour[:, 0] / (2*self.res_xy_rough - 1) - 0.5) * 2*pi
                     y = (contour[:, 1] / (2*self.res_xy_rough - 1) - 0.5) * 2*pi / (self.b / self.a) # anisotropy
-
                 # path
                 ds = sqrt(np.diff(x)**2 + np.diff(y)**2)  # segment lengths
                 s = np.zeros_like(x)  # arrays of zeros
@@ -380,7 +367,6 @@ class BandStructure:
                 dks = (s_int[1]- s_int[0]) / self.a  # dk path
                 x_int = np.interp(s_int, s, x)[:-1]
                 y_int = np.interp(s_int, s, y)[:-1]
-
                 if self.a == self.b:
                     # For tetragonal symmetry, rotate the contour to get the entire Fermi surface
                     x_dump = x_int
@@ -391,7 +377,6 @@ class BandStructure:
                         y_dump = np.append(y_dump, y_int_p)
                     x_int = x_dump
                     y_int = y_dump
-
                 # Put in an array /////////////////////////////////////////////////////#
                 if i == 0 and j == 0:  # for first contour and first kz
                     kxf = x_int / self.a
@@ -408,46 +393,20 @@ class BandStructure:
                     dkf = np.append(dkf, dks * dkz * np.ones_like(x_int))
                     self.dks = np.append(self.dks, dks * np.ones_like(x_int))
                     self.dkz = np.append(self.dkz, dkz * np.ones_like(x_int))
-
             if self.a == self.b:
                 # discretize one fourth of FS, therefore need * 4
                 self.number_of_points_per_kz_list.append(4 * number_of_points_per_kz)
             else:
                 self.number_of_points_per_kz_list.append(number_of_points_per_kz)
-
-
-        # if self.half_FS==True:
-        #     kz_a = np.linspace(0, 2 * pi / self.c, self.res_z)
-        #     # half of FBZ, 2*pi/c because bodycentered unit cell
-        #     dkz = 2 * (2 * pi / self.c / self.res_z) # integrand along z, in A^-1
-        #     # factor 2 for dkz is because integratation is only over half kz,
-        #     # so the final integral needs to be multiplied by 2.
-        # else:
-        #     kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.res_z)
-        #     dkz = 4 * pi / self.c / self.res_z # integrand along z, in A^-1
-
-
-
         # dim -> (n, i0) = (xyz, position on FS)
         kf = np.vstack([kxf, kyf, kzf])
-
         return kf, dkf
-
 
 
     def rotation(self, x, y, angle):
         xp = cos(angle) * x + sin(angle) * y
         yp = -sin(angle) * x + cos(angle) * y
         return xp, yp
-
-
-    def dos_k_func(self):
-        """
-        Density of State of k
-        dos_k = 1 / (|grad(E)|) here = 1 / (|v|), because in the def of vf, hbar = 1
-        dos_k in  meV^1 Angstrom^-1
-        """
-        self.dos_k = 1 / sqrt( self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2 )
 
 
     def dos_epsilon_func(self):
@@ -579,101 +538,6 @@ class BandStructure:
 
 
 
-
-## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-class PiPiBandStructure(BandStructure):
-    def __init__(self, electronPocket=False, reconstruction_3D=False, Q_vector=1, **kwargs):
-        super().__init__(**kwargs)
-        self._electronPocket    = electronPocket
-        self._reconstruction_3D = reconstruction_3D # if True the reconstruction is over E_2D + E_z, otherwise just E_2D
-        self._Q_vector          = Q_vector # if = 1 then Q=(pi,pi), if =-1 then Q=(-pi,pi), it only matters if reconstruction_3D = True
-        self.numberOfBZ         = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
-
-        ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        try:
-            assert self._band_params["M"] > 0.00001
-        except KeyError:
-            self._band_params["M"] = 0.00001
-            print("Warning! 'M' has to be defined; it has been added and set to 0.00001")
-        except AssertionError:
-            self._band_params["M"] = 0.00001
-            print("Warning! 'M' has to be > 0.00001; it has been set to 0.00001")
-
-        ## Build the symbolic variables
-        self.var_sym = [sp.Symbol('kx'), sp.Symbol('ky'), sp.Symbol('kz'),
-                        sp.Symbol('a'),  sp.Symbol('b'),  sp.Symbol('c')]
-        for params in sorted(self._band_params.keys()):
-            self.var_sym.append(sp.Symbol(params))
-        self.var_sym = tuple(self.var_sym)
-
-        ## Create the dispersion and velocity functions
-        self.e_3D_v_3D_PiPi_definition()
-
-    ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def _get_electronPocket(self):
-        return self._electronPocket
-    def _set_electronPocket(self, electronPocket):
-        print("You can only set this parameter when building the object")
-    electronPocket = property(_get_electronPocket, _set_electronPocket)
-
-    def _get_reconstruction_3D(self):
-        return self._reconstruction_3D
-    def _set_reconstruction_3D(self, reconstruction_3D):
-        print("You can only set this parameter when building the object")
-    reconstruction_3D = property(_get_reconstruction_3D, _set_reconstruction_3D)
-
-    def _get_Q_vector(self):
-        return self._Q_vector
-    def _set_Q_vector(self, Q_vector):
-        print("You can only set this parameter when building the object")
-    Q_vector = property(_get_Q_vector, _set_Q_vector)
-
-    ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def e_3D_v_3D_PiPi_definition(self):
-
-        """Defines with Sympy the dispersion relation and
-        symbolicly derives the velocity"""
-
-        ## Symbolic variables ///////////////////////////////////////////////////
-        kx = sp.Symbol('kx')
-        ky = sp.Symbol('ky')
-        kz = sp.Symbol('kz')
-        a  = sp.Symbol('a')
-        b  = sp.Symbol('b')
-        mu = sp.Symbol('mu')
-        M  = sp.Symbol('M')
-
-        ## Dispersion //////////////////////////////////////////////////////////
-        if self._electronPocket == True:
-            sign_pocket = 1
-        else:
-            sign_pocket = -1
-
-        if self._reconstruction_3D == True:
-            self.e_3D_sym = self.e_xy_sym + self.e_z_sym
-        else:
-            self.e_3D_sym = self.e_xy_sym
-
-        self.epsilon_PiPi_sym = 0.5 * (self.e_3D_sym + self.e_3D_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)])) + \
-            sign_pocket * sp.sqrt(0.25*(self.e_3D_sym - self.e_3D_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)]))**2 + M**2)
-
-        if self._reconstruction_3D == False:
-            self.epsilon_PiPi_sym += self.e_z_sym
-
-        self.epsilon_PiPi_sym += - mu
-
-        ## Velocity ////////////////////////////////////////////////////////////
-        self.v_PiPi_sym = [sp.diff(self.epsilon_PiPi_sym, kx), sp.diff(self.epsilon_PiPi_sym, ky), sp.diff(self.epsilon_PiPi_sym, kz)]
-
-        ## Lambdafity //////////////////////////////////////////////////////////
-        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_PiPi_sym, 'numpy')
-        v_func = sp.lambdify(self.var_sym, self.v_PiPi_sym, 'numpy')
-
-        ## Numba ////////////////////////////////////////////////////////////////
-        self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
-        self.v_func = jit(v_func, nopython=True, parallel=True)
-
-
 ## Functions to compute the doping of a two bands system and more >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
 def doping(bandIterable, printDoping=False):
     totalFilling=0
@@ -706,77 +570,178 @@ def set_mu_to_doping(bandIterable, p_target, ptol=0.001):
 
 
 
-## Yang Rice Zhang Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-class YRZBandStructure(BandStructure):
-    def __init__(self, electronPocket=False, **kwargs):
-        super().__init__(**kwargs)
-        self._electronPocket = electronPocket
-        self.numberOfBZ = 1  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
 
-        ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        try:
-            assert self._band_params["M"] > 0.00001
-        except KeyError:
-            self._band_params["M"] = 0.00001
-            print("Warning! 'M' has to be defined; it has been added and set to 0.00001")
-        except AssertionError:
-            self._band_params["M"] = 0.00001
-            print("Warning! 'M' has to be > 0.00001; it has been set to 0.00001")
+## We can replace both Classes below by explicit tight binding formula in the Bandstructure class
 
-        ## Build the symbolic variables
-        self.var_sym = [sp.Symbol('kx'), sp.Symbol('ky'), sp.Symbol('kz'),
-                        sp.Symbol('a'),  sp.Symbol('b'),  sp.Symbol('c')]
-        for params in sorted(self._band_params.keys()):
-            self.var_sym.append(sp.Symbol(params))
-        self.var_sym = tuple(self.var_sym)
+# ## Antiferromagnetic Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# class PiPiBandStructure(BandStructure):
+#     def __init__(self, electronPocket=False, reconstruction_3D=False, Q_vector=1, **kwargs):
+#         super().__init__(**kwargs)
+#         self._electronPocket    = electronPocket
+#         self._reconstruction_3D = reconstruction_3D # if True the reconstruction is over E_2D + E_z, otherwise just E_2D
+#         self._Q_vector          = Q_vector # if = 1 then Q=(pi,pi), if =-1 then Q=(-pi,pi), it only matters if reconstruction_3D = True
+#         self.numberOfBZ         = 2  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
 
-        ## Create the dispersion and velocity functions
-        self.e_3D_v_3D_YRZ_definition()
+#         ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#         try:
+#             assert self._band_params["M"] > 0.00001
+#         except KeyError:
+#             self._band_params["M"] = 0.00001
+#             print("Warning! 'M' has to be defined; it has been added and set to 0.00001")
+#         except AssertionError:
+#             self._band_params["M"] = 0.00001
+#             print("Warning! 'M' has to be > 0.00001; it has been set to 0.00001")
 
-    ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def _get_electronPocket(self):
-        return self._electronPocket
-    def _set_electronPocket(self, electronPocket):
-        print("You can only set this parameter when building the object")
-    electronPocket = property(_get_electronPocket, _set_electronPocket)
+#         ## Build the symbolic variables
+#         self.var_sym = [sp.Symbol('kx'), sp.Symbol('ky'), sp.Symbol('kz'),
+#                         sp.Symbol('a'),  sp.Symbol('b'),  sp.Symbol('c')]
+#         for params in sorted(self._band_params.keys()):
+#             self.var_sym.append(sp.Symbol(params))
+#         self.var_sym = tuple(self.var_sym)
 
-    ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    def e_3D_v_3D_YRZ_definition(self):
+#         ## Create the dispersion and velocity functions
+#         self.e_3D_v_3D_PiPi_definition()
 
-        """Defines with Sympy the dispersion relation and
-        symbolicly derives the velocity"""
+#     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#     def _get_electronPocket(self):
+#         return self._electronPocket
+#     def _set_electronPocket(self, electronPocket):
+#         print("You can only set this parameter when building the object")
+#     electronPocket = property(_get_electronPocket, _set_electronPocket)
 
-        ## Symbolic variables ///////////////////////////////////////////////////
-        kx = sp.Symbol('kx')
-        ky = sp.Symbol('ky')
-        kz = sp.Symbol('kz')
-        a  = sp.Symbol('a')
-        b  = sp.Symbol('b')
-        mu = sp.Symbol('mu')
-        t = sp.Symbol('t')
-        M  = sp.Symbol('M')
+#     def _get_reconstruction_3D(self):
+#         return self._reconstruction_3D
+#     def _set_reconstruction_3D(self, reconstruction_3D):
+#         print("You can only set this parameter when building the object")
+#     reconstruction_3D = property(_get_reconstruction_3D, _set_reconstruction_3D)
 
-        ## Dispersion //////////////////////////////////////////////////////////
-        if self._electronPocket == True:
-            sign_pocket = 1
-        else:
-            sign_pocket = -1
+#     def _get_Q_vector(self):
+#         return self._Q_vector
+#     def _set_Q_vector(self, Q_vector):
+#         print("You can only set this parameter when building the object")
+#     Q_vector = property(_get_Q_vector, _set_Q_vector)
 
-        self.e_3D_sym = self.e_xy_sym
-        self.epsilon0_sym = -2 * t * (sp.cos(kx*a) + sp.cos(ky*b))
-        self.epsilon_YRZ_sym = (0.5 * (self.e_3D_sym - self.epsilon0_sym)
-            + sign_pocket * sp.sqrt(0.25*(self.e_3D_sym + self.epsilon0_sym)**2
-                                  + (M*(sp.cos(kx*a) - sp.cos(ky*b)))**2))
-        self.epsilon_YRZ_sym += self.e_z_sym
-        self.epsilon_YRZ_sym += - mu
+#     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#     def e_3D_v_3D_PiPi_definition(self):
 
-        ## Velocity ////////////////////////////////////////////////////////////
-        self.v_YRZ_sym = [sp.diff(self.epsilon_YRZ_sym, kx), sp.diff(self.epsilon_YRZ_sym, ky), sp.diff(self.epsilon_YRZ_sym, kz)]
+#         """Defines with Sympy the dispersion relation and
+#         symbolicly derives the velocity"""
 
-        ## Lambdafity //////////////////////////////////////////////////////////
-        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_YRZ_sym, 'numpy')
-        v_func = sp.lambdify(self.var_sym, self.v_YRZ_sym, 'numpy')
+#         ## Symbolic variables ///////////////////////////////////////////////////
+#         kx = sp.Symbol('kx')
+#         ky = sp.Symbol('ky')
+#         kz = sp.Symbol('kz')
+#         a  = sp.Symbol('a')
+#         b  = sp.Symbol('b')
+#         mu = sp.Symbol('mu')
+#         M  = sp.Symbol('M')
 
-        ## Numba ////////////////////////////////////////////////////////////////
-        self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
-        self.v_func = jit(v_func, nopython=True, parallel=True)
+#         ## Dispersion //////////////////////////////////////////////////////////
+#         if self._electronPocket == True:
+#             sign_pocket = 1
+#         else:
+#             sign_pocket = -1
+
+#         if self._reconstruction_3D == True:
+#             self.e_3D_sym = self.e_xy_sym + self.e_z_sym
+#         else:
+#             self.e_3D_sym = self.e_xy_sym
+
+#         self.epsilon_PiPi_sym = 0.5 * (self.e_3D_sym + self.e_3D_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)])) + \
+#             sign_pocket * sp.sqrt(0.25*(self.e_3D_sym - self.e_3D_sym.subs([(kx, kx+ self._Q_vector*pi/a), (ky, ky+pi/b)]))**2 + M**2)
+
+#         if self._reconstruction_3D == False:
+#             self.epsilon_PiPi_sym += self.e_z_sym
+
+#         self.epsilon_PiPi_sym += - mu
+
+#         ## Velocity ////////////////////////////////////////////////////////////
+#         self.v_PiPi_sym = [sp.diff(self.epsilon_PiPi_sym, kx), sp.diff(self.epsilon_PiPi_sym, ky), sp.diff(self.epsilon_PiPi_sym, kz)]
+
+#         ## Lambdafity //////////////////////////////////////////////////////////
+#         epsilon_func = sp.lambdify(self.var_sym, self.epsilon_PiPi_sym, 'numpy')
+#         v_func = sp.lambdify(self.var_sym, self.v_PiPi_sym, 'numpy')
+
+#         ## Numba ////////////////////////////////////////////////////////////////
+#         self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
+#         self.v_func = jit(v_func, nopython=True, parallel=True)
+
+
+
+
+
+
+# ## Yang Rice Zhang Reconstruction >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+# class YRZBandStructure(BandStructure):
+#     def __init__(self, electronPocket=False, **kwargs):
+#         super().__init__(**kwargs)
+#         self._electronPocket = electronPocket
+#         self.numberOfBZ = 1  # number of BZ we intregrate on as we still work on the unreconstructed FBZ
+
+#         ##!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#         try:
+#             assert self._band_params["M"] > 0.00001
+#         except KeyError:
+#             self._band_params["M"] = 0.00001
+#             print("Warning! 'M' has to be defined; it has been added and set to 0.00001")
+#         except AssertionError:
+#             self._band_params["M"] = 0.00001
+#             print("Warning! 'M' has to be > 0.00001; it has been set to 0.00001")
+
+#         ## Build the symbolic variables
+#         self.var_sym = [sp.Symbol('kx'), sp.Symbol('ky'), sp.Symbol('kz'),
+#                         sp.Symbol('a'),  sp.Symbol('b'),  sp.Symbol('c')]
+#         for params in sorted(self._band_params.keys()):
+#             self.var_sym.append(sp.Symbol(params))
+#         self.var_sym = tuple(self.var_sym)
+
+#         ## Create the dispersion and velocity functions
+#         self.e_3D_v_3D_YRZ_definition()
+
+#     ## Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#     def _get_electronPocket(self):
+#         return self._electronPocket
+#     def _set_electronPocket(self, electronPocket):
+#         print("You can only set this parameter when building the object")
+#     electronPocket = property(_get_electronPocket, _set_electronPocket)
+
+#     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#     def e_3D_v_3D_YRZ_definition(self):
+
+#         """Defines with Sympy the dispersion relation and
+#         symbolicly derives the velocity"""
+
+#         ## Symbolic variables ///////////////////////////////////////////////////
+#         kx = sp.Symbol('kx')
+#         ky = sp.Symbol('ky')
+#         kz = sp.Symbol('kz')
+#         a  = sp.Symbol('a')
+#         b  = sp.Symbol('b')
+#         mu = sp.Symbol('mu')
+#         t = sp.Symbol('t')
+#         M  = sp.Symbol('M')
+
+#         ## Dispersion //////////////////////////////////////////////////////////
+#         if self._electronPocket == True:
+#             sign_pocket = 1
+#         else:
+#             sign_pocket = -1
+
+#         self.e_3D_sym = self.e_xy_sym
+#         self.epsilon0_sym = -2 * t * (sp.cos(kx*a) + sp.cos(ky*b))
+#         self.epsilon_YRZ_sym = (0.5 * (self.e_3D_sym - self.epsilon0_sym)
+#             + sign_pocket * sp.sqrt(0.25*(self.e_3D_sym + self.epsilon0_sym)**2
+#                                   + (M*(sp.cos(kx*a) - sp.cos(ky*b)))**2))
+#         self.epsilon_YRZ_sym += self.e_z_sym
+#         self.epsilon_YRZ_sym += - mu
+
+#         ## Velocity ////////////////////////////////////////////////////////////
+#         self.v_YRZ_sym = [sp.diff(self.epsilon_YRZ_sym, kx), sp.diff(self.epsilon_YRZ_sym, ky), sp.diff(self.epsilon_YRZ_sym, kz)]
+
+#         ## Lambdafity //////////////////////////////////////////////////////////
+#         epsilon_func = sp.lambdify(self.var_sym, self.epsilon_YRZ_sym, 'numpy')
+#         v_func = sp.lambdify(self.var_sym, self.v_YRZ_sym, 'numpy')
+
+#         ## Numba ////////////////////////////////////////////////////////////////
+#         self.epsilon_func = jit(epsilon_func, nopython=True, parallel=True)
+#         self.v_func = jit(v_func, nopython=True, parallel=True)

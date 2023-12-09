@@ -406,6 +406,7 @@ class Conductivity:
             gamma_tot += self.gamma_vF_func(vx, vy, vz)
         if self.factor_arcs!=1:
             gamma_tot *= self.factor_arcs_func(kx, ky, kz)
+        # return 1/(gamma_tot*(1-0.065*cos(self.bandObject.c*kz)))
         return 1/gamma_tot
 
 
@@ -464,6 +465,7 @@ class Conductivity:
          np.sum(dkf * dos_k * self.velocity_product(kft, vft, t_o_tau), axis=2))
         return sigma_epsilon
 
+
     def integrand_coeff(self, epsilon, coeff_name):
         if coeff_name == "sigma":
             return 1
@@ -473,6 +475,7 @@ class Conductivity:
             return (epsilon * meV)**2 / self.T / (-e)**2
         else:
             print("!Warming! You have not enter a correct coefficient name")
+
 
     def chambers_func(self):
         """ Index i and j represent x, y, z = 0, 1, 2

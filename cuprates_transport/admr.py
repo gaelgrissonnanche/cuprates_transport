@@ -10,7 +10,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 class ADMR:
     def __init__(self, condObject_list, Btheta_min=0, Btheta_max=110,
                  Btheta_step=5, Bphi_array=[0, 15, 30, 45], show_progress=True, **trash):
-
         # Band dictionary
         self.condObject_dict = {} # will contain the condObject for each band, with key their bandname
         self.total_filling = 0 # total bands filling (of electron) over all bands
@@ -46,7 +45,7 @@ class ADMR:
         for l, phi in iterator:
             for m, theta in enumerate(self.Btheta_array):
                 sigma_tensor = 0
-                for (band_name, condObject) in list(self.condObject_dict.items()):
+                for _, condObject in list(self.condObject_dict.items()):
                     condObject.Bphi = phi
                     condObject.Btheta = theta
                     condObject.runTransport()

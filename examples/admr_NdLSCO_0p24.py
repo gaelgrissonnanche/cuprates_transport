@@ -2,7 +2,10 @@ from numpy import pi, deg2rad, linalg
 from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
+from time import time
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
+
+ttot = time()
 
 # ## Fudge ! ADMR absolute AMPGO ///////////////////////////////////////////////////
 # params = {
@@ -220,21 +223,24 @@ params = {
 # }
 
 ## Create Bandstructure object
+tband = time()
 bandObject = BandStructure(**params)
 # bandObject.march_square = True
 
 ## Discretize Fermi surface
 # bandObject.setMuToDoping(0.15)
 # print(bandObject["mu"])
-bandObject.runBandStructure(printDoping=True)
+bandObject.runBandStructure(printDoping=False)
 # bandObject.figDiscretizeFS3D()
 # bandObject.mc_func()
 # print("mc = " + "{:.3f}".format(bandObject.mc))
 # bandObject.figMultipleFS2D()
 # # bandObject.figDiscretizeFS2D()
 # print(bandObject.kf.shape)
+print("time structure = " + str(time()-tband) + " s")
 
 # ## Compute conductivity
+ttransport = time()
 condObject = Conductivity(bandObject, **params)
 condObject.runTransport()
 # condObject.figScatteringColor()
@@ -244,7 +250,6 @@ condObject.runTransport()
 # # condObject.figScatteringPhi(kz=0)
 # # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
-
 # rho = linalg.inv(condObject.sigma).transpose()
 # rhoxx = rho[0,0]
 # rhoxy = rho[0,1]
@@ -253,9 +258,16 @@ condObject.runTransport()
 # print("rhoxx =", rhoxx*1e8, "uOhm.cm")
 # print("rhozz =", rhozz*1e5, "mOhm.cm")
 # print("RH =", rhoxy * 1e9 / params["Bamp"], "mm^3 / C")
+print("time transport = " + str(time()-ttransport) + " s")
 
 # ## Compute ADMR
-amro1band = ADMR([condObject], **params)
-amro1band.runADMR()
+tadmr = time()
+admr1band = ADMR([condObject], **params)
+admr1band.show_progress = False
+admr1band.runADMR()
+
 # amro1band.fileADMR(folder="sim/NdLSCO_0p24")
-amro1band.figADMR(folder="sim/NdLSCO_0p24")
+# admr1band.figADMR(folder="sim/NdLSCO_0p24")
+print("time admr = " + str(time() - tadmr) + " s")
+
+print("time total = " + str(time() - ttot) + " s")

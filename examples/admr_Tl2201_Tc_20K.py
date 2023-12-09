@@ -61,8 +61,6 @@ params = {
     "gamma_0": 3.77,
     "gamma_k": 0,
     "power": 6,
-    "data_T": 4.2,
-    "data_p": 0.30,
     "epsilon_z":"-2 * cos(c*kz/2)*(" +\
                 "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
                 "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
@@ -75,7 +73,7 @@ params = {
 bandObject = BandStructure(**params)
 
 ## Discretize
-bandObject.setMuToDoping(0.30)
+bandObject.set_mu_to_doping(0.30)
 bandObject.runBandStructure(printDoping=True)
 
 # bandObject.mc_func()
