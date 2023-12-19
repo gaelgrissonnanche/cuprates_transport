@@ -1,14 +1,8 @@
 import numpy as np
-from numpy import cos, sin, pi, sqrt
-from scipy import optimize
-from scipy.constants import electron_mass, physical_constants
-import sympy as sp
-from skimage import measure
-from numba import jit
+from numpy import pi
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from copy import deepcopy
-from mpl_toolkits.mplot3d import Axes3D
+# from mpl_toolkits.mplot3d import Axes3D
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
 # ///// RC Parameters ////// #
@@ -45,14 +39,27 @@ def figDiscretizeFS2D(self, kz = 0, meshXY = 1001):
     fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
     axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
-    line = axes.plot(self.kf[0,:self.number_of_points_per_kz_list[0]] * self.a,
-                     self.kf[1,:self.number_of_points_per_kz_list[0]] * self.b)
+
+    nb_pkz = self.number_of_points_per_kz_list
+    nkz = len(nb_pkz)
+    npkz0 = np.sum(nb_pkz[:nkz//2])
+    npkz1 = npkz0 + nb_pkz[nkz//2]
+
+    line = axes.plot(self.kf[0, npkz0: npkz1] * self.a,
+                     self.kf[1, npkz0: npkz1] * self.b)
+    # line = axes.plot(self.kf[0,:self.number_of_points_per_kz_list[0]] * self.a,
+    #                  self.kf[1,:self.number_of_points_per_kz_list[0]] * self.b)
     plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-    axes.quiver(self.kf[0,:self.number_of_points_per_kz_list[0]] * self.a,
-                self.kf[1,:self.number_of_points_per_kz_list[0]] * self.b,
-                self.vf[0,:self.number_of_points_per_kz_list[0]],
-                self.vf[1,:self.number_of_points_per_kz_list[0]],
+    axes.quiver(self.kf[0, npkz0: npkz1] * self.a,
+                self.kf[1, npkz0: npkz1] * self.b,
+                self.vf[0, npkz0: npkz1],
+                self.vf[1, npkz0: npkz1],
                 color = 'k')
+    # axes.quiver(self.kf[0,:self.number_of_points_per_kz_list[0]] * self.a,
+    #             self.kf[1,:self.number_of_points_per_kz_list[0]] * self.b,
+    #             self.vf[0,:self.number_of_points_per_kz_list[0]],
+    #             self.vf[1,:self.number_of_points_per_kz_list[0]],
+    #             color = 'k')
 
     axes.set_xlim(-pi, pi)
     axes.set_ylim(-pi, pi)
