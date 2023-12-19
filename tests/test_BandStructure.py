@@ -95,11 +95,10 @@ class BandStructTests(unittest.TestCase):
         bObj = BandStructure(**BandStructTests.params)
         bObj.march_square = True
         bObj.runBandStructure(epsilon=0)
-        # bObj.figDiscretizeFS3D()
+        bObj.figDiscretizeFS3D()
         # OG: The next function somehow requires that we used Marching square,
         # otherwise self.dks are not defined. Why? mc for marching square?
         bObj.mc_func()
-        print(bObj.doping_per_kz(res_z=5))
         bObj.figMultipleFS2D()
         bObj.figDiscretizeFS2D()
 
