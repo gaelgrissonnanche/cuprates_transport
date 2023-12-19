@@ -1,0 +1,108 @@
+import unittest
+import numpy as np
+from cuprates_transport.bandstructure import BandStructure
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
+
+
+class BandStructTests(unittest.TestCase):
+
+    # ONE BAND Horio et al.
+    params = {
+            "band_name": "LargePocket",
+            "a": 3.74767,
+            "b": 3.74767,
+            "c": 13.2,
+            "energy_scale": 190,
+            "band_params": {"mu": -0.826, "t": 1, "tp": -0.14, "tpp": 0.07,
+                            "tz": 0.07},
+            "fixdoping": 0.24,
+            "res_xy": 21,
+            "res_z": 7,
+            "T": 0,
+            "Bamp": 45,
+            "Bphi_array": [0, 15, 30, 45],
+            "gamma_0": 15.1,
+            "gamma_k": 66,
+            "power": 12,
+        }
+
+    def test_initialization(self):
+        """
+        Test to make sure everything is initialized as expected.
+        """
+        p = BandStructTests.params
+        bObj = BandStructure(**p)
+
+        self.assertEqual([bObj.a, bObj.b, bObj.c], [p["a"], p["b"], p["c"]])
+        self.assertEqual(bObj.parallel, True)
+        self.assertEqual(bObj._band_params, p["band_params"])
+        self.assertEqual(bObj.band_name, p["band_name"])
+        self.assertEqual(bObj.numberOfBZ, 1)
+
+        # e_xy_sym, e_z_sym, e_3D_sym
+        print(bObj.e_3D_sym)
+        print(bObj.v_sym)
+        print(bObj.epsilon_func)
+        print(bObj.v_func)
+
+        self.assertEqual([bObj.res_xy, bObj.res_z], [p["res_xy"], p["res_z"]])
+        self.assertEqual(bObj.march_square, False)
+
+        self.assertEqual([bObj.kf, bObj.vf], [None, None])
+        self.assertEqual([bObj.dkf, bObj.dks, bObj.dkz], [None, None, None])
+        self.assertEqual([bObj.dos_k, bObj.dos_epsilon], [None, None])
+        self.assertEqual([bObj.p, bObj.n], [None, None])
+
+        self.assertEqual(bObj.number_of_points_per_kz_list, [])
+
+    def test_run_nomarching(self):
+        """
+        Test the runBandStructure function.
+        """
+        bObj = BandStructure(**BandStructTests.params)
+        bObj.runBandStructure(epsilon=0, printDoping=True)
+
+        # Check that the doping was well initialized
+        self.assertEqual(np.round(bObj.p, 3), 0.239)
+
+        # Test the first elements of each of these
+        self.assertEqual(np.around(bObj.kf[0][0], 3), -0.754)
+        self.assertEqual(np.around(bObj.dkf[0], 4), 0.0043)
+        self.assertEqual(np.around(bObj.vf[0][0], 3), -64.818)
+        self.assertEqual(np.around(bObj.dos_k[0], 3), 0.0110)
+
+    def test_run_marching(self):
+        """
+        Test the runBandStructure function.
+        """
+        bObj = BandStructure(**BandStructTests.params)
+        bObj.march_square = True
+        bObj.runBandStructure(epsilon=0, printDoping=True)
+
+        # Check that the doping was well initialized
+        self.assertEqual(np.round(bObj.p, 3), 0.239)
+
+        # Test the first elements of each of these
+        self.assertEqual(np.around(bObj.kf[0][0], 3), 0.709)
+        self.assertEqual(np.around(bObj.dkf[0], 4), 0.0064)
+        self.assertEqual(np.around(bObj.vf[0][0], 3), 184.487)
+        self.assertEqual(np.around(bObj.dos_k[0], 3), 0.005)
+
+    def test_figures(self):
+        """
+        Test of the generation of figures.
+        """
+        bObj = BandStructure(**BandStructTests.params)
+        bObj.march_square = True
+        bObj.runBandStructure(epsilon=0)
+        # bObj.figDiscretizeFS3D()
+        # OG: The next function somehow requires that we used Marching square,
+        # otherwise self.dks are not defined. Why? mc for marching square?
+        bObj.mc_func()
+        print(bObj.doping_per_kz(res_z=5))
+        bObj.figMultipleFS2D()
+        bObj.figDiscretizeFS2D()
+
+
+if __name__ == '__main__':
+    unittest.main()
