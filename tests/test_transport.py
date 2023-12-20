@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.conductivity import Conductivity
+from cuprates_transport.admr import ADMR
 from copy import deepcopy
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
@@ -203,6 +204,44 @@ class Tests_Conductivity(unittest.TestCase):
         self.assertEqual(np.around(rho[0, 1], 10), 1.13e-08)
         self.assertEqual(np.around(rho[2, 2], 7), 4.58e-05)
 
+
+class Tests_ADMR(unittest.TestCase):
+
+    # ONE BAND Horio et al.
+    params = {
+            "band_name": "LargePocket",
+            "a": 3.74767,
+            "b": 3.74767,
+            "c": 13.2,
+            "energy_scale": 190,
+            "band_params": {"mu": -0.826, "t": 1, "tp": -0.14, "tpp": 0.07,
+                            "tz": 0.07},
+            "fixdoping": 0.24,
+            "res_xy": 21,
+            "res_z": 7,
+            "T": 0,
+            "Bamp": 45,
+            "Bphi_array": [0, 15, 30, 45],
+            "gamma_0": 15.1,
+            "gamma_k": 66,
+            "power": 12,
+        }
+
+    def test_initialization(self):
+        """
+        Test to make sure everything is initialized as expected.
+        """
+        p = Tests_BandStructure.params
+        bObj = BandStructure(**p)
+        bObj.runBandStructure(printDoping=False)
+
+        cObj = Conductivity(bObj, **p)
+        cObj.runTransport()
+
+        admr = ADMR([cObj], **p)
+        admr.show_progress = False
+        admr.runADMR()
+        admr.figADMR()
 
 if __name__ == '__main__':
     unittest.main()
