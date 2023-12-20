@@ -178,6 +178,31 @@ class Tests_Conductivity(unittest.TestCase):
 
         self.assertEqual(np.round(cObj.sigma[2, 2], 3), 24200.735)
 
+    def test_conductivity_T_plots(self):
+        """
+        Test at finite temperature with field.
+        """
+        p = deepcopy(Tests_BandStructure.params)
+        p["T"] = 25  # in Kelvin
+        bObj = BandStructure(**p)
+        bObj.march_square = True
+        bObj.runBandStructure(printDoping=False)
+
+        cObj = Conductivity(bObj, **p)
+        cObj.runTransport()
+
+        cObj.figScatteringColor()
+        cObj.omegac_tau_func()
+        self.assertEqual(np.round(cObj.omegac_tau_k[0], 3), 21.929)
+        
+        cObj.figOnekft()
+        cObj.figScatteringPhi(kz=0)
+
+        rho = np.linalg.inv(cObj.sigma).transpose()
+        self.assertEqual(np.around(rho[0, 0], 10), 2.223e-07)
+        self.assertEqual(np.around(rho[0, 1], 10), 1.13e-08)
+        self.assertEqual(np.around(rho[2, 2], 7), 4.58e-05)
+
 
 if __name__ == '__main__':
     unittest.main()

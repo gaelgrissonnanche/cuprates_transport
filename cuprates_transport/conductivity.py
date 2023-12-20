@@ -284,7 +284,10 @@ class Conductivity:
         prefactor = (hbar)**2 / (2 * pi * e * self._Bamp)
 
         ## Function of k
-        inverse_omegac_tau_k = prefactor * 2*pi*kf_perp / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))
+        kf0, kf1, kf2 = kf[0, :], kf[1, :], kf[2, :]
+        vf0, vf1, vf2 = vf[0, :], vf[1, :], kf[2, :]
+        inverse_omegac_tau_k = (prefactor * 2*pi*kf_perp / vf_perp / picosecond * 
+                                self.tau_total_func(kf0, kf1, kf2, vf0, vf1, vf2))
         self.omegac_tau_k = 1 / inverse_omegac_tau_k
 
         # ## Integrated over the Fermi surface
