@@ -1,6 +1,8 @@
 import unittest
 import numpy as np
 from cuprates_transport.bandstructure import BandStructure
+from cuprates_transport.conductivity import Conductivity
+from copy import deepcopy
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
 
@@ -30,7 +32,7 @@ class Tests_BandStructure(unittest.TestCase):
         """
         Test to make sure everything is initialized as expected.
         """
-        p = BandStructTests.params
+        p = Tests_BandStructure.params
         bObj = BandStructure(**p)
 
         self.assertEqual([bObj.a, bObj.b, bObj.c], [p["a"], p["b"], p["c"]])
@@ -59,7 +61,7 @@ class Tests_BandStructure(unittest.TestCase):
         """
         Test the runBandStructure function.
         """
-        bObj = BandStructure(**BandStructTests.params)
+        bObj = BandStructure(**Tests_BandStructure.params)
         bObj.runBandStructure(epsilon=0, printDoping=True)
 
         # Check that the doping was well initialized
@@ -75,7 +77,7 @@ class Tests_BandStructure(unittest.TestCase):
         """
         Test the runBandStructure function.
         """
-        bObj = BandStructure(**BandStructTests.params)
+        bObj = BandStructure(**Tests_BandStructure.params)
         bObj.march_square = True
         bObj.runBandStructure(epsilon=0, printDoping=True)
 
@@ -92,7 +94,7 @@ class Tests_BandStructure(unittest.TestCase):
         """
         Test of the generation of figures.
         """
-        bObj = BandStructure(**BandStructTests.params)
+        bObj = BandStructure(**Tests_BandStructure.params)
         bObj.march_square = True
         bObj.runBandStructure(epsilon=0)
         bObj.figDiscretizeFS3D()
@@ -101,6 +103,80 @@ class Tests_BandStructure(unittest.TestCase):
         bObj.mc_func()
         bObj.figMultipleFS2D()
         bObj.figDiscretizeFS2D()
+
+
+class Tests_Conductivity(unittest.TestCase):
+
+    # ONE BAND Horio et al.
+    params = {
+            "band_name": "LargePocket",
+            "a": 3.74767,
+            "b": 3.74767,
+            "c": 13.2,
+            "energy_scale": 190,
+            "band_params": {"mu": -0.826, "t": 1, "tp": -0.14, "tpp": 0.07,
+                            "tz": 0.07},
+            "fixdoping": 0.24,
+            "res_xy": 21,
+            "res_z": 7,
+            "T": 0,
+            "Bamp": 45,
+            "Bphi_array": [0, 15, 30, 45],
+            "gamma_0": 15.1,
+            "gamma_k": 66,
+            "power": 12,
+        }
+
+    def test_initialization(self):
+        """
+        Test to make sure everything is initialized as expected.
+        """
+        p = Tests_BandStructure.params
+        bObj = BandStructure(**p)
+        bObj.runBandStructure(printDoping=False)
+
+        cObj = Conductivity(bObj, **p)
+        
+    def test_conductivity_T0_B0(self):
+        """
+        Test at zero temperature with no field.
+        """
+        p = Tests_BandStructure.params
+        bObj = BandStructure(**p)
+        bObj.runBandStructure(printDoping=False)
+
+        cObj = Conductivity(bObj, **p)
+        cObj.Bamp = 0
+        cObj.runTransport()
+
+        self.assertEqual(np.round(cObj.sigma[2, 2], 3), 25819.083)
+
+    def test_conductivity_T0(self):
+        """
+        Test at zero temperature with field.
+        """
+        p = Tests_BandStructure.params
+        bObj = BandStructure(**p)
+        bObj.runBandStructure(printDoping=False)
+
+        cObj = Conductivity(bObj, **p)
+        cObj.runTransport()
+
+        self.assertEqual(np.round(cObj.sigma[2, 2], 3), 24999.56)
+
+    def test_conductivity_T(self):
+        """
+        Test at finite temperature with field.
+        """
+        p = deepcopy(Tests_BandStructure.params)
+        p["T"] = 25  # in Kelvin
+        bObj = BandStructure(**p)
+        bObj.runBandStructure(printDoping=False)
+
+        cObj = Conductivity(bObj, **p)
+        cObj.runTransport()
+
+        self.assertEqual(np.round(cObj.sigma[2, 2], 3), 24200.735)
 
 
 if __name__ == '__main__':
