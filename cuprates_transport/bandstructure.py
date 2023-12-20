@@ -18,8 +18,7 @@ Angstrom = 1e-10                                        # 1 A in meters
 
 
 class BandStructure:
-    from .bandstructure_plot import figDiscretizeFS3D, figDiscretizeFS2D,\
-        figMultipleFS2D
+    from .bandstructure_plotting import figDiscretizeFS3D, figDiscretizeFS2D, figMultipleFS2D
     from .bandstructure_marching import marching_cube, marching_square
 
     def __init__(self,
@@ -148,7 +147,7 @@ class BandStructure:
     def __setitem__(self, key, value):
         # Add security not to add keys later
         if key not in self._band_params.keys():
-            print(key + " was not added (new band parameters are only" + \
+            print(key + " was not added (new band parameters are only"
                   " allowed within object initialization)")
         else:
             self.erase_Fermi_surface()

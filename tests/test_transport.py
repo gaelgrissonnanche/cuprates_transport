@@ -4,7 +4,7 @@ from cuprates_transport.bandstructure import BandStructure
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
 
-class BandStructTests(unittest.TestCase):
+class Tests_BandStructure(unittest.TestCase):
 
     # ONE BAND Horio et al.
     params = {
