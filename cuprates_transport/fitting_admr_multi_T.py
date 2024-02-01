@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
 
-from cuprates_transport.bandstructure import BandStructure, PiPiBandStructure, setMuToDoping, doping
+# from cuprates_transport.bandstructure import BandStructure, PiPiBandStructure, setMuToDoping, doping
+from cuprates_transport.bandstructure import BandStructure, set_mu_to_doping, doping
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -84,7 +85,7 @@ class FittingADMR:
 
         ## Adjust the doping if need be
         if self.member_dict[self.data_T_list[0]]["fixdoping"] >=-1 and self.member_dict[self.data_T_list[0]]["fixdoping"] <=1:
-            self.bandObject.setMuToDoping(self.member_dict[self.data_T_list[0]]["fixdoping"])
+            self.bandObject.set_mu_to_doping(self.member_dict[self.data_T_list[0]]["fixdoping"])
             for T in self.data_T_list:
                 self.member_dict[T]["band_params"]["mu"] = self.bandObject["mu"]
 
