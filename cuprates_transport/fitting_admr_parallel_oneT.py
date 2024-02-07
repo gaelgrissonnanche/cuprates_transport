@@ -14,7 +14,6 @@ from scipy.optimize import differential_evolution
 from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
-##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMRParallel:
     def __init__(self, init_member, bounds_dict, data_dict, pipi_FSR=False,
@@ -377,8 +376,6 @@ def fit_admr_parallel(init_member, bounds_dict, data_dict,
             globals()['time_iter'] = time.time()
             if (xk != globals()['best_x']).all():
                 globals()['best_x'] = xk
-                # obj_val = fit_object.compute_diff2(xk, verbose=False)
-                # text += "\tNew best:" + str([round(x, 10) for x in xk]) + "\tchi^2: %.3e" % obj_val
                 text += "\tNew best:" + str([round(x, 10) for x in xk])
             print(text)
             sys.stdout.flush()
