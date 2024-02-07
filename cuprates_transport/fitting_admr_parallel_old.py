@@ -14,11 +14,10 @@ from scipy.optimize import differential_evolution
 from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
-##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMRParallel:
     def __init__(self, init_member, bounds_dict, data_dict, pipi_FSR=False,
-                 folder="",
+                 folder=".",
                  normalized_data=True, popsize=15,
                  **trash):
         ## Initialize
@@ -86,7 +85,7 @@ class FittingADMRParallel:
         ## Create Conductivity object
         self.condObject = Conductivity(self.bandObject, **self.member)
         ## Create ADMR object
-        self.admrObject = ADMR([self.condObject], **self.member, progress_bar=False)
+        self.admrObject = ADMR([self.condObject], **self.member, show_progress=False)
         self.admrObject.Btheta_array = self.Btheta_array
         self.admrObject.Bphi_array = self.Bphi_array
 
@@ -149,7 +148,7 @@ class FittingADMRParallel:
             self.rzz_data_matrix[i, :] = rzz_i
 
 
-    def compute_diff(self, x):
+    def compute_diff2(self, x, verbose=False):
         """Compute diff = sim - data matrix"""
         ## Creates the dictionnary of variables with updated values
         for i, pars_name in enumerate(self.free_pars_name):
@@ -162,21 +161,8 @@ class FittingADMRParallel:
                 self.member["band_params"][pars_name] = self.pars[pars_name]
 
         ## Compute ADMR ------------------------------------------------------------
-        start_total_time = time.time()
         self.generate_admr()
         self.admrObject.runADMR()
-
-        ## Increment the global counter to count generations and member numbers
-        global shared_num_member
-        ## += operation is not atomic, so we need to get a lock:
-        with shared_num_member.get_lock():
-            shared_num_member.value += 1
-        num_member = shared_num_member.value
-        num_gen = np.floor(num_member / (self.popsize*len(self.bounds))) + 1
-        print('Gen #' + str(int(num_gen)) + ' ----' +
-        'Member #' + str(num_member) + ' ----' +
-        'Time elapsed ' + " %.6s seconds" % (time.time() - self.init_time), end='\r')
-        sys.stdout.flush()
 
         ## Compute diff
         diff_matrix = np.zeros_like(self.rzz_data_matrix)
@@ -187,7 +173,25 @@ class FittingADMRParallel:
                 diff_matrix[i, :] = (self.rhozz_data_matrix[i, :] - self.admrObject.rhozz_array[i, :])*1e5
         self.condObject = None
         self.admrObject = None
+
+        ## Increment the global counter to count generations and member numbers
+        ## += operation is not atomic, so we need to get a lock:
+        if verbose:
+            with globals()['shared_num_member'].get_lock():
+                globals()['shared_num_member'].value += 1
+            num_member = globals()['shared_num_member'].value
+            num_gen = np.floor(num_member / (self.popsize*len(self.bounds))) + 1
+
+            print('Gen ' + str(int(num_gen)) + ' ---- ' +
+            'Member ' + str(num_member) + ' ---- ' +
+            'Time elapsed ' + " %.6s seconds" % (time.time() - self.init_time) + ' ---- ' +
+            'Diff: %.8e' % np.sum(diff_matrix.flatten()**2))
+            sys.stdout.flush()
+
         return np.sum(diff_matrix.flatten()**2)
+
+    def compute_diff(self, x):
+        return self.compute_diff2(x, verbose=True)
 
     def load_member_from_json(self):
         with open(self.folder + "/" + self.json_name, "r") as f:
@@ -199,7 +203,7 @@ class FittingADMRParallel:
         if filename==None:
             filename = "data_" + \
             "p" + "{0:.2f}".format(self.member["data_p"]) + "_" + \
-            "T" + "{0:.1f}".format(self.member["data_T"]) + "_fit_" + self.admrObject.fileNameFunc()
+            "T" + "{0:.1f}".format(self.member["data_T"]) + "_fit_" + self.admrObject.file_name_func()
         path = self.folder + "/" + filename + ".json"
         with open(path, 'w') as f:
             json.dump(self.member, f, indent=4)
@@ -249,7 +253,7 @@ class FittingADMRParallel:
         fig.text(0.84,0.84, r"$T$ (data) = " + str(self.member["data_T"]) + " K", fontsize=14)
         fig.text(0.84,0.79, r"$T$ (sim) = " + str(self.member["T"]) + " K", fontsize=14)
         fig.text(0.84,0.74, r"$p$ (data) = " + "{0:.2f}".format(self.member["data_p"]), fontsize=14)
-        fig.text(0.84,0.69, r"$p$ (sim) = " + "{0:.3f}".format(self.admrObject.totalHoleDoping), fontsize=14)
+        fig.text(0.84,0.69, r"$p$ (sim) = " + "{0:.3f}".format(self.admrObject.total_hole_doping), fontsize=14)
         #############################################
 
         #############################################
@@ -328,36 +332,64 @@ class FittingADMRParallel:
 
 
 ## Functions for fit -------------------------------------------------------------
+global shared_num_member
 shared_num_member = None
 
 def init(num_member):
     """store the counter for later use """
-    global shared_num_member
-    shared_num_member = num_member
-
+    # global shared_num_member
+    globals()['shared_num_member'] = num_member
 
 def fit_admr_parallel(init_member, bounds_dict, data_dict,
                     normalized_data=True, filename=None,
                     popsize=15, mutation=(0.5, 1), recombination=0.7,
-                    percent_workers=100):
+                    percent_workers=100, num_cpu=None):
     ## Create fitting object for parallel calculations
     fit_object = FittingADMRParallel(init_member=init_member,
                 bounds_dict=bounds_dict, data_dict=data_dict, popsize=popsize,
                 normalized_data=normalized_data)
-    num_cpu = cpu_count(logical=False)
+    if num_cpu is None:
+        num_cpu = cpu_count(logical=False)
     num_workers = int(percent_workers / 100 * num_cpu)
     print("# cpu cores: " + str(num_cpu))
     print("# workers: " + str(num_workers))
     ## Initialize counter
-    num_member = Value('i', 1)
+    num_member = Value('i', 0)
     ## Create pool of workers
+
+
     pool = Pool(processes=num_workers,
                 initializer = init, initargs = (num_member, ))
+
+    global iteration
+    iteration = 0
+    global time_iter
+    time_iter = time.time()
+    global best_x
+    best_x = None
+
+    def callback():
+        def fn(xk, convergence):
+            globals()['iteration'] += 1
+            text = "Iteration: %d\titer time: %.3f" % (globals()['iteration'], (time.time() - globals()['time_iter']))
+            globals()['time_iter'] = time.time()
+            if (xk != globals()['best_x']).all():
+                globals()['best_x'] = xk
+                obj_val = fit_object.compute_diff2(xk, verbose=False)
+                sys.stdout.flush()
+                text += "\tNew best:" + str([round(x, 10) for x in xk]) + "\tchi^2: %.8e" % obj_val
+            print(text)
+        return fn
+
+    c = callback()
+
     ## Differential evolution
-    res = differential_evolution(fit_object.compute_diff, fit_object.bounds,
+    res = differential_evolution(fit_object.compute_diff2, fit_object.bounds,
                                  updating='deferred', workers=pool.map,
                                  popsize=popsize, mutation=mutation,
-                                 recombination=recombination, polish=False)
+                                 recombination=recombination, polish=False,
+                                 callback=c)
+
     pool.terminate()
     ## Export final parameters from the fit
     for i, pars_name in enumerate(fit_object.free_pars_name):
@@ -377,64 +409,64 @@ def fit_admr_parallel(init_member, bounds_dict, data_dict,
 ## ///////////////////////////////////////////////////////////////////////////////
 
 
-if __name__ == '__main__':
-    ## ONE BAND Matt et al. ///////////////////////////////////////////////////////
-    init_member = {
-    "bandname": "LargePocket",
-    "a": 3.75,
-    "b": 3.75,
-    "c": 13.2,
-    "energy_scale": 160,
-    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06146443},
-    "res_xy": 40,
-    "res_z": 11,
-    "T" : 0,
-    "fixdoping": 2,
-    "Bamp": 45,
-    "Btheta_min": 0,
-    "Btheta_max": 90,
-    "Btheta_step": 5,
-    "Bphi_array": [0, 15, 30, 45],
-    "gamma_0": 15,
-    "gamma_k": 65.756,
-    "power": 12.21,
-    "data_T": 25,
-    "data_p": 0.24,
-    # "epsilon_z": "- 2*tz*(cos(a*kx) - cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)" +\
-    #              "- 2*tzp*cos(c*kz)",
-    }
-
-    ## For FIT
-    bounds_dict = {
-        "gamma_0": [7,15],
-        "gamma_k": [0,100],
-        "power": [1, 20],
-    #    "tz": [0.03, 0.09],
-    #    "tzp": [-0.03, 0.03],
-    }
-
-    ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, rhozz_0] # rhozz_0 in SI units
-    data_dict[25, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
-    data_dict[25, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
-    data_dict[25, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
-    data_dict[25, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
-
-    data_dict[20, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
-    data_dict[20, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
-    data_dict[20, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
-    data_dict[20, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
-
-    data_dict[12, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
-    data_dict[12, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
-    data_dict[12, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
-
-    data_dict[6, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
-    data_dict[6, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
-    data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
-
-    t0 = time.time()
-    fit_admr_parallel(init_member, bounds_dict, data_dict, normalized_data=False, popsize=2, percent_workers=2.5)
-    print("## Total time: ", time.time()-t0, "s")
-
-
+# if __name__ == '__main__':
+#     ## ONE BAND Matt et al. ///////////////////////////////////////////////////////
+#     init_member = {
+#     "bandname": "LargePocket",
+#     "a": 3.75,
+#     "b": 3.75,
+#     "c": 13.2,
+#     "energy_scale": 160,
+#     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06146443},
+#     "res_xy": 40,
+#     "res_z": 11,
+#     "fixdoping": 2,
+#     "T" : 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 90,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0, 15, 30, 45],
+#     "gamma_0": 15,
+#     "gamma_k": 65.756,
+#     "power": 12.21,
+#     "data_T": 25,
+#     "data_p": 0.24,
+#     # "epsilon_z": "- 2*tz*(cos(a*kx) - cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)" +\
+#     #              "- 2*tzp*cos(c*kz)",
+#     }
+#
+#     ## For FIT
+#     bounds_dict = {
+#         "gamma_0": [7,15],
+#         "gamma_k": [0,100],
+#         "power": [1, 20],
+#     #    "tz": [0.03, 0.09],
+#     #    "tzp": [-0.03, 0.03],
+#     }
+#
+#     ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#     data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rzz, theta_cut, rhozz_0] # rhozz_0 in SI units
+#     data_dict[25, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+#     data_dict[25, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+#     data_dict[25, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+#     data_dict[25, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
+#
+#     data_dict[20, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+#     data_dict[20, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+#     data_dict[20, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+#     data_dict[20, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
+#
+#     data_dict[12, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+#     data_dict[12, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+#     data_dict[12, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
+#
+#     data_dict[6, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+#     data_dict[6, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+#     data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+#
+#     t0 = time.time()
+#     fit_admr_parallel(init_member, bounds_dict, data_dict, normalized_data=False, popsize=2, percent_workers=2.5)
+#     print("## Total time: ", time.time()-t0, "s")
+#
+#
