@@ -14,6 +14,7 @@ from scipy.optimize import differential_evolution
 from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
+##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMRParallel:
     def __init__(self, init_member, bounds_dict, data_dict, pipi_FSR=False,
