@@ -267,7 +267,7 @@ admr1band.show_progress = False
 admr1band.runADMR()
 
 # amro1band.fileADMR(folder="sim/NdLSCO_0p24")
-# admr1band.figADMR(folder="sim/NdLSCO_0p24")
+admr1band.figADMR(folder="sim/NdLSCO_0p24")
 print("time admr = " + str(time() - tadmr) + " s")
 
 print("time total = " + str(time() - ttot) + " s")
