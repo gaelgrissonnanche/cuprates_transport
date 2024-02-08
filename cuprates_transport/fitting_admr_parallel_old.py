@@ -78,7 +78,7 @@ class FittingADMRParallel:
                     self.bandObject[param_name] = self.member["band_params"][param_name]
         ## Adjust the doping if required
         if self.member["fixdoping"] >=-1 and self.member["fixdoping"] <=1:
-            self.bandObject.setMuToDoping(self.member["fixdoping"])
+            self.bandObject.set_mu_to_doping(self.member["fixdoping"])
             self.member["band_params"]["mu"] = self.bandObject["mu"]
         ## Calculate the bandObject
         self.bandObject.runBandStructure()
@@ -371,13 +371,14 @@ def fit_admr_parallel(init_member, bounds_dict, data_dict,
     def callback():
         def fn(xk, convergence):
             globals()['iteration'] += 1
-            text = "Iteration: %d\titer time: %.3f" % (globals()['iteration'], (time.time() - globals()['time_iter']))
+            text = "Iteration: %d\titer time: %.3f\tconvergence: %.3e" % (globals()['iteration'], (time.time() - globals()['time_iter']), convergence)
             globals()['time_iter'] = time.time()
             if (xk != globals()['best_x']).all():
                 globals()['best_x'] = xk
-                obj_val = fit_object.compute_diff2(xk, verbose=False)
+                # obj_val = fit_object.compute_diff2(xk, verbose=False)
                 sys.stdout.flush()
-                text += "\tNew best:" + str([round(x, 10) for x in xk]) + "\tchi^2: %.8e" % obj_val
+                # text += "\tNew best:" + str([round(x, 10) for x in xk]) + "\tchi^2: %.3e" % obj_val
+                text += "\tNew best:" + str([round(x, 10) for x in xk])
             print(text)
         return fn
 
