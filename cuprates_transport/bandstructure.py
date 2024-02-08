@@ -29,7 +29,7 @@ class BandStructure:
                  band_name="band_1",
                  e_xy="", e_z="",
                  res_xy=20, res_z=1,
-                 parallel = True,
+                 parallel = True, march_square=False,
                  **trash):
         """
         Initializes the BandStructure object.
@@ -126,7 +126,7 @@ class BandStructure:
         # in the plane for the Fermi surface
         self.res_z = res_z
         # number of subdivisions of the FBZ in units of Pi in the plane
-        self.march_square = False
+        self.march_square = march_square
         # whether to use or not the marching square for higher symmetries
 
         # Fermi surface

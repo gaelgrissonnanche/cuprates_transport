@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
 
-from cuprates_transport.bandstructure import BandStructure, PiPiBandStructure, setMuToDoping, doping
+from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -42,10 +42,8 @@ class FittingADMR:
         self.crossing_p  = crossing_p
 
         ## Objects
-        if pipi_FSR==False:
-            self.bandObject = BandStructure(**self.member)
-        else:
-            self.bandObject = PiPiBandStructure(**self.member)
+        self.bandObject = BandStructure(**self.member)
+
         self.condObject = None
         self.admrObject = None
 
@@ -71,7 +69,7 @@ class FittingADMR:
 
         ## Adjust the doping if need be
         if self.member["fixdoping"] >=-1 and self.member["fixdoping"] <=1:
-            self.bandObject.setMuToDoping(self.member["fixdoping"])
+            self.bandObject.set_mu_to_doping(self.member["fixdoping"])
             self.member["band_params"]["mu"] = self.bandObject["mu"]
 
         self.bandObject.runBandStructure()
@@ -288,7 +286,7 @@ class FittingADMR:
         fig.text(0.84,0.84, r"$T$ (data) = " + str(self.member["data_T"]) + " K", fontsize=14)
         fig.text(0.84,0.79, r"$T$ (sim) = " + str(self.member["T"]) + " K", fontsize=14)
         fig.text(0.84,0.74, r"$p$ (data) = " + "{0:.2f}".format(self.member["data_p"]), fontsize=14)
-        fig.text(0.84,0.69, r"$p$ (sim) = " + "{0:.3f}".format(self.admrObject.totalHoleDoping), fontsize=14)
+        fig.text(0.84,0.69, r"$p$ (sim) = " + "{0:.3f}".format(self.admrObject.total_hole_doping), fontsize=14)
         #############################################
 
         #############################################

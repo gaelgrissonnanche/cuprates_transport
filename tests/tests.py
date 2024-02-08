@@ -48,8 +48,6 @@ class TestTransport(unittest.TestCase):
         condObject.Bamp = 0
         condObject.runTransport()
 
-        print(condObject.sigma)
-
         self.assertEqual(np.round(condObject.sigma[2, 2], 3), 25819.083)
 
     def test_conductivity_T_0(self):
