@@ -316,7 +316,7 @@ class FittingADMRParallel:
             plt.close(fig)
 
         ## Figure Parameters //////////////////////////////////////////////////////#
-        for iniCondObject in self.admrObject.initialCondObjectDict.values():
+        for iniCondObject in self.admrObject.condObject_dict.values():
             fig_list.append(iniCondObject.figParameters(fig_show=fig_show))
 
         ## Save figures list --------------
