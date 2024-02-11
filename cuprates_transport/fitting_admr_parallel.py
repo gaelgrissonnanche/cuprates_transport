@@ -16,12 +16,13 @@ from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+## -------------------------------------------------------------------------------
 class FitAnglesADMR:
     def __init__(self, T, data_dict):
         self.T = T
         self.data_dict = data_dict
-        self.Bphi_array = None
-
+        self.Bphi_array = np.array([])
+        self.Btheta_array= np.array([])
 
     def create_angles(self):
         """Creates the theta angles at the selected temperatures and phi"""
@@ -43,8 +44,7 @@ class FitAnglesADMR:
         return self.Bphi_array, self.Btheta_array
 
 
-
-
+## -------------------------------------------------------------------------------
 class DataADMR:
     def __init__(self, T, data_dict, Bphi_array, Btheta_array):
         self.data_dict = data_dict
@@ -53,7 +53,6 @@ class DataADMR:
         self.rzz_data_matrix   = None
         self.Bphi_array   = Bphi_array
         self.Btheta_array = Btheta_array
-
 
     def load_data(self, Btheta_norm=0):
         """
@@ -82,25 +81,26 @@ class DataADMR:
             self.rzz_data_matrix[i, :] = rzz_i
 
 
+## -------------------------------------------------------------------------------
 class SimADMR:
     def __init__(self, T, params_dict, Bphi_array, Btheta_array):
         self.T = T
         self.params_dict = deepcopy(params_dict)
-        self.bands_list = [key[1] for key in self.params_dict.keys() if key[0] == self.T]
+        # self.bands_list = [key[1] for key in self.params_dict.keys() if key[0] == self.T]
+        self.bands_list = [key for key in self.params_dict[self.T].keys()]
         self.Bphi_array = Bphi_array
         self.Btheta_array = Btheta_array
         self.rhozz_sim_matrix  = None
         self.rzz_sim_matrix    = None
 
-
     def compute_rhozz(self):
         """Calculate the simulated rhozz from ADMR object"""
         condObject_list = []
         for band in self.bands_list:
-            bandObject = BandStructure(**self.params_dict[self.T, band], parallel=False)
+            bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
             bandObject.runBandStructure()
-            condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T, band]))
-        admrObject = ADMR(condObject_list, progress_bar=False)
+            condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T][band]))
+        admrObject = ADMR(condObject_list, show_progress=False)
         admrObject.Bphi_array = self.Bphi_array
         admrObject.Btheta_array = self.Btheta_array
         admrObject.runADMR()
@@ -108,84 +108,83 @@ class SimADMR:
         self.rzz_sim_matrix   = admrObject.rzz_array
 
 
-
+## -------------------------------------------------------------------------------
 class Fitness:
-    def __init__(self, T_list, data_dict, params_dict, bounds_dict,
-                 folder="",
-                 normalized_data=True, popsize=15):
+    def __init__(self, data_dict, params_dict, bounds_dict, normalized_data=True):
         ## Initialize
         self.params_dict = deepcopy(params_dict) # contains all the parameters to calculate ADMR
         self.bounds_dict = deepcopy(bounds_dict)
         self.data_dict   = deepcopy(data_dict)
-        self.T_list      = T_list
-
-        ## Create the list sorted of the free parameters
-        self.pars = {} # dictionnary of free parameters to computre residual
+        self.T_list = [T for T in self.bounds_dict.keys() if T!="all"]
+        self.normalized_data = normalized_data
+        ## Create list of free parameters
         self.free_params_labels = []
-        key_T_band = self.bounds_dict.keys()
-        for T, band in key_T_band:
-            for params_name in self.bounds_dict[T, band].keys():
-                self.free_params_labels.append([T, band, params_name])
-
-        ## Create tuple of bounds for scipy
+        for T in self.bounds_dict.keys():
+            for band in self.bounds_dict[T].keys():
+                for params_name in self.bounds_dict[T][band].keys():
+                    self.free_params_labels.append([T, band, params_name])
+        ## Create tuple of bounds for differential evolution
         self.bounds  = []
         for label in self.free_params_labels:
-            self.bounds.append((self.bounds_dict[label[0], label[1]][label[2]][0],
-                                self.bounds_dict[label[0], label[1]][label[2]][1]))
+            self.bounds.append((self.bounds_dict[label[0]][label[1]][label[2]][0],
+                                self.bounds_dict[label[0]][label[1]][label[2]][1]))
         self.bounds = tuple(self.bounds)
-        print(self.bounds)
+        ## Create phi, theta, rzz_data, rhozz_data arrays
+        self.phis_dict   = {}
+        self.thetas_dict = {}
+        self.rzz_data_dict = {}
+        self.rhozz_data_dict = {}
+        for T in self.T_list:
+            angles_obj = FitAnglesADMR(T, self.data_dict)
+            phis, thetas = angles_obj.create_angles()
+            data_obj = DataADMR(T, data_dict, phis, thetas)
+            data_obj.load_data()
+            rzz = data_obj.rzz_data_matrix  # normalized rhozz/rhozz(B=constant)
+            rhozz = data_obj.rhozz_data_matrix
+            self.phis_dict[T] = phis
+            self.thetas_dict[T] = thetas
+            self.rzz_data_dict[T] = rzz
+            self.rhozz_data_dict[T] = rhozz
+
+    def compute_fitness(self, x=None):
+        """Compute chi2 = sum((sim[i] - data[i])**2)"""
+        ## Update function for parameters
+        def update(T, band, x):
+            if param in self.params_dict[T][band].keys():
+                self.params_dict[T][band][param] = x[i]
+            elif param in self.params_dict[T][band]["band_params"].keys():
+                self.params_dict[T][band]["band_params"][param] = x[i]
+            else:
+                print(str(param)+" does not exist in params_dict["+str(T)+"]["+str(band)+"]")
+        ## Update the params_dict with fit values
+        if x!=None:
+            for i, label in enumerate(self.free_params_labels):
+                T      = label[0]
+                band   = label[1]
+                param = label[2]
+                if T!="all": # for parameters that are different at different T
+                    update(T, band, x)
+                elif T=="all": # for parameters that are the same at all T
+                    for T in self.T_list:
+                        update(T, band, x)
+        ## Compute sim, then diff
+        diff_array = np.empty(0)
+        for T in self.T_list:
+            # Compute sim
+            sim_obj = SimADMR(T, self.params_dict, self.phis_dict[T], self.thetas_dict[T])
+            sim_obj.compute_rhozz()
+            # Compute diff
+            if self.normalized_data is True:
+                diff = self.rzz_data_dict[T].flatten() - sim_obj.rzz_sim_matrix.flatten()
+            else:
+                diff = self.rhozz_data_dict[T].flatten() - sim_obj.rhozz_sim_matrix.flatten()
+            diff_array = np.append(diff_array, diff)
+        ## Compute chi2
+        chi2 = np.sum(diff_array**2)
+        return chi2
 
 
 
-        self.init_time   = time.time()
-        self.popsize     = popsize # the popsize for the differential evolution
-        self.folder      = folder
-        self.normalized_data = normalized_data
-
-        ## Empty spaces
-        self.nb_calls     = 0
-        self.json_name   = None
-
-
-    # def compute_diff(self, x):
-    #     """Compute diff = sim - data matrix"""
-    #     ## Creates the dictionnary of variables with updated values
-    #     for i, pars_name in enumerate(self.free_params_name):
-    #         self.free_params[pars_name] = x[i]
-    #     ## Update member with fit parameters
-    #     for pars_name in self.free_params_name:
-    #         if pars_name in self.params.keys():
-    #             self.params[pars_name] = self.free_params[pars_name]
-    #         elif pars_name in self.params["band_params"].keys():
-    #             self.params["band_params"][pars_name] = self.free_params[pars_name]
-
-    #     ## Compute ADMR ------------------------------------------------------------
-    #     start_total_time = time.time()
-    #     self.generate_admr()
-    #     self.admrObject.runADMR()
-
-    #     ## Increment the global counter to count generations and member numbers
-    #     global shared_num_member
-    #     ## += operation is not atomic, so we need to get a lock:
-    #     with shared_num_member.get_lock():
-    #         shared_num_member.value += 1
-    #     num_member = shared_num_member.value
-    #     num_gen = np.floor(num_member / (self.popsize*len(self.bounds))) + 1
-    #     print('Gen #' + str(int(num_gen)) + ' ----' +
-    #     'Member #' + str(num_member) + ' ----' +
-    #     'Time elapsed ' + " %.6s seconds" % (time.time() - self.init_time), end='\r')
-    #     sys.stdout.flush()
-
-    #     ## Compute diff
-    #     diff_matrix = np.zeros_like(self.rzz_data_matrix)
-    #     for i in range(self.Bphi_array.size):
-    #         if self.normalized_data is True:
-    #             diff_matrix[i, :] = self.rzz_data_matrix[i, :] - self.admrObject.rzz_array[i, :]
-    #         else:
-    #             diff_matrix[i, :] = (self.rhozz_data_matrix[i, :] - self.admrObject.rhozz_array[i, :])*1e5
-    #     self.condObject = None
-    #     self.admrObject = None
-    #     return np.sum(diff_matrix.flatten()**2)
 
 
 
@@ -214,36 +213,41 @@ if __name__ == '__main__':
     }
 
     ## Parameters different at all temperatures, and all bands
-    params_init = {} # keys are [data_T, band_name] = params_dict
-    params_init[6,"band1"] = {**params_common,
-                                "gamma_0": 15,
-                                "gamma_k": 65.756,
-                                # "power": 12.21,
-                                }
-    params_init[12,"band1"] = {**params_common,
+    params_dict = {}
+    # keys are [data_T][band_name][parameter] = value
+    params_dict[6] = {"band1":{**params_common,
                                 "gamma_0": 15,
                                 "gamma_k": 65.756,
                                 "power": 12.21,
                                 }
-
+                    }
+    params_dict[12] = {"band1":{**params_common,
+                                "gamma_0": 15,
+                                "gamma_k": 65.756,
+                                "power": 12.21,
+                                }
+                    }
 
     ## Boundaries ////////////////////////////////////////////////////////////////
     bounds_dict = {}
-    # keys are [data_T, band_name, parameter]
-    bounds_dict[6, "band1"] = {
-                            "gamma_0": [7,15],
-                            "gamma_k": [0,100],
-                            "power": [1, 20],
-                            }
-    bounds_dict[12, "band1"] = {
-                        "gamma_0": [7,15],
-                        "gamma_k": [0,100],
-                        "power": [1, 20],
+    # keys are [data_T][band_name][parameter] = range
+    bounds_dict[6] = {"band1":{
+                                "gamma_0": [7,15],
+                                "gamma_k": [0,100],
+                                "power": [1, 20],
+                                }
+                     }
+    bounds_dict[12] = {"band1":{
+                                "gamma_0": [7,15],
+                                "gamma_k": [0,100],
+                                "power": [1, 20],
+                                }
+                     }
+    bounds_dict["all"] ={"band1": {
+                                    "tz": [0.03, 0.09],
+                                    #    "tzp": [-0.03, 0.03],
+                                  }
                         }
-    bounds_dict["all", "band1"] = {
-                           "tz": [0.03, 0.09],
-                        #    "tzp": [-0.03, 0.03],
-                            }
 
     ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rhozz, theta_min, theta_max, theta_steps] # rhozz_0 in SI units
@@ -273,11 +277,13 @@ if __name__ == '__main__':
     # print(data_obj.Btheta_array)
 
 
-    # simobj= SimADMR(12, params_init, phis, thetas)
+    # simobj= SimADMR(12, params_dict, phis, thetas)
     # simobj.compute_rhozz()
     # print(simobj.rzz_sim_matrix)
 
-    fitness_obj = Fitness([6, 12], data_dict, params_init, bounds_dict)
+    fitness_obj = Fitness(data_dict, params_dict, bounds_dict)
+    chi2 = fitness_obj.compute_fitness()
+    print(chi2)
 
 
 #     # data_dict[25, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
@@ -290,7 +296,7 @@ if __name__ == '__main__':
 
 
 #     t0 = time.time()
-#     fit_admr_parallel(params_init, bounds_dict, data_dict, normalized_data=False, popsize=20)
+#     fit_admr_parallel(params_dict, bounds_dict, data_dict, normalized_data=False, popsize=20)
 #     print("## Total time: ", time.time()-t0, "s")
 
 
@@ -304,47 +310,6 @@ if __name__ == '__main__':
 
 
 
-
-
-    # def compute_diff(self, x):
-    #     """Compute diff = sim - data matrix"""
-    #     ## Creates the dictionnary of variables with updated values
-    #     for i, pars_name in enumerate(self.free_params_name):
-    #         self.free_params[pars_name] = x[i]
-    #     ## Update member with fit parameters
-    #     for pars_name in self.free_params_name:
-    #         if pars_name in self.params.keys():
-    #             self.params[pars_name] = self.free_params[pars_name]
-    #         elif pars_name in self.params["band_params"].keys():
-    #             self.params["band_params"][pars_name] = self.free_params[pars_name]
-
-    #     ## Compute ADMR ------------------------------------------------------------
-    #     start_total_time = time.time()
-    #     self.generate_admr()
-    #     self.admrObject.runADMR()
-
-    #     ## Increment the global counter to count generations and member numbers
-    #     global shared_num_member
-    #     ## += operation is not atomic, so we need to get a lock:
-    #     with shared_num_member.get_lock():
-    #         shared_num_member.value += 1
-    #     num_member = shared_num_member.value
-    #     num_gen = np.floor(num_member / (self.popsize*len(self.bounds))) + 1
-    #     print('Gen #' + str(int(num_gen)) + ' ----' +
-    #     'Member #' + str(num_member) + ' ----' +
-    #     'Time elapsed ' + " %.6s seconds" % (time.time() - self.init_time), end='\r')
-    #     sys.stdout.flush()
-
-    #     ## Compute diff
-    #     diff_matrix = np.zeros_like(self.rzz_data_matrix)
-    #     for i in range(self.Bphi_array.size):
-    #         if self.normalized_data is True:
-    #             diff_matrix[i, :] = self.rzz_data_matrix[i, :] - self.admrObject.rzz_array[i, :]
-    #         else:
-    #             diff_matrix[i, :] = (self.rhozz_data_matrix[i, :] - self.admrObject.rhozz_array[i, :])*1e5
-    #     self.condObject = None
-    #     self.admrObject = None
-    #     return np.sum(diff_matrix.flatten()**2)
 
 
     # def load_member_from_json(self):
@@ -494,12 +459,12 @@ def init(num_member):
     shared_num_member = num_member
 
 
-def fit_admr_parallel(params_init, bounds_dict, data_dict,
+def fit_admr_parallel(params_dict, bounds_dict, data_dict,
                     normalized_data=True, filename=None,
                     popsize=15, mutation=(0.5, 1), recombination=0.7,
                     percent_workers=100):
     ## Create fitting object for parallel calculations
-    fit_object = FittingADMRParallel(params_init=params_init,
+    fit_object = FittingADMRParallel(params_dict=params_dict,
                 bounds_dict=bounds_dict, data_dict=data_dict, popsize=popsize,
                 normalized_data=normalized_data)
     num_cpu = cpu_count(logical=False)

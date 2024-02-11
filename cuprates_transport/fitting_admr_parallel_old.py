@@ -11,7 +11,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.optimize import differential_evolution
 
-from cuprates_transport.bandstructure import BandStructure, PiPiBandStructure
+from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.admr import ADMR
 from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -45,10 +45,7 @@ class FittingADMRParallel:
         self.bounds = tuple(self.bounds)
 
         ## Objects
-        if pipi_FSR==False:
-            self.bandObject = BandStructure(**self.member, parallel=False)
-        else:
-            self.bandObject = PiPiBandStructure(**self.member, parallel=False)
+        self.bandObject = BandStructure(**self.member, parallel=False)
         self.condObject = None
         self.admrObject = None
 
