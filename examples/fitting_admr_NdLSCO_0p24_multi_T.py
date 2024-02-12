@@ -28,11 +28,11 @@ init_member = {
 
 ## For FIT
 ranges_dict = {
-    # "energy_scale": [170,210],
-    # "tp": [-0.18,-0.1],
-    # "tpp": [0.04,0.1],
-    # "tz": [0.04,0.1],
-    # "mu": [-1.0,-0.6],
+    "energy_scale": [170,210],
+    "tp": [-0.18,-0.1],
+    "tpp": [0.04,0.1],
+    "tz": [0.04,0.1],
+    "mu": [-1.0,-0.6],
     "gamma_0": {6: [9,12], 12: [11,14], 20: [13,15], 25: [14,16]},
     "gamma_k": {6: [50,100], 12: [50,100], 20: [50,100], 25: [50,100]},
     "power":   {6: [10,13], 12: [10,13], 20: [10,13], 25: [10,13]}
@@ -72,5 +72,13 @@ fitObject = FittingADMR(init_member, ranges_dict, data_dict, folder="sim/NdLSCO_
                         method="ampgo", normalized_data=False)
 fitObject.weight_rhozz = 10
 
-fitObject.runFit()
+print("fitObject.pars:")
+print(fitObject.pars)
+
+print()
+
+print("fitObject.member_dict:")
+print(fitObject.member_dict)
+
+# fitObject.runFit()
 # fitObject.fig_compare()

@@ -286,7 +286,7 @@ class Conductivity:
         ## Function of k
         kf0, kf1, kf2 = kf[0, :], kf[1, :], kf[2, :]
         vf0, vf1, vf2 = vf[0, :], vf[1, :], kf[2, :]
-        inverse_omegac_tau_k = (prefactor * 2*pi*kf_perp / vf_perp / picosecond * 
+        inverse_omegac_tau_k = (prefactor * 2*pi*kf_perp / vf_perp / picosecond *
                                 self.tau_total_func(kf0, kf1, kf2, vf0, vf1, vf2))
         self.omegac_tau_k = 1 / inverse_omegac_tau_k
 
@@ -324,7 +324,8 @@ class Conductivity:
             gamma_tot += gamma_skew_planckian(self, epsilon)
         if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
             # gamma_tot += gamma_cosk_coskpi4_func(self, kx, ky, kz)
-            gamma_tot += gamma_poly_func(self, kx, ky, kz)
+            ##gamma_tot += gamma_poly_func(self, kx, ky, kz)
+            gamma_tot += gamma_sinn_cosm(self, kx, ky, kz)
             # gamma_tot += gamma_tanh_func(self, x, ky, kz)
             # gamma_tot += gamma_ndlsco_tl2201_func(self, kx, ky, kz)
         if self.gamma_kpi4!=0:

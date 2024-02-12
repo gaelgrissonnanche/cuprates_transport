@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import cos, pi, sqrt, arctan2
+from numpy import cos, sin, pi, sqrt, arctan2
 from scipy.constants import Boltzmann, hbar, elementary_charge, \
     physical_constants
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
@@ -24,7 +24,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
 
 def gamma_DOS_func(cObj, vx, vy, vz):
     dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
-    dos_max = np.max(cObj.bandObject.dos_k) 
+    dos_max = np.max(cObj.bandObject.dos_k)
     # value to normalize the DOS to a quantity without units
     return cObj.gamma_dos_max * (dos / dos_max)
 
@@ -66,6 +66,14 @@ def gamma_poly_func(cObj, kx, ky, kz):
     phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
     return (cObj.a0 + np.abs(cObj.a1 * phi_p + cObj.a2 * phi_p**2 +
             cObj.a3 * phi_p**3 + cObj.a4 * phi_p**4 + cObj.a5 * phi_p**5))
+
+def gamma_sinn_cosm(cObj, kx, ky, kz):
+    ## Make sure kx and ky are in the FBZ to compute Phi.
+    a, b = cObj.bandObject.a, cObj.bandObject.b
+    kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
+    ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
+    phi = arctan2(ky, kx) #+ np.pi/4
+    return cObj.a0 + cObj.a1 * np.abs(cos(2*phi))**cObj.a2 + cObj.a3 * np.abs(sin(2*phi))**cObj.a4
 
 def gamma_tanh_func(cObj, kx, ky, kz):
     ## Make sure kx and ky are in the FBZ to compute Phi.
