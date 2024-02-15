@@ -287,7 +287,7 @@ def init(num_member):
     globals()['shared_num_member'] = num_member
 
 def fit_admr_parallel(params_dict, bounds_dict, data_dict,
-                    normalized_data=True, filename=None,
+                    normalized_data=True, filename="fit_results", folder="",
                     popsize=15, mutation=(0.5, 1), recombination=0.7,
                     percent_workers=100, num_cpu=None):
     ## Create fitness object for parallel calculations
@@ -332,9 +332,9 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
     fitness_obj.update_parameters(res.x)
     fitness_obj.compute_fitness()
     ## Save BEST member to JSON
-    fitness_obj.save_member_to_json(filename=filename)
+    fitness_obj.save_member_to_json(filename=filename, folder=folder)
     ## Compute the FINAL member
-    fitness_obj.fig_compare(fig_save=True, figname=filename)
+    fitness_obj.fig_compare(fig_save=True, figname=filename, folder=folder)
     return fitness_obj
 
 ## -------------------------------------------------------------------------------
@@ -358,10 +358,6 @@ if __name__ == '__main__':
                     "fixdoping": 2,
                     "T" : 0,
                     "Bamp": 45,
-                    "Btheta_min": 0,
-                    "Btheta_max": 90,
-                    "Btheta_step": 5,
-                    "Bphi_array": [0, 15, 30, 45],
     }
 
     ## Parameters different at all temperatures, and all bands
@@ -402,40 +398,34 @@ if __name__ == '__main__':
                         }
 
     ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
-    data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rhozz, theta_min, theta_max, theta_steps] # rhozz_0 in SI units
-    data_dict[25, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 0, 90, 5]
-    # data_dict[25, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_25K.dat", 0, 1, 0, 90, 5]
-    # data_dict[25, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_25K.dat", 0, 1, 0, 90, 5]
-    data_dict[25, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_25K.dat", 0, 1, 0, 90, 5]
+    data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rhozz, theta_min, theta_max, theta_steps, rhozz_0 in SI units]
+    data_dict[25, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 0, 90, 5, 6.71e-5]
+    # data_dict[25, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_25K.dat", 0, 1, 0, 90, 5, 6.71e-5]
+    # data_dict[25, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_25K.dat", 0, 1, 0, 90, 5, 6.71e-5]
+    data_dict[25, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_25K.dat", 0, 1, 0, 90, 5, 6.71e-5]
 
-    data_dict[20, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_20K.dat", 0, 1, 0, 90, 5]
-    # data_dict[20, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_20K.dat", 0, 1, 0, 90, 5]
-    # data_dict[20, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_20K.dat", 0, 1, 0, 90, 5]
-    data_dict[20, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_20K.dat", 0, 1, 0, 90, 5]
+    data_dict[20, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_20K.dat", 0, 1, 0, 90, 5, 6.55e-5]
+    # data_dict[20, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_20K.dat", 0, 1, 0, 90, 5, 6.55e-5]
+    # data_dict[20, 30] = ["../examples/data/NdLSCO_0p24/0p25_30degr_45T_20K.dat", 0, 1, 0, 90, 5, 6.55e-5]
+    data_dict[20, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_20K.dat", 0, 1, 0, 90, 5, 6.55e-5]
 
-    data_dict[12, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_12K.dat", 0, 1, 0, 83.5, 5]
-    # data_dict[12, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_12K.dat", 0, 1, 0, 83.5, 5]
-    data_dict[12, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_12K.dat", 0, 1, 0, 83.5, 5]
+    data_dict[12, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_12K.dat", 0, 1, 0, 83.5, 5, 6.26e-5]
+    # data_dict[12, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_12K.dat", 0, 1, 0, 83.5, 5, 6.26e-5]
+    data_dict[12, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_12K.dat", 0, 1, 0, 83.5, 5, 6.26e-5]
 
-    data_dict[6, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_6K.dat", 0, 1, 0, 73.5, 5]
-    # data_dict[6, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_6K.dat", 0, 1, 0, 73.5, 5]
-    data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 0, 73.5, 5]
+    data_dict[6, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_6K.dat", 0, 1, 0, 73.5, 5, 6.03e-5]
+    # data_dict[6, 15] = ["../examples/data/NdLSCO_0p24/0p25_15degr_45T_6K.dat", 0, 1, 0, 73.5, 5, 6.03e-5]
+    data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 0, 73.5, 5, 6.03e-5]
 
 
-    # fitness_obj = Fitness(data_dict, params_dict, bounds_dict)
-    # chi2 = fitness_obj.compute_fitness()
-    # fitness_obj.save_member_to_json("truc")
-    # fitness_obj.fig_compare(fig_save=True)
+    fitness_obj = Fitness(data_dict, params_dict, bounds_dict)
+    chi2 = fitness_obj.compute_fitness()
+    fitness_obj.save_member_to_json("truc")
+    fitness_obj.fig_compare(fig_save=True)
 
-    t0 = time()
-    obj_fit = fit_admr_parallel(params_dict, bounds_dict, data_dict, normalized_data=True, popsize=20)
-    print(obj_fit.params_dict)
-    print("## Total time: ", time()-t0, "s")
-
-#     # data_dict[25, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
-#     # data_dict[20, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_20K.dat", 0, 1, 90, 6.55e-5]
-#     # data_dict[12, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_12K.dat", 0, 1, 83.5, 6.26e-5]
-#     # data_dict[6, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_6K.dat", 0, 1, 73.5, 6.03e-5]
+    # fitness_obj = fit_admr_parallel(params_dict, bounds_dict, data_dict, normalized_data=True, popsize=20)
+    # fitness_obj.save_member_to_json("fit_results")
+    # fitness_obj.fig_compare(fig_save=True, figname="fit_results")
 
 
 
