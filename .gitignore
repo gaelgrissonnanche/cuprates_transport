@@ -1,12 +1,11 @@
 # Files #############
-cuprates_transport/__pycache__/
-cuprates_transport/__pycache__/*
-cuprates_transport/tempCodeRunnerFile.py
+**/tempCodeRunnerFile.py
+**/__pycache__/
+**/.DS_Store
 
-examples/.ipynb_checkpoints/*
+**/.ipynb_checkpoints/*
 examples/data/*
 examples/sim/*
-examples/tempCodeRunnerFile.py
 
 doc/readme_units_conversion_ADMR.pdf
 

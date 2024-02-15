@@ -1,11 +1,11 @@
 import json
 import numpy as np
 import os
-from time import time
+import sys
 from copy import deepcopy
 from psutil import cpu_count
-from multiprocessing import Pool
-import matplotlib as mpl
+from multiprocessing import Pool, Value
+from time import time
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
@@ -92,20 +92,22 @@ class SimADMR:
         self.Btheta_array = Btheta_array
         self.rhozz_sim_matrix  = None
         self.rzz_sim_matrix    = None
+        self.condObject_list = []
 
     def compute_rhozz(self):
         """Calculate the simulated rhozz from ADMR object"""
-        condObject_list = []
+        self.condObject_list = []
         for band in self.bands_list:
             bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
             bandObject.runBandStructure()
-            condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T][band]))
-        admrObject = ADMR(condObject_list, show_progress=False)
+            self.condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T][band]))
+        admrObject = ADMR(self.condObject_list, show_progress=False)
         admrObject.Bphi_array = self.Bphi_array
         admrObject.Btheta_array = self.Btheta_array
         admrObject.runADMR()
         self.rhozz_sim_matrix = admrObject.rhozz_array
         self.rzz_sim_matrix   = admrObject.rzz_array
+
 
 
 ## -------------------------------------------------------------------------------
@@ -147,6 +149,8 @@ class Fitness:
             self.thetas_dict[T] = thetas
             self.rzz_data_dict[T] = rzz
             self.rhozz_data_dict[T] = rhozz
+        ## Simulation Object
+        self.sim_obj = None
 
     def update_conditions(self, T, band, param, x_i):
         """Update parameters"""
@@ -179,10 +183,10 @@ class Fitness:
         self.rhozz_sim_dict = {}
         for T in self.T_list:
             # Compute sim
-            sim_obj = SimADMR(T, self.params_dict, self.phis_dict[T], self.thetas_dict[T])
-            sim_obj.compute_rhozz()
-            self.rzz_sim_dict[T] = sim_obj.rzz_sim_matrix
-            self.rhozz_sim_dict[T] = sim_obj.rhozz_sim_matrix
+            self.sim_obj = SimADMR(T, self.params_dict, self.phis_dict[T], self.thetas_dict[T])
+            self.sim_obj.compute_rhozz()
+            self.rzz_sim_dict[T] = self.sim_obj.rzz_sim_matrix
+            self.rhozz_sim_dict[T] = self.sim_obj.rhozz_sim_matrix
             # Compute diff
             if self.normalized_data is True:
                 diff = self.rzz_data_dict[T].flatten() - self.rzz_sim_dict[T].flatten()
@@ -193,7 +197,7 @@ class Fitness:
         chi2 = np.sum(diff_array**2)
         return chi2
 
-    def fig_compare(self, fig_show=True, fig_save=False, figname=None):
+    def fig_compare(self, fig_show=True, fig_save=False, folder= "", figname="figure"):
         "Plot Data vs Sim"
         ## Plot >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         fig_list = []
@@ -248,28 +252,22 @@ class Fitness:
 
         ## Generate plots
         for T in self.T_list:
-            fig = fig_list.append(plot(T))
-            ## Show figures
+            fig = plot(T)
+            fig_list.append(fig)
+            for condObject in self.sim_obj.condObject_list:
+                fig_list.append(condObject.figParameters(fig_show=fig_show))
             if fig_show == True:
+            ## Show figures
                 plt.show()
             else:
                 plt.close(fig)
-
-        # ## Figure Parameters //////////////////////////////////////////////////////#
-        # for iniCondObject in self.admrObject.initialCondObjectDict.values():
-        #     fig_list.append(iniCondObject.figParameters(fig_show=fig_show))
-
-        # ## Save figures list --------------
-        # if fig_save == True:
-        #     if figname==None:
-        #         figname = "data_" + \
-        #         "p" + "{0:.2f}".format(self.params["data_p"]) + "_" + \
-        #         "T" + "{0:.1f}".format(self.params["data_T"]) + "_fit_" + self.admrObject.fileNameFunc()
-        #     path = self.folder + "/" + figname + ".pdf"
-        #     file_figures = PdfPages(path)
-        #     for fig in fig_list:
-        #         file_figures.savefig(fig)
-        #     file_figures.close()
+        ## Save figures list --------------
+        if fig_save == True:
+            path = os.path.join(folder, figname + ".pdf")
+            file_figures = PdfPages(path)
+            for fig in fig_list:
+                file_figures.savefig(fig)
+            file_figures.close()
 
     def save_member_to_json(self, filename="file", folder=""):
         path = os.path.join(folder, filename + ".json")
@@ -278,33 +276,67 @@ class Fitness:
 
 
 
-## -------------------------------------------------------------------------------
+
+## Functions for fit -------------------------------------------------------------
+global shared_num_member
+shared_num_member = None
+
+def init(num_member):
+    """store the counter for later use """
+    # global shared_num_member
+    globals()['shared_num_member'] = num_member
+
 def fit_admr_parallel(params_dict, bounds_dict, data_dict,
-                    normalized_data=True, filename="results",
+                    normalized_data=True, filename=None,
                     popsize=15, mutation=(0.5, 1), recombination=0.7,
-                    percent_workers=100):
+                    percent_workers=100, num_cpu=None):
     ## Create fitness object for parallel calculations
     fitness_obj = Fitness(data_dict, params_dict, bounds_dict, normalized_data)
-    ## Pick number of workers
-    num_cpu = cpu_count(logical=False)
+    ## Initialize workers
+    if num_cpu is None:
+        num_cpu = cpu_count(logical=False)
     num_workers = int(percent_workers / 100 * num_cpu)
     print("# cpu cores: " + str(num_cpu))
     print("# workers: " + str(num_workers))
+    ## Initialize counter
+    num_member = Value('i', 0)
     ## Create pool of workers
-    pool = Pool(processes=num_workers)
+    pool = Pool(processes=num_workers, initializer = init, initargs = (num_member, ))
+    ## Variables for Callback function
+    global iteration
+    iteration = 0
+    global time_iter
+    time_iter = time()
+    global best_x
+    best_x = None
+    ## Callback function to print the evolution of differential evolution
+    def callback(xk, convergence):
+        globals()['iteration'] += 1
+        text = "Iteration: %d\titer time: %.3f\tconvergence: %.3e" % (globals()['iteration'], (time() - globals()['time_iter']), convergence)
+        globals()['time_iter'] = time()
+        if (xk != globals()['best_x']).all():
+            globals()['best_x'] = xk
+            # obj_val = fit_object.compute_diff2(xk, verbose=False)
+            sys.stdout.flush()
+            # text += "\tNew best:" + str([round(x, 10) for x in xk]) + "\tchi^2: %.3e" % obj_val
+            text += "\tNew best:" + str([round(x, 10) for x in xk])
+        print(text)
     ## Differential evolution
     res = differential_evolution(fitness_obj.compute_fitness, fitness_obj.bounds,
-                                 updating='deferred', workers=pool.map,
-                                 popsize=popsize, mutation=mutation,
-                                 recombination=recombination, polish=False)
+                                updating='deferred', workers=pool.map,
+                                popsize=popsize, mutation=mutation,
+                                recombination=recombination, polish=False,
+                                callback=callback)
     pool.terminate()
     ## Export final parameters from the fit
     fitness_obj.update_parameters(res.x)
+    fitness_obj.compute_fitness()
     ## Save BEST member to JSON
     fitness_obj.save_member_to_json(filename=filename)
     ## Compute the FINAL member
     fitness_obj.fig_compare(fig_save=True, figname=filename)
     return fitness_obj
+
 ## -------------------------------------------------------------------------------
 
 
@@ -352,20 +384,20 @@ if __name__ == '__main__':
     bounds_dict = {}
     # keys are [data_T][band_name][parameter] = range
     bounds_dict[25] = {"band1":{
-                                "gamma_0": [7,15],
-                                "gamma_k": [0,100],
-                                "power": [1, 20],
+                                "gamma_0": [10,15],
+                                "gamma_k": [40,100],
+                                "power": [9, 13],
                                 }
                      }
     bounds_dict[20] = {"band1":{
-                                "gamma_0": [7,15],
-                                "gamma_k": [0,100],
-                                "power": [1, 20],
+                                "gamma_0": [10,15],
+                                "gamma_k": [40,100],
+                                "power": [9, 13],
                                 }
                      }
     bounds_dict["all"] ={"band1": {
-                                    "tz": [0.03, 0.09],
-                                    #    "tzp": [-0.03, 0.03],
+                                    "tp": [-0.18, -0.05],
+                                    "tpp": [0.01, 0.12],
                                   }
                         }
 
@@ -393,10 +425,11 @@ if __name__ == '__main__':
     # fitness_obj = Fitness(data_dict, params_dict, bounds_dict)
     # chi2 = fitness_obj.compute_fitness()
     # fitness_obj.save_member_to_json("truc")
-    # fitness_obj.fig_compare()
+    # fitness_obj.fig_compare(fig_save=True)
 
     t0 = time()
-    fit_admr_parallel(params_dict, bounds_dict, data_dict, normalized_data=True, popsize=20)
+    obj_fit = fit_admr_parallel(params_dict, bounds_dict, data_dict, normalized_data=True, popsize=20)
+    print(obj_fit.params_dict)
     print("## Total time: ", time()-t0, "s")
 
 #     # data_dict[25, 0] = ["../examples/data/NdLSCO_0p24/0p25_0degr_45T_25K.dat", 0, 1, 90, 6.71e-5]
