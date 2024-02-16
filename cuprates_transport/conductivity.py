@@ -489,8 +489,9 @@ class Conductivity:
             # gamma_tot += gamma_cosk_coskpi4_func(kx, ky, kz)
             # gamma_tot += gamma_poly_func(kx, ky, kz)
             gamma_tot += self.gamma_sinn_cosm(kx, ky, kz)
-            # gamma_tot += gamma_tanh_func(kx, ky, kz)
-            # gamma_tot += gamma_ndlsco_tl2201_func(kx, ky, kz)
+            # gamma_tot += gamma_sinn_cosm(self, kx, ky, kz)
+            # gamma_tot += gamma_tanh_func(self, x, ky, kz)
+            # gamma_tot += gamma_ndlsco_tl2201_func(self, kx, ky, kz)
         if self.gamma_kpi4!=0:
             gamma_tot += self.gamma_coskpi4_func(kx, ky, kz)
         if self.gamma_k!=0:
