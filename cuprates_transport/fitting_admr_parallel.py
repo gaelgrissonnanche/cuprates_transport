@@ -99,6 +99,7 @@ class SimADMR:
         self.condObject_list = []
         for band in self.bands_list:
             bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
+            bandObject.march_square = True
             bandObject.runBandStructure()
             self.condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T][band]))
         admrObject = ADMR(self.condObject_list, show_progress=False)
@@ -150,7 +151,7 @@ class Fitness:
             self.rzz_data_dict[T] = rzz
             self.rhozz_data_dict[T] = rhozz
         ## Simulation Object
-        self.sim_obj = None
+        self.sim_obj_dict = {}
 
     def update_conditions(self, T, band, param, x_i):
         """Update parameters"""
@@ -179,14 +180,16 @@ class Fitness:
             self.update_parameters(x)
         ## Compute sim, then diff
         diff_array = np.empty(0)
+        self.sim_obj_dict = {}
         self.rzz_sim_dict = {}
         self.rhozz_sim_dict = {}
         for T in self.T_list:
             # Compute sim
-            self.sim_obj = SimADMR(T, self.params_dict, self.phis_dict[T], self.thetas_dict[T])
-            self.sim_obj.compute_rhozz()
-            self.rzz_sim_dict[T] = self.sim_obj.rzz_sim_matrix
-            self.rhozz_sim_dict[T] = self.sim_obj.rhozz_sim_matrix
+            sim_obj = SimADMR(T, self.params_dict, self.phis_dict[T], self.thetas_dict[T])
+            sim_obj.compute_rhozz()
+            self.sim_obj_dict[T] = sim_obj
+            self.rzz_sim_dict[T] = sim_obj.rzz_sim_matrix
+            self.rhozz_sim_dict[T] = sim_obj.rhozz_sim_matrix
             # Compute diff
             if self.normalized_data is True:
                 diff = self.rzz_data_dict[T].flatten() - self.rzz_sim_dict[T].flatten()
@@ -254,7 +257,7 @@ class Fitness:
         for T in self.T_list:
             fig = plot(T)
             fig_list.append(fig)
-            for condObject in self.sim_obj.condObject_list:
+            for condObject in self.sim_obj_dict[T].condObject_list:
                 fig_list.append(condObject.figParameters(fig_show=fig_show))
             if fig_show == True:
             ## Show figures
@@ -353,8 +356,8 @@ if __name__ == '__main__':
                                     "tp":-0.13642799,
                                     "tpp":0.06816836,
                                     "tz":0.0590233 },
-                    "res_xy": 40,
-                    "res_z": 11,
+                    "res_xy": 20,
+                    "res_z": 7,
                     "fixdoping": 2,
                     "T" : 0,
                     "Bamp": 45,
@@ -364,13 +367,13 @@ if __name__ == '__main__':
     params_dict = {}
     # keys are [data_T][band_name][parameter] = value
     params_dict[25] = {"band1":{**params_common,
-                                "gamma_0": 15,
+                                "gamma_0": 12.63,
                                 "gamma_k": 65.756,
                                 "power": 12.21,
                                 }
                     }
     params_dict[20] = {"band1":{**params_common,
-                                "gamma_0": 15,
+                                "gamma_0": 12,
                                 "gamma_k": 65.756,
                                 "power": 12.21,
                                 }
@@ -420,8 +423,8 @@ if __name__ == '__main__':
 
     fitness_obj = Fitness(data_dict, params_dict, bounds_dict)
     chi2 = fitness_obj.compute_fitness()
-    fitness_obj.save_member_to_json("truc")
-    fitness_obj.fig_compare(fig_save=True)
+    # fitness_obj.save_member_to_json("truc")
+    fitness_obj.fig_compare(fig_save=False)
 
     # fitness_obj = fit_admr_parallel(params_dict, bounds_dict, data_dict, normalized_data=True, popsize=20)
     # fitness_obj.save_member_to_json("fit_results")
