@@ -27,7 +27,11 @@ class BandStructure:
                  band_params={"t": 1, "tp": -0.136, "tpp": 0.068, "tz": 0.07,
                               "mu": -0.83},
                  band_name="band_1",
-                 e_xy="", e_z="",
+                 tight_binding=("- mu - 2*t*(cos(a*kx) + cos(b*ky))" +
+                    "- 4*tp*cos(a*kx)*cos(b*ky)" +
+                    "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))" +
+                    "- 2*tz*(cos(a*kx) " +
+                    "- cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)"),
                  res_xy=20, res_z=1,
                  parallel = True, march_square=False,
                  **trash):
@@ -55,62 +59,20 @@ class BandStructure:
         # if multiprocessing is running
         self.parallel = parallel
 
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        try:
-            assert band_params["t"] == 1
-        except KeyError:
-            band_params["t"] = 1
-            print("Warning! 't' has to be defined; it has been added"
-                  " and set to 1")
-        except AssertionError:
-            band_params["t"] = 1
-            print("Warning! 't' has been set to 1, its value must be "
-                  "set in 'energy_scale' in meV")
-
-        try:
-            assert band_params["mu"]
-        except KeyError:
-            band_params["mu"] = 0
-            print("Warning! 'mu' has to be defined; it has been added "
-                  "and set to 0")
-
         self._band_params = deepcopy(band_params)
         # all a fraction of the bandwidth
         self.numberOfBZ = 1  # number of BZ we intregrate on
         self.band_name = band_name  # a string to designate the band
 
         # Build the symbolic variables
-        self.var_sym = [sp.Symbol('kx'), sp.Symbol('ky'), sp.Symbol('kz'),
-                        sp.Symbol('a'),  sp.Symbol('b'),  sp.Symbol('c')]
+        self.var_sym = [sp.Symbol('kx', real=True), sp.Symbol('ky', real=True), sp.Symbol('kz', real=True),
+                        sp.Symbol('a', real=True),  sp.Symbol('b', real=True),  sp.Symbol('c', real=True)]
         for params in sorted(self._band_params.keys()):
-            self.var_sym.append(sp.Symbol(params))
+            self.var_sym.append(sp.Symbol(params, real=True))
         self.var_sym = tuple(self.var_sym)
 
-        # Build the symbolic in-plane dispersion
-        self.e_3D_sym = None   # intialize this attribute
-        if e_xy == "":
-            expr = ("- 2*t*(cos(a*kx) + cos(b*ky))" +
-                    "- 4*tp*cos(a*kx)*cos(b*ky)" +
-                    "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))")
-            self.e_xy_sym = sp.sympify(expr)
-        else:
-            e_xy = e_xy.replace("mu", "0")
-            # replace is just to remove "mu" if the user
-            # has entered it by mistake
-            self.e_xy_sym = sp.sympify(e_xy)
-
-        # Build the symbolic out-of-plane dispersion
-        if e_z == "":
-            expr = ("- 2*tz*(cos(a*kx) " +
-                    "- cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)")
-            self.e_z_sym = sp.sympify(expr)
-        else:
-            e_z = e_z.replace("mu", "0")
-            # replace is just to remove "mu" if the user
-            # has entered it by mistake
-            self.e_z_sym = sp.sympify(e_z)
-
         # Create the dispersion and velocity functions
+        self.e_3D_sym = sp.sympify(tight_binding)
         self.e_3D_v_3D_definition()
 
         # Discretization
@@ -203,13 +165,17 @@ class BandStructure:
         kx = sp.Symbol('kx')
         ky = sp.Symbol('ky')
         kz = sp.Symbol('kz')
-        mu = sp.Symbol('mu')
-        # Dispersion 3D ///////////////////////////////////////////////////////
-        self.e_3D_sym = self.e_xy_sym + self.e_z_sym - mu
         # Velocity ////////////////////////////////////////////////////////////
         self.v_sym = [sp.diff(self.e_3D_sym, kx),
                       sp.diff(self.e_3D_sym, ky),
                       sp.diff(self.e_3D_sym, kz)]
+
+        # Check is one of the velocitiy components is "0" ////////////////////
+        k_list = ['kx', 'ky', 'kz']
+        for i, v in enumerate(self.v_sym):
+            if v == 0:
+                self.v_sym[i] = "numpy.zeros_like(" + k_list[i] + ")"
+
         # Lambdafity //////////////////////////////////////////////////////////
         epsilon_func = sp.lambdify(self.var_sym, self.e_3D_sym, 'numpy')
         v_func = sp.lambdify(self.var_sym, self.v_sym, 'numpy')

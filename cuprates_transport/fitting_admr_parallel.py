@@ -320,16 +320,18 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
         if (xk != globals()['best_x']).all():
             globals()['best_x'] = xk
             # obj_val = fit_object.compute_diff2(xk, verbose=False)
-            sys.stdout.flush()
             # text += "\tNew best:" + str([round(x, 10) for x in xk]) + "\tchi^2: %.3e" % obj_val
             text += "\tNew best:" + str([round(x, 10) for x in xk])
         print(text)
+        sys.stdout.flush()
     ## Differential evolution
     res = differential_evolution(fitness_obj.compute_fitness, fitness_obj.bounds,
                                 updating='deferred', workers=pool.map,
                                 popsize=popsize, mutation=mutation,
                                 recombination=recombination, polish=False,
                                 callback=callback)
+    # res = shgo(fitness_obj.compute_fitness, fitness_obj.bounds,
+    #                              workers=pool.map, callback=callback)
     pool.terminate()
     ## Export final parameters from the fit
     fitness_obj.update_parameters(res.x)
