@@ -63,6 +63,7 @@ class Conductivity:
             self.epsilon_array = np.linspace(-self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
                                               self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
                                               self._N_epsilon)
+            print("cut_percent : ", self._dfdE_cut_percent, "\n Value of dfdE(0) : ",np.abs(self.dfdE(0)), "Calculated energy cutoff : ", self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))))
 
 
         # Scattering rate energy-dependent
