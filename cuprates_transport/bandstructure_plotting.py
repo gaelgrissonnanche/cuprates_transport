@@ -2,6 +2,7 @@ import numpy as np
 from numpy import pi
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 # from mpl_toolkits.mplot3d import Axes3D
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
@@ -24,7 +25,7 @@ mpl.rcParams['pdf.fonttype'] = 3
 # editing the text in illustrator
 
 
-def figDiscretizeFS2D(self, kz = 0, meshXY = 1001):
+def figDiscretizeFS2D(self, kz = 0, meshXY = 1001,SaveFigure = False):
     """
     Show Discretized 2D Fermi Surface.
     """
@@ -42,19 +43,36 @@ def figDiscretizeFS2D(self, kz = 0, meshXY = 1001):
 
     nb_pkz = self.number_of_points_per_kz_list
     nkz = len(nb_pkz)
+    # print("nkz : ", nkz)
     npkz0 = np.sum(nb_pkz[:nkz//2])
+    # print("npkz0 : ", npkz0)
     npkz1 = npkz0 + nb_pkz[nkz//2]
+    # print("npkz1 : ", npkz1)
 
-    line = axes.plot(self.kf[0, npkz0: npkz1] * self.a,
-                     self.kf[1, npkz0: npkz1] * self.b)
+
+
+    # line = axes.plot(self.kf[0, npkz0: npkz1] * self.a,
+    #                  self.kf[1, npkz0: npkz1] * self.b)
+    line = axes.plot(self.kf[0, :] * self.a,
+                     self.kf[1, :] * self.b)
     # line = axes.plot(self.kf[0,:self.number_of_points_per_kz_list[0]] * self.a,
     #                  self.kf[1,:self.number_of_points_per_kz_list[0]] * self.b)
     plt.setp(line, ls ="", c = 'k', lw = 3, marker = "o", mfc = 'k', ms = 5, mec = "#7E2320", mew= 0)
-    axes.quiver(self.kf[0, npkz0: npkz1] * self.a,
-                self.kf[1, npkz0: npkz1] * self.b,
-                self.vf[0, npkz0: npkz1],
-                self.vf[1, npkz0: npkz1],
-                color = 'k')
+    # axes.quiver(self.kf[0, npkz0: npkz1] * self.a,
+    #             self.kf[1, npkz0: npkz1] * self.b,
+    #             self.vf[0, npkz0: npkz1],
+    #             self.vf[1, npkz0: npkz1],
+    #             color = 'k')
+    # modv = [np.sqrt(self.vf[0,j]**2 + self.vf[1,j]) for j in range(748)]
+    
+    axes.quiver(self.kf[0, :] * self.a,
+                self.kf[1, :] * self.b,
+                self.vf[0, :],
+                self.vf[1, :],
+                
+                scale = 1e4,
+                scale_units = "xy"
+                )
     # axes.quiver(self.kf[0,:self.number_of_points_per_kz_list[0]] * self.a,
     #             self.kf[1,:self.number_of_points_per_kz_list[0]] * self.b,
     #             self.vf[0,:self.number_of_points_per_kz_list[0]],
@@ -73,8 +91,11 @@ def figDiscretizeFS2D(self, kz = 0, meshXY = 1001):
     axes.set_yticks([-pi, 0., pi])
     axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
 
-    plt.show()
+    
+    if SaveFigure:
+        plt.savefig("FermiSurface_quiver.pdf")
 
+    plt.show()
 def figDiscretizeFS3D(self, show_veloticites = False):
     """
     Show Discretized 3D Fermi Surface.
@@ -135,3 +156,24 @@ def figMultipleFS2D(self, meshXY = 1001, averaged_kz_FS = False):
     axes.set_aspect(aspect=1)
 
     plt.show()
+
+def print_BZ(self,color = "k", alpha = 0.3):
+    """
+    Prints the Brillouin Zone in the axis ax.
+    BZ must be a SpacegroupAnalizer.get_primitive_standard_structure.lattice.get_brillouin_zone() object
+    
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    BZ = self.prim.lattice.get_brillouin_zone()
+    for face in BZ:
+        # face = rotate_points(face,90,axis ='z')
+        vertices = np.array(face)
+        # print(face)
+        poly3d = Poly3DCollection([vertices])
+        poly3d.set_alpha(alpha)
+        poly3d.set_edgecolor(color)
+        poly3d.set_facecolor(color)
+        # ax.scatter(face[0],face[1],face[2],c="r")
+        ax.add_collection3d(poly3d)
