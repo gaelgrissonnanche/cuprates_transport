@@ -31,7 +31,7 @@ units_chambers = 2 * e**2 / (2*pi)**3 * meV * picosecond / Angstrom / hbar**2
 class Conductivity:
     from .conductivity_plotting import figParameters, figCumulativevft, figOnekft, \
         figScatteringPhi, figScatteringColor
-    def __init__(self, bandObject, Bamp=0, Bphi=0, Btheta=0, N_time=500,
+    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
                  gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0, a_T = 0, a_T2 = 0,
                  a_asym=0, p_asym=0,
@@ -344,7 +344,6 @@ class Conductivity:
         if self.factor_arcs!=1:
             gamma_tot *= self.factor_arcs_func(kx, ky, kz)
         # return 1/(gamma_tot*(1-0.065*cos(self.bandObject.c*kz)))
-        # print(1/gamma_tot)
         return 1/gamma_tot
 
 
@@ -423,7 +422,6 @@ class Conductivity:
                                                   self.bandObject.dkf,
                                                   self.kft, self.vft,
                                                   self.t_o_tau)
-            
             self.sigma = coeff_tot
         else:
             sigma_tot = 0

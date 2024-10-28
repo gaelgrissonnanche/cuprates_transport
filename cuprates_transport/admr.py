@@ -5,7 +5,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
-from scipy import interpolate
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
@@ -15,7 +14,7 @@ class ADMR:
         self.condObject_dict = {} # will contain the condObject for each band, with key their bandname
         self.total_filling = 0 # total bands filling (of electron) over all bands
         for condObject in condObject_list:
-            # self.total_filling += condObject.bandObject.n
+            self.total_filling += condObject.bandObject.n
             self.condObject_dict[condObject.bandObject.band_name] = condObject
         self.band_names = list(self.condObject_dict.keys())
         self.total_hole_doping = 1 - self.total_filling # total bands hole doping over all bands
@@ -39,7 +38,6 @@ class ADMR:
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
         rhozz_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
-        rhozz_norm_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
         if self.show_progress is True:
             iterator = enumerate(tqdm(self.Bphi_array, ncols=80, unit="phi", desc="ADMR"))
         else:
@@ -54,13 +52,9 @@ class ADMR:
                     sigma_tensor += condObject.sigma
                 rho = np.linalg.inv(sigma_tensor)
                 rhozz_array[l, m] = rho[2,2]
-            # Original : rhozz_norm_array[l,:] = np.outer(interpolate.interp1d(self.Btheta_array,rhozz_array[l,:])(180), np.ones(self.Btheta_array.shape[0])), changed to adapt the value for which we normalize
-            rhozz_norm_array[l,:] = np.outer(interpolate.interp1d(self.Btheta_array,rhozz_array[l,:])(0), np.ones(self.Btheta_array.shape[0]))
-        # rhozz_0_array = np.outer(rhozz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
-        # rhozz_norm_array[l,] = np.outer(interpolate.interp1d(self.Btheta_array,rhozz_array[l,:])(180), np.ones(self.Btheta_array.shape[0]))
-
+        rhozz_0_array = np.outer(rhozz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rhozz_array = rhozz_array
-        self.rzz_array = rhozz_array / rhozz_norm_array
+        self.rzz_array = rhozz_array / rhozz_0_array
 
     #---------------------------------------------------------------------------
     def file_name_func(self):
@@ -225,7 +219,7 @@ class ADMR:
             line = axes.plot(self.Btheta_array, self.rzz_array[i, :], label = r"$\phi$ = " + r"{0:.0f}".format(B_phi))
             plt.setp(line, ls ="-", c = colors[i], lw = 3, marker = "o", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)  # set properties
 
-        axes.set_xlim(self.Btheta_min, self.Btheta_max)
+        axes.set_xlim(0, self.Btheta_max)
         axes.tick_params(axis='x', which='major', pad=7)
         axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
@@ -254,8 +248,8 @@ class ADMR:
             plt.show()
 
         ## Parameters figures ///////////////////////////////////////////////////#
-        # for condObject in self.condObject_dict.values():
-        #     fig_list.append(condObject.figParameters(fig_show=fig_show))
+        for condObject in self.condObject_dict.values():
+            fig_list.append(condObject.figParameters(fig_show=fig_show))
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:

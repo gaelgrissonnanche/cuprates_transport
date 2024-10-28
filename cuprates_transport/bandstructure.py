@@ -51,17 +51,6 @@ class BandStructure:
                          if multiprocessing is running
         """
         self.cif_file = cif_file
-        if not(self.cif_file==""):
-            
-            structure = Structure.from_file(self.cif_file)
-
-            sga = SpacegroupAnalyzer(structure)
-            self.prim = sga.get_primitive_standard_structure()
-
-            reciprocal_lattice = self.prim.lattice.reciprocal_lattice
-            self.prim_basis = reciprocal_lattice.matrix
-
-
 
         self._energy_scale = energy_scale   # the value of "t" in meV
         self.a = a                          # in Angstrom
@@ -117,7 +106,7 @@ class BandStructure:
         self.n = None       # band filling (of electron), unknown at first
 
         # Save number of points in each kz plane
-        self.number_of_points_per_kz_list = [self.res_xy for j in range(self.res_xy)]
+        self.number_of_points_per_kz_list = []
 
     # Special Method >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
     def __setitem__(self, key, value):
@@ -231,10 +220,30 @@ class BandStructure:
         self.mc = prefactor * np.sum(dks / vf_perp) / m0
 
     def dispersion_grid(self, res_x=500, res_y=500, res_z=11):
-        kx_a = np.linspace(-pi / self.a, pi / self.a, res_x)
-        ky_a = np.linspace(-pi / self.b, pi / self.b, res_y)
-        kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, res_z)
+        # kx_a = np.linspace(-pi / self.a, pi / self.a, res_x)
+        # ky_a = np.linspace(-pi / self.b, pi / self.b, res_y)
+        # kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, res_z)
+        # kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~ HARD-CODED FOR PDCOO2, REMOVE BEFORE USING FOR OTHER MATERIAL ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        ## Generation of the 1BZ
+        structure = Structure.from_file(self.cif_file)#"\Usuario\Documents\M2_ICFP\Internship\LSI\GitHub_JuanL_Branch\cuprates_transport\cuprates_transport\Specific_for_PdCoO2_June_2024\cif_files\CoPdO2_Prim_Cell.cif")
+    
+        sga = SpacegroupAnalyzer(structure)
+        prim = sga.get_primitive_standard_structure()
+        conv = sga.get_conventional_standard_structure()
+        primBZ = prim.lattice.get_brillouin_zone()
+        primBZ = np.concatenate(primBZ)
+        
+        kx_a = np.linspace(-np.max(primBZ[:,0]),np.max(primBZ[:,0]),res_x)
+        ky_a = np.linspace(-np.max(primBZ[:,1]),np.max(primBZ[:,1]),res_y)
+        kz_a = np.linspace(-np.max(primBZ[:,2]),np.max(primBZ[:,2]),res_z)
+    
         kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~4
+
+
+
         e_3D = self.e_3D_func(kxx, kyy, kzz)
         return e_3D, kxx, kyy, kzz, kx_a, ky_a, kz_a
 
