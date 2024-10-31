@@ -104,7 +104,7 @@ params = {
     "c": 13.2,
     "energy_scale": 160,
     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.0614644},
-    "res_xy": 40,
+    "res_xy": 20,
     "res_z": 11,
     "N_time": 500,
     "T" : 0,
@@ -225,28 +225,29 @@ params = {
 ## Create Bandstructure object
 tband = time()
 bandObject = BandStructure(**params)
-# bandObject.march_square = True
+bandObject.march_square = True
 
 ## Discretize Fermi surface
 # bandObject.setMuToDoping(0.15)
 # print(bandObject["mu"])
 bandObject.runBandStructure(printDoping=False)
+
 # bandObject.figDiscretizeFS3D()
-# bandObject.mc_func()
-# print("mc = " + "{:.3f}".format(bandObject.mc))
+# bandObject.mass_func()
+# print("mc = " + "{:.3f}".format(bandObject.mass))
 # bandObject.figMultipleFS2D()
 # # bandObject.figDiscretizeFS2D()
-# print(bandObject.kf.shape)
+
 print("time structure = " + str(time()-tband) + " s")
 
-# ## Compute conductivity
+## Compute conductivity
 ttransport = time()
 condObject = Conductivity(bandObject, **params)
 condObject.runTransport()
 # condObject.figScatteringColor()
 # condObject.omegac_tau_func()
 # print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
-# condObject.figOnekft()
+condObject.figOnekft()
 # # condObject.figScatteringPhi(kz=0)
 # # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # # condObject.figScatteringPhi(kz=2*pi/bandObject.c)

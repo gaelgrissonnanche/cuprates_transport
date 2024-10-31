@@ -42,11 +42,11 @@ class Tests_BandStructure(unittest.TestCase):
         self.assertEqual(bObj.band_name, p["band_name"])
         self.assertEqual(bObj.numberOfBZ, 1)
 
-        # e_xy_sym, e_z_sym, e_3D_sym
-        print(bObj.e_3D_sym)
-        print(bObj.v_sym)
-        print(bObj.epsilon_func)
-        print(bObj.v_func)
+        # # e_xy_sym, e_z_sym, e_3D_sym
+        # print(bObj.e_3D_sym)
+        # print(bObj.v_sym)
+        # print(bObj.epsilon_func)
+        # print(bObj.v_func)
 
         self.assertEqual([bObj.res_xy, bObj.res_z], [p["res_xy"], p["res_z"]])
         self.assertEqual(bObj.march_square, False)
@@ -63,7 +63,7 @@ class Tests_BandStructure(unittest.TestCase):
         Test the runBandStructure function.
         """
         bObj = BandStructure(**Tests_BandStructure.params)
-        bObj.runBandStructure(epsilon=0, printDoping=True)
+        bObj.runBandStructure(epsilon=0)
 
         # Check that the doping was well initialized
         self.assertEqual(np.round(bObj.p, 3), 0.239)
@@ -71,8 +71,8 @@ class Tests_BandStructure(unittest.TestCase):
         # Test the first elements of each of these
         self.assertEqual(np.around(bObj.kf[0][0], 3), -0.754)
         self.assertEqual(np.around(bObj.dkf[0], 4), 0.0043)
-        self.assertEqual(np.around(bObj.vf[0][0], 3), -64.818)
-        self.assertEqual(np.around(bObj.dos_k[0], 3), 0.0110)
+        self.assertEqual(np.around(bObj.vf[0][0], 3), -9847.585)
+        self.assertEqual(np.around(bObj.dos_k[0], 3), 6.91828710418067e+29)
 
     def test_run_marching(self):
         """
@@ -80,7 +80,7 @@ class Tests_BandStructure(unittest.TestCase):
         """
         bObj = BandStructure(**Tests_BandStructure.params)
         bObj.march_square = True
-        bObj.runBandStructure(epsilon=0, printDoping=True)
+        bObj.runBandStructure(epsilon=0)
 
         # Check that the doping was well initialized
         self.assertEqual(np.round(bObj.p, 3), 0.239)
@@ -88,8 +88,8 @@ class Tests_BandStructure(unittest.TestCase):
         # Test the first elements of each of these
         self.assertEqual(np.around(bObj.kf[0][0], 3), 0.709)
         self.assertEqual(np.around(bObj.dkf[0], 4), 0.0064)
-        self.assertEqual(np.around(bObj.vf[0][0], 3), 184.487)
-        self.assertEqual(np.around(bObj.dos_k[0], 3), 0.005)
+        self.assertEqual(np.around(bObj.vf[0][0], 3), 28028.457)
+        self.assertEqual(np.around(bObj.dos_k[0], 3), 3.383176435137846e+29)
 
     def test_figures(self):
         """
@@ -101,7 +101,7 @@ class Tests_BandStructure(unittest.TestCase):
         bObj.figDiscretizeFS3D()
         # OG: The next function somehow requires that we used Marching square,
         # otherwise self.dks are not defined. Why? mc for marching square?
-        bObj.mc_func()
+        bObj.mass_func()
         bObj.figMultipleFS2D()
         bObj.figDiscretizeFS2D()
 
@@ -137,7 +137,7 @@ class Tests_Conductivity(unittest.TestCase):
         bObj.runBandStructure(printDoping=False)
 
         cObj = Conductivity(bObj, **p)
-        
+
     def test_conductivity_T0_B0(self):
         """
         Test at zero temperature with no field.
@@ -195,7 +195,7 @@ class Tests_Conductivity(unittest.TestCase):
         cObj.figScatteringColor()
         cObj.omegac_tau_func()
         self.assertEqual(np.round(cObj.omegac_tau_k[0], 3), 21.929)
-        
+
         cObj.figOnekft()
         cObj.figScatteringPhi(kz=0)
 

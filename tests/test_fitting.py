@@ -1,7 +1,5 @@
 import unittest
-import numpy as np
-from np import deg2rad
-from cuprates_transport.fitting_admr import FittingADMR
+from cuprates_transport.fitting_admr_series_oneT import FittingADMR
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
 

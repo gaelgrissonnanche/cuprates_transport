@@ -19,14 +19,11 @@ init_member = {
     "Btheta_min": 0,
     "Btheta_max": 90,
     "Btheta_step": 5,
-    "Bphi_array": [0, 15, 30, 45],
+    "Bphi_array": [0, 45],
     "gamma_0": 15,
     "gamma_k": 65.756,
-    "gamma_dos_max": 0,
     "power": 12.21,
-    "factor_arcs": 1,
     "data_T": 25,
-    "data_p": 0.24,
     "epsilon_z": ""
 }
 
@@ -126,7 +123,7 @@ ranges_dict = {
     # "tz3": [-0.07,0.07],
     # "tz4": [0,0.2],
     # "mu": [-1.0,-0.6],
-    # "gamma_0": [10,20],
+    "gamma_0": [10,20],
     # "gamma_k": [0,100],
     # "power":[1, 20],
     # "tz_d":[-0.002,0.002],
