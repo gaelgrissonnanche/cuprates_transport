@@ -374,12 +374,12 @@ if __name__ == '__main__':
                                 "power": 12.21,
                                 }
                     }
-    params_dict[20] = {"band1":{**params_common,
-                                "gamma_0": 12,
-                                "gamma_k": 65.756,
-                                "power": 12.21,
-                                }
-                    }
+    # params_dict[20] = {"band1":{**params_common,
+    #                             "gamma_0": 12,
+    #                             "gamma_k": 65.756,
+    #                             "power": 12.21,
+    #                             }
+    #                 }
 
     ## Boundaries ////////////////////////////////////////////////////////////////
     bounds_dict = {}
@@ -390,17 +390,17 @@ if __name__ == '__main__':
                                 "power": [9, 13],
                                 }
                      }
-    bounds_dict[20] = {"band1":{
-                                "gamma_0": [10,15],
-                                "gamma_k": [40,100],
-                                "power": [9, 13],
-                                }
-                     }
-    bounds_dict["all"] ={"band1": {
-                                    "tp": [-0.18, -0.05],
-                                    "tpp": [0.01, 0.12],
-                                  }
-                        }
+    # bounds_dict[20] = {"band1":{
+    #                             "gamma_0": [10,15],
+    #                             "gamma_k": [40,100],
+    #                             "power": [9, 13],
+    #                             }
+    #                 }
+    # bounds_dict["all"] ={"band1": {
+    #                                 "tp": [-0.18, -0.05],
+    #                                 "tpp": [0.01, 0.12],
+    #                               }
+    #                     }
 
     ## Data Nd-LSCO 0.24  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     data_dict = {}  # keys (T, phi), content [filename, col_theta, col_rhozz, theta_min, theta_max, theta_steps, rhozz_0 in SI units]
@@ -423,9 +423,11 @@ if __name__ == '__main__':
     data_dict[6, 45] = ["../examples/data/NdLSCO_0p24/0p25_45degr_45T_6K.dat", 0, 1, 0, 73.5, 5, 6.03e-5]
 
 
+    t0 = time()
     fitness_obj = Fitness(data_dict, params_dict, bounds_dict)
     chi2 = fitness_obj.compute_fitness()
     # fitness_obj.save_member_to_json("truc")
+    print(time() - t0)
     fitness_obj.fig_compare(fig_save=False)
 
     # fitness_obj = fit_admr_parallel(params_dict, bounds_dict, data_dict, normalized_data=True, popsize=20)

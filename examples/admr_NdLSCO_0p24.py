@@ -33,36 +33,36 @@ ttot = time()
 #     # "e_z": "- 2*tz*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)",
 # }
 
-# ## ADMR absolute Published Nature ////////////////////////////////////////////////
-# params = {
-#     "band_name": "Nd-LSCO",
-#     "a": 3.75,
-#     "b": 3.75,
-#     "c": 13.2,
-#     "energy_scale": 160,
-#     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
-#     "res_xy": 50,
-#     "res_z": 15,
-#     "N_time": 1000,
-#     "T" : 0,
-#     "Bamp": 45,
-#     "Btheta_min": 0,
-#     "Btheta_max": 140,
-#     "Btheta_step": 5,
-#     "Bphi_array": [0],
-#     "gamma_0": 12.595,
-#     "gamma_k": 63.823,
-#     "gamma_dos_max": 0,
-#     "power": 12,
-#     "factor_arcs": 1,
-#     # "e_z":"+2*tz*cos(c*kz)"
-#     # "e_z":"-2 * cos(c*kz/2)*(" +\
-#     #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
-#     #             "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
-#     #             "-0.50 * tz3 *  cos(3 * kx * a / 2) * cos(3 * ky * b / 2)" +\
-#     #             "+0.25 * tz4 * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))" +\
-#     #             ")",
-# }
+## ADMR absolute Published Nature ////////////////////////////////////////////////
+params = {
+    "band_name": "Nd-LSCO",
+    "a": 3.75,
+    "b": 3.75,
+    "c": 13.2,
+    "energy_scale": 160,
+    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
+    "res_xy": 50,
+    "res_z": 15,
+    "N_time": 1000,
+    "T" : 0,
+    "Bamp": 45,
+    "Btheta_min": 0,
+    "Btheta_max": 140,
+    "Btheta_step": 5,
+    "Bphi_array": [0],
+    "gamma_0": 12.595,
+    "gamma_k": 63.823,
+    "gamma_dos_max": 0,
+    "power": 12,
+    "factor_arcs": 1,
+    # "e_z":"+2*tz*cos(c*kz)"
+    # "e_z":"-2 * cos(c*kz/2)*(" +\
+    #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
+    #             "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
+    #             "-0.50 * tz3 *  cos(3 * kx * a / 2) * cos(3 * ky * b / 2)" +\
+    #             "+0.25 * tz4 * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))" +\
+    #             ")",
+}
 
 
 # ## ADMR absolute AMPGO /////////////////////////////////////////////////////
@@ -96,34 +96,35 @@ ttot = time()
 #     #             ")",
 # }
 
-## ADMR absolute 160 meV marching cube ///////////////////////////////////////////
-params = {
-    "band_name": "Nd-LSCO",
-    "a": 3.75,
-    "b": 3.75,
-    "c": 13.2,
-    "energy_scale": 160,
-    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.0614644},
-    "res_xy": 20,
-    "res_z": 11,
-    "N_time": 500,
-    "T" : 0,
-    "Bamp": 45,
-    "Btheta_min": 0,
-    "Btheta_max": 90,
-    "Btheta_step": 5,
-    "Bphi_array": [0, 15, 30, 45],
-    "gamma_0": 11.8232, # 12.628 (25), 11.8232 (20), 10.4308 (12), 9.4409 (6)
-    "gamma_k": 75.4018, # 65.6884 (25), 75.4018 (20), 74.5853 (12), 77.74 (6)
-    "power": 11.5492, # 11.6813 (25), 11.5492 (20), 13.6351 (12), 14.2606
-    # "e_z":"+2*tz*cos(c*kz)"
-    # "e_z":"-2 * cos(c*kz/2)*(" +\
-    #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
-    #             "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
-    #             "-0.50 * tz3 *  cos(3 * kx * a / 2) * cos(3 * ky * b / 2)" +\
-    #             "+0.25 * tz4 * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))" +\
-    #             ")",
-}
+# ## ADMR absolute 160 meV marching cube ///////////////////////////////////////////
+# params = {
+#     "band_name": "Nd-LSCO",
+#     "a": 3.75,
+#     "b": 3.75,
+#     "c": 13.2,
+#     "energy_scale": 160,
+#     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.0614644},
+#     "res_xy": 20,
+#     "res_z": 11,
+#     "N_time": 500,
+#     "T" : 0,
+#     "Bamp": 45,
+#     "Btheta_min": 0,
+#     "Btheta_max": 90,
+#     "Btheta_step": 5,
+#     "Bphi_array": [0, 15, 30, 45],
+#     "gamma_0": 11.8232, # 12.628 (25), 11.8232 (20), 10.4308 (12), 9.4409 (6)
+#     "gamma_k": 75.4018, # 65.6884 (25), 75.4018 (20), 74.5853 (12), 77.74 (6)
+#     "power": 11.5492, # 11.6813 (25), 11.5492 (20), 13.6351 (12), 14.2606
+#     # "e_z":"+2*tz*cos(c*kz)"
+#     # "e_z":"-2 * cos(c*kz/2)*(" +\
+#     #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
+#     #             "-0.25 * tz2 * (cos(3 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(3 * ky * b / 2))" +\
+#     #             "-0.50 * tz3 *  cos(3 * kx * a / 2) * cos(3 * ky * b / 2)" +\
+#     #             "+0.25 * tz4 * (cos(5 * kx * a / 2) * cos(ky * b / 2) + cos(kx * a / 2) * cos(5 * ky * b / 2))" +\
+#     #             ")",
+# }
+
 
 # ## Play /////////////////////////////////////////////////////
 # params = {
@@ -247,7 +248,7 @@ condObject.runTransport()
 # condObject.figScatteringColor()
 # condObject.omegac_tau_func()
 # print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
-condObject.figOnekft()
+# condObject.figOnekft()
 # # condObject.figScatteringPhi(kz=0)
 # # condObject.figScatteringPhi(kz=pi/bandObject.c)
 # # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
