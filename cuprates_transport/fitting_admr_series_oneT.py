@@ -43,6 +43,7 @@ class FittingADMR:
 
         ## Objects
         self.bandObject = BandStructure(**self.member)
+        self.bandObject.march_square = True
 
         self.condObject = None
         self.admrObject = None

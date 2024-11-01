@@ -57,6 +57,7 @@ class FittingADMR:
         else:
             self.bandObject = PiPiBandStructure(**self.member_dict[self.data_T_list[0]])
 
+        self.bandObject.march_square = True
         self.condObject_dict = {}
         self.admrObject_dict = {}
 
