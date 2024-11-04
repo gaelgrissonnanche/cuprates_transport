@@ -116,10 +116,6 @@ class BandStructure:
     energy_scale = property(_get_energy_scale, _set_energy_scale)
 
     # Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
-    def runBandStructure(self, epsilon=0, printDoping=False):
-        self.discretize_fermi_surface(epsilon=epsilon)
-        self.doping(res_x=self.res_xy*10, res_y=self.res_xy*10, res_z=self.res_z*10, printDoping=printDoping)
-
     def erase_Fermi_surface(self):
         # Fermi surface
         self.kf = None      # in Angstrom^-1
@@ -132,6 +128,46 @@ class BandStructure:
         self.p = None       # hole doping, unknown at first
         self.n = None       # band filling (of electron), unknown at first
         self.number_of_points_per_kz_list = []
+
+    def runBandStructure(self, epsilon=0, printDoping=False):
+        self.discretize_fermi_surface(epsilon=epsilon)
+        self.doping(res_x=self.res_xy*10, res_y=self.res_xy*10, res_z=self.res_z*10, printDoping=printDoping)
+
+    def discretize_fermi_surface(self, epsilon=0):
+        if self.march_square is True:
+            self.kf, self.dkf = marching_square(self, epsilon)
+        else:
+            self.kf, self.dkf = marching_cube(self, epsilon)
+        # Compute Velocity at t = 0 on Fermi Surface
+        vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
+        # dim -> (n, i0) = (xyz, position on FS)
+        self.vf = np.vstack([vx, vy, vz])
+        # Density of State of k, dos_k in  Joule^1 m^-1
+        # dos_k = 1 / (|grad(E)|) here = 1 / (hbar * |v|),
+        self.dos_k = 1 / (hbar * sqrt(self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2))
+
+    def doping(self, res_x=500, res_y=500, res_z=500, printDoping=False):
+        self.update_filling(res_x,res_y,res_z)
+        if printDoping is True:
+            print(self.band_name + " :: " + "p=" + "{0:.3f}".format(self.p))
+        return self.p
+
+    def update_filling(self, res_x=500, res_y=500, res_z=500):
+        e_3D, _, _, _, _, _, _ = self.dispersion_grid(res_x, res_y, res_z)
+        kVolume = e_3D.shape[0] * e_3D.shape[1] * e_3D.shape[2]
+        self.n = 2 * np.sum(np.greater_equal(0, e_3D)) / kVolume / self.numberOfBZ
+        # 2 is for the spin
+        self.p = 1 - self.n
+        return self.n
+
+    def dispersion_grid(self, res_x=500, res_y=500, res_z=500):
+        kx_a = np.linspace(-pi / self.a, pi / self.a, res_x)
+        ky_a = np.linspace(-pi / self.b, pi / self.b, res_y)
+        kz_a = np.linspace(-2*pi / self.c, 2*pi / self.c, res_z)
+        # kz_a = np.linspace(-pi / self.c, pi / self.c, res_z)
+        kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
+        e_3D = self.e_3D_func(kxx, kyy, kzz)
+        return e_3D, kxx, kyy, kzz, kx_a, ky_a, kz_a
 
     def e_3D_v_3D_definition(self):
         """
@@ -164,17 +200,17 @@ class BandStructure:
             self.epsilon_func = jit(epsilon_func, nopython=True)
             self.v_func = jit(v_func, nopython=True)
 
-    def bandParameters(self):
-        abc = [self.a, self.b, self.c]
-        val = [value * self.energy_scale for (key, value)
-               in sorted(self._band_params.items())]
-        return abc + val
-
     def e_3D_func(self, kx, ky, kz):
         return self.epsilon_func(kx, ky, kz, *self.bandParameters())
 
     def v_3D_func(self, kx, ky, kz):
         return self.v_func(kx, ky, kz, *self.bandParameters())
+
+    def bandParameters(self):
+        abc = [self.a, self.b, self.c]
+        val = [value * self.energy_scale for (key, value)
+               in sorted(self._band_params.items())]
+        return abc + val
 
     def mass_func(self):
         """
@@ -188,30 +224,6 @@ class BandStructure:
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in m / s
         prefactor = hbar / (2 * pi) / self.res_z # divide by the number of kz to average over all kz
         self.mass = prefactor * np.sum(dks / vf_perp) / m0
-
-
-    def dispersion_grid(self, res_x=500, res_y=500, res_z=500):
-        kx_a = np.linspace(-pi / self.a, pi / self.a, res_x)
-        ky_a = np.linspace(-pi / self.b, pi / self.b, res_y)
-        kz_a = np.linspace(-2*pi / self.c, 2*pi / self.c, res_z)
-        # kz_a = np.linspace(-pi / self.c, pi / self.c, res_z)
-        kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-        e_3D = self.e_3D_func(kxx, kyy, kzz)
-        return e_3D, kxx, kyy, kzz, kx_a, ky_a, kz_a
-
-    def update_filling(self, res_x=500, res_y=500, res_z=500):
-        e_3D, _, _, _, _, _, _ = self.dispersion_grid(res_x, res_y, res_z)
-        kVolume = e_3D.shape[0] * e_3D.shape[1] * e_3D.shape[2]
-        self.n = 2 * np.sum(np.greater_equal(0, e_3D)) / kVolume / self.numberOfBZ
-        # 2 is for the spin
-        self.p = 1 - self.n
-        return self.n
-
-    def doping(self, res_x=500, res_y=500, res_z=500, printDoping=False):
-        self.update_filling(res_x,res_y,res_z)
-        if printDoping is True:
-            print(self.band_name + " :: " + "p=" + "{0:.3f}".format(self.p))
-        return self.p
 
     def filling(self, res_x=500, res_y=500, res_z=500):
         self.update_filling(res_x,res_y,res_z)
@@ -235,19 +247,6 @@ class BandStructure:
     def set_mu_to_doping(self, p_target, ptol=0.001):
         self._band_params["mu"] = optimize.brentq(self.diff_doping, -10, 10,
                                                   args=(p_target,), xtol=ptol)
-
-    def discretize_fermi_surface(self, epsilon=0):
-        if self.march_square is True:
-            self.kf, self.dkf = marching_square(self, epsilon)
-        else:
-            self.kf, self.dkf = marching_cube(self, epsilon)
-        # Compute Velocity at t = 0 on Fermi Surface
-        vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
-        # dim -> (n, i0) = (xyz, position on FS)
-        self.vf = np.vstack([vx, vy, vz])
-        # Density of State of k, dos_k in  Joule^1 m^-1
-        # dos_k = 1 / (|grad(E)|) here = 1 / (hbar * |v|),
-        self.dos_k = 1 / (hbar * sqrt(self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2))
 
     def rotation(self, x, y, angle):
         xp = cos(angle) * x + sin(angle) * y
