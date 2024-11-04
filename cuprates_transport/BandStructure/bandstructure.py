@@ -1,27 +1,28 @@
 import numpy as np
 from numpy import cos, sin, pi, sqrt
 from scipy import optimize
-from scipy.constants import electron_mass, physical_constants, hbar
+from scipy.constants import hbar
 import sympy as sp
 from numba import jit
 from copy import deepcopy
 from skimage import measure
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+
+from cuprates_transport.utils import meV, m0, Angstrom
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
-# Units ////////
-meV = physical_constants["electron volt"][0] * 1e-3     # 1 meV in Joule
-m0 = electron_mass                                      # in kg
-Angstrom = 1e-10                                        # 1 A in meters
+# # Units ////////
+# meV = physical_constants["electron volt"][0] * 1e-3     # 1 meV in Joule
+# m0 = electron_mass                                      # in kg
+# Angstrom = 1e-10                                        # 1 A in meters
 
 
 class BandStructure:
     def __init__(self,
                  a, b, c,
                  energy_scale,
-                 band_params={"t": 1, "tp": -0.136, "tpp": 0.068, "tz": 0.07,
-                              "mu": -0.83},
+                 band_params={"t": 1, "tp": -0.136, "tpp": 0.068, "tz": 0.07, "mu": -0.83},
                  band_name="band_1",
                  tight_binding=("- mu - 2*t*(cos(a*kx) + cos(b*ky))" +
                     "- 4*tp*cos(a*kx)*cos(b*ky)" +
@@ -45,15 +46,8 @@ class BandStructure:
                          if multiprocessing is running
         """
 
+        self.a, self.b, self.c = a, b, c    # in Angstrom
         self._energy_scale = energy_scale   # the value of "t" in meV
-        self.a = a                          # in Angstrom
-        self.b = b                          # in Angstrom
-        self.c = c                          # in Angstrom
-
-        # decides if to run Numba in parallel or not, it increases
-        # the speed for a single instance, but it decreases the speed
-        # if multiprocessing is running
-        self.parallel = parallel
 
         self._band_params = deepcopy(band_params)
         # all a fraction of the bandwidth
@@ -67,38 +61,53 @@ class BandStructure:
             self.var_sym.append(sp.Symbol(params, real=True))
         self.var_sym = tuple(self.var_sym)
 
+        # decides if to run Numba in parallel or not, it increases
+        # the speed for a single instance, but it decreases the speed
+        # if multiprocessing is running
+        self.parallel = parallel
+
         # Create the dispersion and velocity functions
+        if tight_binding is None:
+             tight_binding= ("- mu - 2*t*(cos(a*kx) + cos(b*ky))" +
+                             "- 4*tp*cos(a*kx)*cos(b*ky)" +
+                             "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))" +
+                             "- 2*tz*(cos(a*kx) " +
+                             "- cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)")
         self.e_3D_sym = sp.sympify(tight_binding)
         self.e_3D_v_3D_definition()
 
         # Discretization
         self.res_xy_rough = 501
-        # number of subdivisions of the FBZ in units of Pi in
-        # the plane for to run the Marching Square
-        if res_xy % 2 == 0:
-            res_xy += 1
-        if res_z % 2 == 0:  # make sure it is an odd number
-            res_z += 1
+        # number of subdivisions of the FBZ in units of Pi in the plane for to run the Marching Square
+        if res_xy % 2 == 0: res_xy += 1
+        if res_z % 2 == 0: res_z += 1
+        # if res_xy % 2 == 0:
+        #     res_xy += 1
+        # if res_z % 2 == 0:  # make sure it is an odd number
+        #     res_z += 1
+
+        # number of subdivisions of the FBZ in units of Pi in the plane for the Fermi surface
         self.res_xy = res_xy
-        # number of subdivisions of the FBZ in units of Pi
-        # in the plane for the Fermi surface
+        # number of subdivisions of the FBZ in units of Pi out of the plane
         self.res_z = res_z
-        # number of subdivisions of the FBZ in units of Pi in the plane
+
         self.march_square = march_square
         # whether to use or not the marching square for higher symmetries
 
         # Fermi surface
-        self.kf = None      # in Angstrom^-1
-        self.vf = None      # in m / s
-        self.mass = None    # in * m_e
-        self.dkf = None     # in Angstrom^-2
-        self.dks = None     # in Angstrom^-1
-        self.dkz = None     # in Angstrom^-1
-        self.dos_k = None   # in Joule^-1 m^-1
-        self.dos_epsilon = None     # in meV^-1
-        self.p = None       # hole doping, unknown at first
-        self.n = None       # band filling (of electron), unknown at first
-        self.number_of_points_per_kz_list = []
+        self.erase_Fermi_surface()      # TODO: I would rename "initialize_Fermi_surface"
+        self.mass = None    # in * m_e  # Can this also do in erase_Fermi_surface?
+        # self.kf = None      # in Angstrom^-1
+        # self.vf = None      # in m / s
+        # self.mass = None    # in * m_e
+        # self.dkf = None     # in Angstrom^-2
+        # self.dks = None     # in Angstrom^-1
+        # self.dkz = None     # in Angstrom^-1
+        # self.dos_k = None   # in Joule^-1 m^-1
+        # self.dos_epsilon = None     # in meV^-1
+        # self.p = None       # hole doping, unknown at first
+        # self.n = None       # band filling (of electron), unknown at first
+        # self.number_of_points_per_kz_list = []
 
     # Special Method >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
     def __setitem__(self, key, value):
@@ -139,15 +148,16 @@ class BandStructure:
         self.doping(res_x=self.res_xy*10, res_y=self.res_xy*10, res_z=self.res_z*10, printDoping=printDoping)
 
     def erase_Fermi_surface(self):
-        self.kf  = None
-        self.vf  = None
-        self.dkf = None
-        self.dks = None
-        self.dkz = None
-        self.p   = None
-        self.n   = None
-        self.dos_k = None
-        self.dos_epsilon = None
+        # Fermi surface
+        self.kf = None      # in Angstrom^-1
+        self.vf = None      # in m / s
+        self.dkf = None     # in Angstrom^-2
+        self.dks = None     # in Angstrom^-1
+        self.dkz = None     # in Angstrom^-1
+        self.dos_k = None   # in Joule^-1 m^-1
+        self.dos_epsilon = None     # in meV^-1
+        self.p = None       # hole doping, unknown at first
+        self.n = None       # band filling (of electron), unknown at first
         self.number_of_points_per_kz_list = []
 
     def e_3D_v_3D_definition(self):
@@ -429,7 +439,7 @@ class BandStructure:
     # ///// RC Parameters ////// #
     mpl.rcdefaults()
     mpl.rcParams['font.size'] = 24.         # Fontsize
-    mpl.rcParams['font.family'] = 'Arial'   # Font Arial
+    # mpl.rcParams['font.family'] = 'Arial'   # Font Arial
     mpl.rcParams['axes.labelsize'] = 24.
     mpl.rcParams['xtick.labelsize'] = 24
     mpl.rcParams['ytick.labelsize'] = 24

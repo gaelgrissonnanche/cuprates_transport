@@ -1,12 +1,12 @@
 import unittest
-from cuprates_transport.fitting_admr_series_oneT import FittingADMR
+from cuprates_transport.Fitting.fitting_admr_series_oneT import FittingADMR
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
 
 class Tests_FittingADMR(unittest.TestCase):
 
     # ONE BAND Horio et al.
-    init_memeber = {
+    init_member = {
         "band_name": "LargePocket",
         "a": 3.74767,
         "b": 3.74767,
@@ -51,3 +51,6 @@ class Tests_FittingADMR(unittest.TestCase):
                            method="least_square", normalized_data=True)
 
         fObj.runFit()
+
+if __name__ == '__main__':
+    unittest.main()

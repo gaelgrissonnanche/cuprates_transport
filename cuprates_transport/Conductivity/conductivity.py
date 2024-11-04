@@ -555,7 +555,7 @@ class Conductivity:
     #///// RC Parameters //////#
     mpl.rcdefaults()
     mpl.rcParams['font.size'] = 24. # change the size of the font in every figure
-    mpl.rcParams['font.family'] = 'Arial' # font Arial in every figure
+    # mpl.rcParams['font.family'] = 'Arial' # font Arial in every figure
     mpl.rcParams['axes.labelsize'] = 24.
     mpl.rcParams['xtick.labelsize'] = 24
     mpl.rcParams['ytick.labelsize'] = 24

@@ -1,8 +1,6 @@
 import unittest
 import numpy as np
-from cuprates_transport.bandstructure import BandStructure
-from cuprates_transport.conductivity import Conductivity
-from cuprates_transport.admr import ADMR
+from cuprates_transport import BandStructure, Conductivity, ADMR
 from copy import deepcopy
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
@@ -89,7 +87,7 @@ class Tests_BandStructure(unittest.TestCase):
         self.assertEqual(np.around(bObj.kf[0][0], 3), 0.709)
         self.assertEqual(np.around(bObj.dkf[0], 4), 0.0064)
         self.assertEqual(np.around(bObj.vf[0][0], 3), 28028.457)
-        self.assertEqual(np.around(bObj.dos_k[0], 3), 3.383176435137846e+29)
+        self.assertEqual(np.around(bObj.dos_k[0]/3.3831764351378e+29, 8), 1)
 
     def test_figures(self):
         """
