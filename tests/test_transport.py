@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 from cuprates_transport.BandStructure import figDiscretizeFS2D, figDiscretizeFS3D, \
 figMultipleFS2D
+from cuprates_transport.Conductivity import figScatteringColor, figScatteringPhi, figOnekft
 from cuprates_transport import BandStructure, Conductivity, ADMR
 from copy import deepcopy
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
@@ -192,12 +193,12 @@ class Tests_Conductivity(unittest.TestCase):
         cObj = Conductivity(bObj, **p)
         cObj.runTransport()
 
-        cObj.figScatteringColor()
+        figScatteringColor(cObj)
         cObj.omegac_tau_func()
         self.assertEqual(np.round(cObj.omegac_tau_k[0], 3), 21.929)
 
-        cObj.figOnekft()
-        cObj.figScatteringPhi(kz=0)
+        figOnekft(cObj)
+        figScatteringPhi(cObj, kz=0)
 
         rho = np.linalg.inv(cObj.sigma).transpose()
         self.assertEqual(np.around(rho[0, 0], 10), 2.223e-07)

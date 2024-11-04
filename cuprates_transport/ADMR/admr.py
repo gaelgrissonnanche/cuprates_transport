@@ -249,7 +249,8 @@ class ADMR:
 
         ## Parameters figures ///////////////////////////////////////////////////#
         for condObject in self.condObject_dict.values():
-            fig_list.append(condObject.figParameters(fig_show=fig_show))
+            from cuprates_transport.Conductivity.plot_tools import figParameters
+            fig_list.append(figParameters(condObject, fig_show=fig_show))
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:

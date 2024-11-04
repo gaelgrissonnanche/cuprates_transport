@@ -84,7 +84,6 @@ def figDiscretizeFS3D(bandObj, show_veloticites = False):
     """
     Show Discretized 3D Fermi Surface.
     """
-    print(type(bandObj))
     assert type(bandObj) is BandStructure
 
     fig = plt.figure()
