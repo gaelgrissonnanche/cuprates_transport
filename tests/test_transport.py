@@ -1,5 +1,7 @@
 import unittest
 import numpy as np
+from cuprates_transport.BandStructure import figDiscretizeFS2D, figDiscretizeFS3D, \
+figMultipleFS2D
 from cuprates_transport import BandStructure, Conductivity, ADMR
 from copy import deepcopy
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
@@ -96,12 +98,12 @@ class Tests_BandStructure(unittest.TestCase):
         bObj = BandStructure(**Tests_BandStructure.params)
         bObj.march_square = True
         bObj.runBandStructure(epsilon=0)
-        bObj.figDiscretizeFS3D()
+        figDiscretizeFS3D(bObj)
         # OG: The next function somehow requires that we used Marching square,
         # otherwise self.dks are not defined. Why? mc for marching square?
         bObj.mass_func()
-        bObj.figMultipleFS2D()
-        bObj.figDiscretizeFS2D()
+        figMultipleFS2D(bObj)
+        figDiscretizeFS2D(bObj)
 
 
 class Tests_Conductivity(unittest.TestCase):
