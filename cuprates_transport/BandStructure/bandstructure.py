@@ -5,19 +5,10 @@ from scipy.constants import hbar
 import sympy as sp
 from numba import jit
 from copy import deepcopy
-from skimage import measure
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 
 from cuprates_transport.utils import meV, m0, Angstrom
 from cuprates_transport.BandStructure.marching_algo import marching_square, marching_cube
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
-
-# # Units ////////
-# meV = physical_constants["electron volt"][0] * 1e-3     # 1 meV in Joule
-# m0 = electron_mass                                      # in kg
-# Angstrom = 1e-10                                        # 1 A in meters
-
 
 class BandStructure:
     def __init__(self,
@@ -25,11 +16,7 @@ class BandStructure:
                  energy_scale,
                  band_params={"t": 1, "tp": -0.136, "tpp": 0.068, "tz": 0.07, "mu": -0.83},
                  band_name="band_1",
-                 tight_binding=("- mu - 2*t*(cos(a*kx) + cos(b*ky))" +
-                    "- 4*tp*cos(a*kx)*cos(b*ky)" +
-                    "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))" +
-                    "- 2*tz*(cos(a*kx) " +
-                    "- cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)"),
+                 tight_binding="",
                  res_xy=20, res_z=1,
                  parallel = True, march_square=False,
                  **trash):
@@ -68,7 +55,7 @@ class BandStructure:
         self.parallel = parallel
 
         # Create the dispersion and velocity functions
-        if tight_binding is None:
+        if tight_binding == "":
              tight_binding= ("- mu - 2*t*(cos(a*kx) + cos(b*ky))" +
                              "- 4*tp*cos(a*kx)*cos(b*ky)" +
                              "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))" +
@@ -82,10 +69,6 @@ class BandStructure:
         # number of subdivisions of the FBZ in units of Pi in the plane for to run the Marching Square
         if res_xy % 2 == 0: res_xy += 1
         if res_z % 2 == 0: res_z += 1
-        # if res_xy % 2 == 0:
-        #     res_xy += 1
-        # if res_z % 2 == 0:  # make sure it is an odd number
-        #     res_z += 1
 
         # number of subdivisions of the FBZ in units of Pi in the plane for the Fermi surface
         self.res_xy = res_xy
@@ -98,17 +81,6 @@ class BandStructure:
         # Fermi surface
         self.erase_Fermi_surface()      # TODO: I would rename "initialize_Fermi_surface"
         self.mass = None    # in * m_e  # Can this also do in erase_Fermi_surface?
-        # self.kf = None      # in Angstrom^-1
-        # self.vf = None      # in m / s
-        # self.mass = None    # in * m_e
-        # self.dkf = None     # in Angstrom^-2
-        # self.dks = None     # in Angstrom^-1
-        # self.dkz = None     # in Angstrom^-1
-        # self.dos_k = None   # in Joule^-1 m^-1
-        # self.dos_epsilon = None     # in meV^-1
-        # self.p = None       # hole doping, unknown at first
-        # self.n = None       # band filling (of electron), unknown at first
-        # self.number_of_points_per_kz_list = []
 
     # Special Method >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
     def __setitem__(self, key, value):
@@ -205,18 +177,6 @@ class BandStructure:
         return self.v_func(kx, ky, kz, *self.bandParameters())
 
     def mass_func(self):
-        # """
-        # The effective mass in units of m0 (the bare electron mass)
-        # """
-        # hbar = 1.05457182e-34     # m2 kg / s
-        # kf = self.kf / Angstrom
-        # vf = self.vf * meV * Angstrom / hbar
-        # # print( meV * Angstrom / hbar)
-        # # in Joule.m (because in the code vf is not divided by hbar)
-        # kf_norm = sqrt(kf[0, :]**2 + kf[1, :]**2 + kf[2, :]**2)  # in m^-1
-        # vf_norm = sqrt(vf[0, :]**2 + vf[1, :]**2 + vf[2, :]**2)  # in Joule.m
-        # self.mass = hbar * np.min(kf_norm/vf_norm) / m0
-
         """
         The cyclotronic mass in units of m0 (the bare electron mass)
         """
@@ -304,33 +264,3 @@ class BandStructure:
         """
         prefactor =  2 / (2*pi)**3 # factor 2 for the spin
         self.dos_epsilon = prefactor * np.sum(self.dkf / Angstrom**2 * self.dos_k)
-
-
-## Functions to compute the doping of a two bands system and more ---------------#
-
-def doping(bandIterable, printDoping=False):
-    totalFilling=0
-    if printDoping is True:
-        print("------------------------------------------------")
-    for band in bandIterable:
-        band.update_filling()
-        totalFilling += band.n
-        if printDoping is True:
-            print(band.band_name + ": band filling = " + "{0:.3f}".format(band.n))
-    doping = 1-totalFilling
-    if printDoping is True:
-        print("total hole doping = " + "{0:.3f}".format(doping))
-        print("------------------------------------------------")
-    return doping
-
-def dopingCondition(mu,p_target,bandIterable):
-    print("mu = " + "{0:.3f}".format(mu))
-    for band in bandIterable:
-        band["mu"] = mu
-    return doping(bandIterable) - p_target
-
-def set_mu_to_doping(bandIterable, p_target, ptol=0.001):
-    print("Computing mu for hole doping = " + "{0:.3f}".format(p_target))
-    mu = optimize.brentq(dopingCondition, -10, 10, args=(p_target ,bandIterable), xtol=ptol)
-    for band in bandIterable:
-        band["mu"] = mu
