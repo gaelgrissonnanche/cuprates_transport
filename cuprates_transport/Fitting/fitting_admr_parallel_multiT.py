@@ -11,9 +11,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.optimize import differential_evolution
 
-from cuprates_transport.bandstructure import BandStructure
-from cuprates_transport.admr import ADMR
-from cuprates_transport.conductivity import Conductivity
+from cuprates_transport import BandStructure, Conductivity, ADMR
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 ## -------------------------------------------------------------------------------
@@ -96,16 +94,20 @@ class SimADMR:
 
     def compute_rhozz(self):
         """Calculate the simulated rhozz from ADMR object"""
+
         self.condObject_list = []
         for band in self.bands_list:
             bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
-            bandObject.march_square = True
+            bandObject.march_square = False
             bandObject.runBandStructure()
+            # TODO: Having the bandObject constructed here is a slow down. It's the same for each Temperature, so should be given to SimADMR
             self.condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T][band]))
+
         admrObject = ADMR(self.condObject_list, show_progress=False)
         admrObject.Bphi_array = self.Bphi_array
         admrObject.Btheta_array = self.Btheta_array
         admrObject.runADMR()
+
         self.rhozz_sim_matrix = admrObject.rhozz_array
         self.rzz_sim_matrix   = admrObject.rzz_array
 
@@ -175,6 +177,9 @@ class Fitness:
 
     def compute_fitness(self, x=np.array([0])):
         """Compute chi2 = sum((sim[i] - data[i])**2)"""
+
+        t0 = time()
+
         ## Update the params_dict with fit values
         if x.all()!=0:
             self.update_parameters(x)
@@ -198,6 +203,7 @@ class Fitness:
             diff_array = np.append(diff_array, diff)
         ## Compute chi2
         chi2 = np.sum(diff_array**2)
+        print("  Done with this Gen, time taken: %.3f" % (time() - t0))
         return chi2
 
     def fig_compare(self, fig_show=True, fig_save=False, folder= "", figname="figure"):
@@ -283,6 +289,8 @@ class Fitness:
 ## Functions for fit -------------------------------------------------------------
 global shared_num_member
 shared_num_member = None
+global t0
+t0 = time()
 
 def init(num_member):
     """store the counter for later use """
@@ -293,18 +301,31 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
                     normalized_data=True, filename="fit_results", folder="",
                     popsize=15, mutation=(0.5, 1), recombination=0.7,
                     percent_workers=100, num_cpu=None):
+
+    def dtime(title=""):
+        global t0
+        t1 = time()
+        print("Time for %s: %.3fs" % (title, t1-t0))
+        t0 = t1
+
     ## Create fitness object for parallel calculations
     fitness_obj = Fitness(data_dict, params_dict, bounds_dict, normalized_data)
+    dtime("Fitness")
+
     ## Initialize workers
     if num_cpu is None:
         num_cpu = cpu_count(logical=False)
     num_workers = int(percent_workers / 100 * num_cpu)
     print("# cpu cores: " + str(num_cpu))
     print("# workers: " + str(num_workers))
+
+    dtime("prePool")
     ## Initialize counter
     num_member = Value('i', 0)
     ## Create pool of workers
     pool = Pool(processes=num_workers, initializer = init, initargs = (num_member, ))
+    dtime("postPool")
+
     ## Variables for Callback function
     global iteration
     iteration = 0
@@ -312,6 +333,7 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
     time_iter = time()
     global best_x
     best_x = None
+
     ## Callback function to print the evolution of differential evolution
     def callback(xk, convergence):
         globals()['iteration'] += 1
@@ -324,22 +346,31 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
             text += "\tNew best:" + str([round(x, 10) for x in xk])
         print(text)
         sys.stdout.flush()
+
+    dtime("Pre diff_evo")
+
+    print("Starting differential evolution.")
+
     ## Differential evolution
     res = differential_evolution(fitness_obj.compute_fitness, fitness_obj.bounds,
                                 updating='deferred', workers=pool.map,
                                 popsize=popsize, mutation=mutation,
                                 recombination=recombination, polish=False,
                                 callback=callback)
+
+    print("Differential evolution is over.")
+
     # res = shgo(fitness_obj.compute_fitness, fitness_obj.bounds,
     #                              workers=pool.map, callback=callback)
     pool.terminate()
-    ## Export final parameters from the fit
-    fitness_obj.update_parameters(res.x)
-    fitness_obj.compute_fitness()
-    ## Save BEST member to JSON
-    fitness_obj.save_member_to_json(filename=filename, folder=folder)
-    ## Compute the FINAL member
-    fitness_obj.fig_compare(fig_save=True, figname=filename, folder=folder)
+
+    # ## Export final parameters from the fit
+    # fitness_obj.update_parameters(res.x)
+    # fitness_obj.compute_fitness()
+    # ## Save BEST member to JSON
+    # fitness_obj.save_member_to_json(filename=filename, folder=folder)
+    # ## Compute the FINAL member
+    # fitness_obj.fig_compare(fig_save=True, figname=filename, folder=folder)
     return fitness_obj
 
 ## -------------------------------------------------------------------------------

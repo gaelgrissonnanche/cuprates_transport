@@ -1,7 +1,6 @@
 from numpy import pi
-from cuprates_transport.bandstructure import BandStructure
-from cuprates_transport.admr import ADMR
-from cuprates_transport.conductivity import Conductivity
+from cuprates_transport import BandStructure, Conductivity, ADMR
+from cuprates_transport.plot_tools import *
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 # ## Peets et al.
@@ -78,21 +77,21 @@ bandObject.runBandStructure(printDoping=True)
 
 # bandObject.mc_func()
 # print("mc = " + "{:.3f}".format(bandObject.mc))
-# bandObject.figDiscretizeFS2D()
-# bandObject.figMultipleFS2D()
+# figDiscretizeFS2D(bandObject)
+# figMultipleFS2D(bandObject)
 
 ## Conductivity
 condObject = Conductivity(bandObject, **params)
-# condObject.figdfdE()
+# figdfdE(condObject)
 # condObject.runTransport()
 # condObject.omegac_tau_func()
 # print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
-# condObject.figScatteringPhi(kz=0)
+# figScatteringPhi(condObject, kz=0)
 # condObject.solveMovementFunc()
-# condObject.figCumulativevft()
+# figCumulativevft(condObject)
 
 ## ADMR
 amro1band = ADMR([condObject], **params)
 amro1band.runADMR()
-amro1band.fileADMR(folder="sim/Tl2201_Tc_20K/")
-amro1band.figADMR(folder="sim/Tl2201_Tc_20K/")
+# fileADMR(amro1band, folder="sim/Tl2201_Tc_20K/")
+figADMR(amro1band, folder="sim/Tl2201_Tc_20K/", fig_save=False)

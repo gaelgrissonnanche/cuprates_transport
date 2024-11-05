@@ -1,8 +1,10 @@
 import unittest
 import numpy as np
-from cuprates_transport.bandstructure import BandStructure
-from cuprates_transport.conductivity import Conductivity
-from cuprates_transport.admr import ADMR
+from cuprates_transport.BandStructure import figDiscretizeFS2D, figDiscretizeFS3D, \
+figMultipleFS2D
+from cuprates_transport.Conductivity import figScatteringColor, figScatteringPhi, figOnekft
+from cuprates_transport.ADMR import file_name_func, figADMR
+from cuprates_transport import BandStructure, Conductivity, ADMR
 from copy import deepcopy
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
 
@@ -89,7 +91,7 @@ class Tests_BandStructure(unittest.TestCase):
         self.assertEqual(np.around(bObj.kf[0][0], 3), 0.709)
         self.assertEqual(np.around(bObj.dkf[0], 4), 0.0064)
         self.assertEqual(np.around(bObj.vf[0][0], 3), 28028.457)
-        self.assertEqual(np.around(bObj.dos_k[0], 3), 3.383176435137846e+29)
+        self.assertEqual(np.around(bObj.dos_k[0]/3.3831764351378e+29, 8), 1)
 
     def test_figures(self):
         """
@@ -98,12 +100,12 @@ class Tests_BandStructure(unittest.TestCase):
         bObj = BandStructure(**Tests_BandStructure.params)
         bObj.march_square = True
         bObj.runBandStructure(epsilon=0)
-        bObj.figDiscretizeFS3D()
+        figDiscretizeFS3D(bObj)
         # OG: The next function somehow requires that we used Marching square,
         # otherwise self.dks are not defined. Why? mc for marching square?
         bObj.mass_func()
-        bObj.figMultipleFS2D()
-        bObj.figDiscretizeFS2D()
+        figMultipleFS2D(bObj)
+        figDiscretizeFS2D(bObj)
 
 
 class Tests_Conductivity(unittest.TestCase):
@@ -192,12 +194,12 @@ class Tests_Conductivity(unittest.TestCase):
         cObj = Conductivity(bObj, **p)
         cObj.runTransport()
 
-        cObj.figScatteringColor()
+        figScatteringColor(cObj)
         cObj.omegac_tau_func()
         self.assertEqual(np.round(cObj.omegac_tau_k[0], 3), 21.929)
 
-        cObj.figOnekft()
-        cObj.figScatteringPhi(kz=0)
+        figOnekft(cObj)
+        figScatteringPhi(cObj, kz=0)
 
         rho = np.linalg.inv(cObj.sigma).transpose()
         self.assertEqual(np.around(rho[0, 0], 10), 2.223e-07)
@@ -241,7 +243,7 @@ class Tests_ADMR(unittest.TestCase):
         admr = ADMR([cObj], **p)
         admr.show_progress = False
         admr.runADMR()
-        admr.figADMR()
+        figADMR(admr, fig_save=False)
 
 if __name__ == '__main__':
     unittest.main()
