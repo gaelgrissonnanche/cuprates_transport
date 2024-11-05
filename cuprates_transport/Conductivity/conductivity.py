@@ -254,6 +254,7 @@ class Conductivity:
 
 
     ## Chambers formula's parts -------------------------------------------------#
+    # TODO: Perhaps move outside
 
     def velocity_product(self, kft, vft, t_o_tau):
         """ Index i and j represent x, y, z = 0, 1, 2
@@ -346,106 +347,6 @@ class Conductivity:
         # self.omegac_tau = 1 / inverse_omegac_tau
 
 
-#     ## Scatterint rate models ---------------------------------------------------#
-#
-#     def gamma_DOS_func(self, vx, vy, vz):
-#         dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
-#         dos_max = np.max(self.bandObject.dos_k)
-#         # value to normalize the DOS to a quantity without units
-#         return self.gamma_dos_max * (dos / dos_max)
-#
-#     def gamma_cmfp_func(self, vx, vy, vz):
-#         vf = sqrt( vx**2 + vy**2 + vz**2 )
-#         vf_max = np.max(self.bandObject.vf)
-#         # value to normalize the DOS to a quantity without units
-#         return self.gamma_cmfp_max * (vf / vf_max)
-#
-#     def gamma_vF_func(self, vx, vy, vz):
-#         """vx, vy, vz are in Angstrom.meV
-#         l_path is in Angstrom
-#         """
-#         vF = sqrt(vx**2 + vy**2 + vz**2) / Angstrom * 1e-12 # in Angstrom / ps
-#         return vF / self.l_path
-#
-#     def gamma_k_func(self, kx, ky, kz):
-#         ## Make sure kx and ky are in the FBZ to compute Phi.
-#         a, b = self.bandObject.a, self.bandObject.b
-#         kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-#         ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-#         phi = arctan2(ky, kx) #+ np.pi/4
-#         return self.gamma_k * np.abs(cos(2*phi))**self.power
-#
-#     def gamma_coskpi4_func(self, kx, ky, kz):
-#         ## Make sure kx and ky are in the FBZ to compute Phi.
-#         a, b = self.bandObject.a, self.bandObject.b
-#         kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-#         ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-#         phi = arctan2(ky, kx) #+ np.pi/4
-#         return self.gamma_kpi4 * np.abs(cos(2*(phi+1*pi/4)))**self.powerpi4
-#
-#     def gamma_poly_func(self, kx, ky, kz):
-#         ## Make sure kx and ky are in the FBZ to compute Phi.
-#         a, b = self.bandObject.a, self.bandObject.b
-#         kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-#         ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-#         phi = arctan2(ky, kx)
-#         phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
-#         return (self.a0 + np.abs(self.a1 * phi_p + self.a2 * phi_p**2 +
-#                 self.a3 * phi_p**3 + self.a4 * phi_p**4 + self.a5 * phi_p**5))
-#
-#     def gamma_sinn_cosm(self, kx, ky, kz):
-#         ## Make sure kx and ky are in the FBZ to compute Phi.
-#         a, b = self.bandObject.a, self.bandObject.b
-#         kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-#         ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-#         phi = arctan2(ky, kx) #+ np.pi/4
-#         return self.a0 + self.a1 * np.abs(cos(2*phi))**self.a2 + self.a3 * np.abs(sin(2*phi))**self.a4
-#
-#     def gamma_tanh_func(self, kx, ky, kz):
-#         ## Make sure kx and ky are in the FBZ to compute Phi.
-#         a, b = self.bandObject.a, self.bandObject.b
-#         kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-#         ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-#         phi = arctan2(ky, kx)
-#         return self.a0 / np.abs(np.tanh(self.a1 + self.a2 * np.abs(cos(2*(phi+pi/4)))**self.a3))
-#
-#     def gamma_step_func(self, kx, ky, kz):
-#         ## Make sure kx and ky are in the FBZ to compute Phi.
-#         a, b = self.bandObject.a, self.bandObject.b
-#         kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-#         ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-#         phi = arctan2(ky, kx)
-#         index_low = ((np.mod(phi, pi/2) >= (pi/4 - self.phi_step)) *
-#                     (np.mod(phi, pi/2) <= (pi/4 + self.phi_step)))
-#         index_high = np.logical_not(index_low)
-#         gamma_step_array = np.zeros_like(phi)
-#         gamma_step_array[index_high] = self.gamma_step
-#         return gamma_step_array
-#
-#     def gamma_ndlsco_tl2201_func(self, kx, ky, kz):
-#         ## Make sure kx and ky are in the FBZ to compute Phi.
-#         a, b = self.bandObject.a, self.bandObject.b
-#         kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-#         ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-#         phi = arctan2(ky, kx)
-#         return (self.a0 + self.a1 * np.abs(cos(2*phi))**12 +
-#                 self.a2 * np.abs(cos(2*phi))**2)
-#
-#     def gamma_skew_marginal_fl(self, epsilon):
-#         return np.sqrt((self.a_epsilon * epsilon +
-#                         self.a_abs_epsilon * np.abs(epsilon))**2 +
-#                         (self.a_T * kB * meV / hbar * 1e-12 * self.T)**2)
-#
-#     def gamma_fl(self, epsilon):
-#         return (self.a_epsilon_2 * epsilon**2 +
-#                 self.a_T2 * (kB * meV / hbar * 1e-12 * self.T)**2)
-#
-#     def gamma_skew_planckian(self, epsilon):
-#         x = epsilon / (kB * self.T)
-#         x = np.where(x == 0, 1.0e-20, x)
-#         return ((self.a_asym * kB * self.T) * ((x + self.p_asym)/2) * np.cosh(x/2) /
-#                 np.sinh((x + self.p_asym)/2) / np.cosh(self.p_asym/2))
-
     def factor_arcs_func(self, kx, ky, kz):
         # line ky = kx + pi
         d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
@@ -461,6 +362,7 @@ class Conductivity:
 
 
     # Calculates the total scattering rate using Matthiessen's rule -------------#
+    # TODO: Perhaps move
 
     def tau_total_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
         """Computes the total lifetime based on the input model
