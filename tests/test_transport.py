@@ -3,6 +3,7 @@ import numpy as np
 from cuprates_transport.BandStructure import figDiscretizeFS2D, figDiscretizeFS3D, \
 figMultipleFS2D
 from cuprates_transport.Conductivity import figScatteringColor, figScatteringPhi, figOnekft
+from cuprates_transport.ADMR import file_name_func, figADMR
 from cuprates_transport import BandStructure, Conductivity, ADMR
 from copy import deepcopy
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
@@ -242,7 +243,7 @@ class Tests_ADMR(unittest.TestCase):
         admr = ADMR([cObj], **p)
         admr.show_progress = False
         admr.runADMR()
-        admr.figADMR()
+        figADMR(admr, fig_save=False)
 
 if __name__ == '__main__':
     unittest.main()
