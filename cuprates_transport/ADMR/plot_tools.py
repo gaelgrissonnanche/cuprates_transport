@@ -109,7 +109,7 @@ def fileADMR(admrObj, folder="", filename=None):
     if folder != "":
         folder += "/"
     if filename == None:
-        filename = folder + "Rzz_" + admrObj.file_name_func() + ".dat"
+        filename = folder + "Rzz_" + file_name_func(admrObj) + ".dat"
     else:
         filename = folder + filename
     np.savetxt(filename, Data, fmt='%.7e',

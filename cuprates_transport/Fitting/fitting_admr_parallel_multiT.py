@@ -100,6 +100,7 @@ class SimADMR:
             bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
             bandObject.march_square = False
             bandObject.runBandStructure()
+            # TODO: Having the bandObject constructed here is a slow down. It's the same for each Temperature, so should be given to SimADMR
             self.condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T][band]))
 
         admrObject = ADMR(self.condObject_list, show_progress=False)

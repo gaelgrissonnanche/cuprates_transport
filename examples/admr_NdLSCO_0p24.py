@@ -1,7 +1,6 @@
 from numpy import pi, deg2rad, linalg
-from cuprates_transport.bandstructure import BandStructure
-from cuprates_transport.admr import ADMR
-from cuprates_transport.conductivity import Conductivity
+from cuprates_transport import BandStructure, Conductivity, ADMR
+from cuprates_transport.plot_tools import *
 from time import time
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
@@ -233,11 +232,11 @@ bandObject.march_square = True
 # print(bandObject["mu"])
 bandObject.runBandStructure(printDoping=False)
 
-# bandObject.figDiscretizeFS3D()
+# figDiscretizeFS3D(bandObject)
 # bandObject.mass_func()
 # print("mc = " + "{:.3f}".format(bandObject.mass))
-# bandObject.figMultipleFS2D()
-# # bandObject.figDiscretizeFS2D()
+# figMultipleFS2D(bandObject)
+# # figDiscretizeFS2D(bandObject)
 
 print("time structure = " + str(time()-tband) + " s")
 
@@ -245,13 +244,13 @@ print("time structure = " + str(time()-tband) + " s")
 ttransport = time()
 condObject = Conductivity(bandObject, **params)
 condObject.runTransport()
-# condObject.figScatteringColor()
+# figScatteringColor(condObject)
 # condObject.omegac_tau_func()
 # print("omega_c * tau = " + "{:.3f}".format(condObject.omegac_tau))
-# condObject.figOnekft()
-# # condObject.figScatteringPhi(kz=0)
-# # condObject.figScatteringPhi(kz=pi/bandObject.c)
-# # condObject.figScatteringPhi(kz=2*pi/bandObject.c)
+figOnekft(condObject)
+# # figScatteringPhi(condObject, kz=0)
+# # figScatteringPhi(condObject, kz=pi/bandObject.c)
+# # figScatteringPhi(condObject, kz=2*pi/bandObject.c)
 # rho = linalg.inv(condObject.sigma).transpose()
 # rhoxx = rho[0,0]
 # rhoxy = rho[0,1]
@@ -272,4 +271,4 @@ print("time admr = " + str(time() - tadmr) + " s")
 print("time total = " + str(time() - ttot) + " s")
 
 # amro1band.fileADMR(folder="sim/NdLSCO_0p24")
-admr1band.figADMR(folder="sim/NdLSCO_0p24")
+figADMR(admr1band, folder="sim/NdLSCO_0p24", fig_save=False)
