@@ -1,11 +1,7 @@
 import numpy as np
-from numpy import cos, sin, pi, exp, sqrt, arctan2, cosh, arccosh
+from numpy import cos, sin, pi, exp, sqrt, cosh, arccosh
 from scipy.integrate import odeint
 from scipy.constants import hbar
-from skimage import measure
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
 from copy import deepcopy
 
 from cuprates_transport.utils import meV, Angstrom, picosecond, e, kB, units_chambers
