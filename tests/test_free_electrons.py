@@ -5,6 +5,15 @@ from cuprates_transport.conductivity import Conductivity
 from scipy.constants import Boltzmann, hbar, elementary_charge, physical_constants, electron_mass
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
+## Results
+# m* = 3.8099736731790803
+# RH (Chambers) = -0.51233 mm^3/C
+# RH (Drude) =  -1.036 mm^3/C
+# rho_xx (Chambers) = 14.072087197973831 uOhm.cm
+# rho_xx (Drude) = 28.26566466784027 uOhm.cm
+# S/T (Chambers) =  -0.04835742884232023 uV / K^2 T_F = 5862.571847857093  K
+# S/T (Drude) =  -0.04889228720420854 uV / K^2 T_F = 5798.43810091454  K
+
 
 ##!!!!!!! WARNING !!!!!!!!##
 # You need to set kz_max = pi / c, instead of 2pi / c for it work. #####
@@ -17,14 +26,13 @@ params = {
     "energy_scale": 1000,
     "band_params":{"mu":-0.5, "t": 1},
     "tight_binding": "mu + t*((kx)**2+(ky)**2)", #+ t*((kx+pi/a)**2+(ky-pi/b)**2) + t*((kx-pi/a)**2+(ky-pi/b)**2)",
-    "res_xy": 300,
-    "res_z": 3,
+    "resolution": [300, 300, 3],
     "dfdE_cut_percent": 0.001,
     "N_epsilon": 30,
     "N_time": 1000,
     "T" : 0,
     "Bamp": 0.1,
-    "constant": {"gamma_0":12.595},
+    "scattering_params": {"constant": {"gamma_0":12.595}},
 }
 
 
@@ -99,4 +107,3 @@ T_F = E_F / Boltzmann
 
 S_formula =  1 / (T_F/condObject.T * 3 / np.pi**2 * elementary_charge / Boltzmann)
 print("S/T (Drude) = ", -S_formula/condObject.T*1e6, "uV / K^2", "T_F =", T_F, " K")
-print(T_F)

@@ -41,8 +41,7 @@ params = {
     "c": 13.2,
     "energy_scale": 160,
     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
-    "res_xy": 20,
-    "res_z": 7,
+    "resolution": [20, 20, 7],
     "N_time": 1000,
     "T" : 0,
     "Bamp": 45,
@@ -270,4 +269,4 @@ print("time admr = " + str(time() - tadmr) + " s")
 print("time total = " + str(time() - ttot) + " s")
 
 # amro1band.fileADMR(folder="sim/NdLSCO_0p24")
-# admr1band.figADMR(folder="sim/NdLSCO_0p24")
+admr1band.figADMR(fig_save=False) #(folder="sim/NdLSCO_0p24")

@@ -87,12 +87,12 @@ class ADMR:
             file_parameters_list.append(r"M" + "{0:.3f}".format(bandObject0._band_params["M"]))
 
         for i in range(len(self.condObject_list)):
-            file_parameters_list.extend([self.band_names[i],
-                                         r"gzero" + "{0:.1f}".format(self.condObject_list[i].gamma_0),
-                                         r"gdos" + "{0:.1f}".format(self.condObject_list[i].gamma_dos_max),
-                                         r"gk"  + "{0:.1f}".format(self.condObject_list[i].gamma_k),
-                                         r"pwr" + "{0:.1f}".format(self.condObject_list[i].power),
-                                         r"arc" + "{0:.1f}".format(self.condObject_list[i].factor_arcs)
+            file_parameters_list.extend([self.band_names[i]
+                                        #  r"gzero" + "{0:.1f}".format(self.condObject_list[i].gamma_0),
+                                        #  r"gdos" + "{0:.1f}".format(self.condObject_list[i].gamma_dos_max),
+                                        #  r"gk"  + "{0:.1f}".format(self.condObject_list[i].gamma_k),
+                                        #  r"pwr" + "{0:.1f}".format(self.condObject_list[i].power),
+                                        #  r"arc" + "{0:.1f}".format(self.condObject_list[i].factor_arcs)
                                         ])
 
         if bandAF == True:
@@ -144,20 +144,22 @@ class ADMR:
             Data = np.vstack((Data, np.round(bandObject0._band_params["M"],3)*Ones))
             DataHeader += "M\t"
 
-        Data = np.vstack((Data, bandObject0.res_xy * Ones, bandObject0.res_z * Ones))
-        DataHeader += "res_xy\tres_z\t"
+        Data = np.vstack((Data, bandObject0.resolution[0] * Ones,
+                          bandObject0.resolution[1] * Ones,
+                          bandObject0.resolution[2] * Ones))
+        DataHeader += "res_x\tres_y\tres_z\t"
 
         condHeader = ""
-        for i in range(len(self.condObject_list)):
-            Data = np.vstack((Data,
-                              self.condObject_list[i].gamma_0 * Ones,
-                              self.condObject_list[i].gamma_dos_max * Ones,
-                              self.condObject_list[i].gamma_k * Ones,
-                              self.condObject_list[i].power   * Ones))
-            condHeader += self.band_names[i] + "_g_0[THz]\t" + \
-                          self.band_names[i] + "_g_dos_max[THz]\t" + \
-                          self.band_names[i] + "_g_k[THz]\t" + \
-                          self.band_names[i] + "_power\t"
+        # for i in range(len(self.condObject_list)):
+        #     Data = np.vstack((Data,
+        #                       self.condObject_list[i].gamma_0 * Ones,
+        #                       self.condObject_list[i].gamma_dos_max * Ones,
+        #                       self.condObject_list[i].gamma_k * Ones,
+        #                       self.condObject_list[i].power   * Ones))
+        #     condHeader += self.band_names[i] + "_g_0[THz]\t" + \
+        #                   self.band_names[i] + "_g_dos_max[THz]\t" + \
+        #                   self.band_names[i] + "_g_k[THz]\t" + \
+        #                   self.band_names[i] + "_power\t"
         DataHeader += condHeader
 
         Data = Data.transpose()

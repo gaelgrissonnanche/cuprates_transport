@@ -19,8 +19,7 @@ class Tests_BandStructure(unittest.TestCase):
             "band_params": {"mu": -0.826, "t": 1, "tp": -0.14, "tpp": 0.07,
                             "tz": 0.07},
             "fixdoping": 0.24,
-            "res_xy": 21,
-            "res_z": 7,
+            "resolution": [21, 21, 7],
             "T": 0,
             "Bamp": 45,
             "Bphi_array": [0, 15, 30, 45],
@@ -47,7 +46,7 @@ class Tests_BandStructure(unittest.TestCase):
         # print(bObj.epsilon_func)
         # print(bObj.v_func)
 
-        self.assertEqual([bObj.res_xy, bObj.res_z], [p["res_xy"], p["res_z"]])
+        self.assertEqual([bObj.resolution[0], bObj.resolution[2]], [p["resolution"][0], p["resolution"][2]])
         self.assertEqual(bObj.march_square, False)
 
         self.assertEqual([bObj.kf, bObj.vf], [None, None])

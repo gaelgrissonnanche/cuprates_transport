@@ -28,7 +28,7 @@ class BandStructure:
                     "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))" +
                     "- 2*tz*(cos(a*kx) " +
                     "- cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)"),
-                 res_xy=20, res_z=1,
+                 resolution=[20, 20, 1],
                  parallel = True, march_square=False,
                  **trash):
         """
@@ -73,19 +73,11 @@ class BandStructure:
 
         # Discretization
         self.res_xy_rough = 501
-        # number of subdivisions of the FBZ in units of Pi in
-        # the plane for to run the Marching Square
-        if res_xy % 2 == 0:
-            res_xy += 1
-        if res_z % 2 == 0:  # make sure it is an odd number
-            res_z += 1
-        self.res_xy = res_xy
-        # number of subdivisions of the FBZ in units of Pi
-        # in the plane for the Fermi surface
-        self.res_z = res_z
-        # number of subdivisions of the FBZ in units of Pi in the plane
+        # Number of subdivisions of the FBZ in units of Pi
+        self.resolution = [res if res % 2 != 0 else res + 1 for res in resolution]
+
+        # Whether to use or not the marching square for higher symmetries
         self.march_square = march_square
-        # whether to use or not the marching square for higher symmetries
 
         # Fermi surface
         self.kf = None      # in Angstrom^-1
@@ -144,7 +136,9 @@ class BandStructure:
     # Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
     def runBandStructure(self, epsilon=0, printDoping=False):
         self.discretize_fermi_surface(epsilon=epsilon)
-        self.doping(res_x=self.res_xy*10, res_y=self.res_xy*10, res_z=self.res_z*10, printDoping=printDoping)
+        self.doping(res_x=self.resolution[0]*10,
+                    res_y=self.resolution[1]*10,
+                    res_z=self.resolution[2]*10, printDoping=printDoping)
 
     def erase_Fermi_surface(self):
         self.kf  = None
@@ -223,21 +217,20 @@ class BandStructure:
             exit("ERROR: self.dks contains NaN. Are you using marching square?")
         vf = self.vf # in m / s
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in m / s
-        prefactor = hbar / (2 * pi) / self.res_z # divide by the number of kz to average over all kz
+        prefactor = hbar / (2 * pi) / self.resolution[2] # divide by the number of kz to average over all kz
         self.mass = prefactor * np.sum(dks / vf_perp) / m0
 
 
-    def dispersion_grid(self, res_x=500, res_y=500, res_z=500):
-        kx_a = np.linspace(-pi / self.a, pi / self.a, res_x)
-        ky_a = np.linspace(-pi / self.b, pi / self.b, res_y)
-        kz_a = np.linspace(-2*pi / self.c, 2*pi / self.c, res_z)
-        # kz_a = np.linspace(-pi / self.c, pi / self.c, res_z)
+    def dispersion_grid(self, resolution):
+        kx_a = np.linspace(-pi / self.a, pi / self.a, resolution[0])
+        ky_a = np.linspace(-pi / self.b, pi / self.b, resolution[1])
+        kz_a = np.linspace(-2*pi / self.c, 2*pi / self.c, resolution[2])
         kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
         e_3D = self.e_3D_func(kxx, kyy, kzz)
         return e_3D, kxx, kyy, kzz, kx_a, ky_a, kz_a
 
     def update_filling(self, res_x=500, res_y=500, res_z=500):
-        e_3D, _, _, _, _, _, _ = self.dispersion_grid(res_x, res_y, res_z)
+        e_3D, _, _, _, _, _, _ = self.dispersion_grid([res_x, res_y, res_z])
         kVolume = e_3D.shape[0] * e_3D.shape[1] * e_3D.shape[2]
         self.n = 2 * np.sum(np.greater_equal(0, e_3D)) / kVolume / self.numberOfBZ
         # 2 is for the spin
@@ -256,7 +249,7 @@ class BandStructure:
         return self.n
 
     def doping_per_kz(self, res_x=500, res_y=500, res_z=11):
-        e_3D, _, _, _, _, _, _ = self.dispersion_grid(res_x, res_y, res_z)
+        e_3D, _, _, _, _, _, _ = self.dispersion_grid([res_x, res_y, res_z])
         # Number of k in the Brillouin zone per plane
         Nz = e_3D.shape[0] * e_3D.shape[1]
         # Number of electron in the Brillouin zone per plane
@@ -313,8 +306,7 @@ class BandStructure:
                     - dkf with dimensions (position on FS)
         """
         # Generate a uniform meshgrid
-        e_3D, _, _, _, kx_a, ky_a, kz_a = self.dispersion_grid(self.res_xy,
-            self.res_xy, self.res_z)
+        e_3D, _, _, _, kx_a, ky_a, kz_a = self.dispersion_grid(self.resolution)
         # Use marching cubes to discritize the Fermi surface
         verts, faces, _, _ = measure.marching_cubes(e_3D,
                 level=epsilon, spacing=(kx_a[1]-kx_a[0],
@@ -365,7 +357,7 @@ class BandStructure:
             kx_a = np.linspace(-pi / self.a, pi / self.a, 2*self.res_xy_rough)
             ky_a = np.linspace(-pi / self.b, pi / self.b, 2*self.res_xy_rough)
         # Initialize kz array
-        kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.res_z)
+        kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.resolution[2])
         dkz = kz_a[1] - kz_a[0]  # integrand along z, in A^-1
         # Meshgrid for kx and ky
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
@@ -389,7 +381,7 @@ class BandStructure:
                 s = np.zeros_like(x)  # arrays of zeros
                 s[1:] = np.cumsum(ds)  # integrate path, s[0] = 0
 
-                number_of_points_on_contour = int(max(np.ceil(np.max(s) / (pi/self.res_xy)), 4)) # choose at least a minimum of 4 points per contour
+                number_of_points_on_contour = int(max(np.ceil(np.max(s) / (pi/self.resolution[0])), 4)) # choose at least a minimum of 4 points per contour
                 number_of_points_per_kz += number_of_points_on_contour
 
                 # interpolate and remove the last point (not to repeat)
@@ -545,7 +537,7 @@ class BandStructure:
             dump = 0
             for kz in kz_array:
                 dump += self.e_3D_func(kxx, kyy, kz)
-            axes.contour(kxx*self.a, kyy*self.b, (1/self.res_z)*dump, 0, colors = '#000000', linewidths = 3, linestyles = "dashed")
+            axes.contour(kxx*self.a, kyy*self.b, (1/self.resolution[2])*dump, 0, colors = '#000000', linewidths = 3, linestyles = "dashed")
         axes.set_xlim(-pi, pi)
         axes.set_ylim(-pi, pi)
         axes.tick_params(axis='x', which='major', pad=7)
