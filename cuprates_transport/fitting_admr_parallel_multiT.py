@@ -83,54 +83,47 @@ class DataADMR:
 
 ## -------------------------------------------------------------------------------
 class SimADMR:
-    def __init__(self, T, params_dict, Bphi_array, Btheta_array):
-        self.T = T
-        self.params_dict = deepcopy(params_dict)
-        # self.bands_list = [key[1] for key in self.params_dict.keys() if key[0] == self.T]
-        self.bands_list = [key for key in self.params_dict[self.T].keys()]
+    def __init__(self, params_dict, Bphi_array, Btheta_array):
+        self._params_dict = deepcopy(params_dict)
+        self.bands_list = [key for key in self.params_dict.keys()]
         self.Bphi_array = Bphi_array
         self.Btheta_array = Btheta_array
         self.rhozz_sim_matrix  = None
         self.rzz_sim_matrix    = None
-        self.bandObject_list = []
-        self.condObject_list = []
 
-        ## I want to create the ADMR object in the constructor
-        ## and compute_rhozz will just rerun
-        ## runBandStructure
-        ## runADMR
-
-        ## The way to achieve that is through using only the parameters
-        ## in band_params and in scattering_params
-
-        ## And below, instead of having a list of bandObjects and condObject
-        ## we should just have the ADMR object and run things from within it once
-        ## it is initialized in the constructor
+        condObject_list = []
         for band in self.bands_list:
-            bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
+            bandObject = BandStructure(**self.params_dict[band], parallel=False)
             bandObject.march_square = True
-            self.bandObject_list.append(bandObject)
+            condObject_list.append(Conductivity(bandObject, **self.params_dict[band]))
+        self.admrObject = ADMR(condObject_list, show_progress=False)
+        self.admrObject.Bphi_array = self.Bphi_array
+        self.admrObject.Btheta_array = self.Btheta_array
 
+    # Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+    def _get_params_dict(self):
+        return self._params_dict
 
-    def update_band_params(self):
+    def _set_params_dict(self, params_dict):
+        self._params_dict = deepcopy(params_dict)
+    params_dict = property(_get_params_dict, _set_params_dict)
 
-
+    def update_params(self):
+        for i, band in enumerate(self.bands_list):
+            band_params = self.params_dict[band]["band_params"]
+            scattering_params = self.params_dict[band]["scattering_params"]
+            self.admrObject.condObject_list[i].bandObject.band_params =  band_params
+            self.admrObject.condObject_list[i].scattering_params = scattering_params
 
     def compute_rhozz(self):
         """Calculate the simulated rhozz from ADMR object"""
-        self.condObject_list = []
-        for i, band in enumerate(self.bands_list):
-            # bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
-            # bandObject.march_square = True
-            bandObject = self.bandObject_list[i]
-            bandObject.runBandStructure()
-            self.condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T][band]))
-        admrObject = ADMR(self.condObject_list, show_progress=False)
-        admrObject.Bphi_array = self.Bphi_array
-        admrObject.Btheta_array = self.Btheta_array
-        admrObject.runADMR()
-        self.rhozz_sim_matrix = admrObject.rhozz_array
-        self.rzz_sim_matrix   = admrObject.rzz_array
+        for i in range(len(self.bands_list)):
+            self.admrObject.condObject_list[i].bandObject.runBandStructure()
+        self.admrObject.Bphi_array = self.Bphi_array
+        self.admrObject.Btheta_array = self.Btheta_array
+        self.admrObject.runADMR()
+        self.rhozz_sim_matrix = self.admrObject.rhozz_array
+        self.rzz_sim_matrix   = self.admrObject.rzz_array
 
 
 
@@ -162,6 +155,7 @@ class Fitness:
         self.rhozz_data_dict = {}
         self.rzz_sim_dict = {}
         self.rhozz_sim_dict = {}
+        self.sim_obj_dict = {}
         for T in self.T_list:
             angles_obj = FitAnglesADMR(T, self.data_dict)
             phis, thetas = angles_obj.create_angles()
@@ -173,8 +167,10 @@ class Fitness:
             self.thetas_dict[T] = thetas
             self.rzz_data_dict[T] = rzz
             self.rhozz_data_dict[T] = rhozz
-        ## Simulation Object
-        self.sim_obj_dict = {}
+            # Create Simulation objects
+            self.sim_obj_dict[T] = SimADMR(self.params_dict[T],
+                                           self.phis_dict[T],
+                                           self.thetas_dict[T])
 
     def update_conditions(self, T, band, param, x_i):
         """Update parameters"""
@@ -203,16 +199,15 @@ class Fitness:
             self.update_parameters(x)
         ## Compute sim, then diff
         diff_array = np.empty(0)
-        self.sim_obj_dict = {}
         self.rzz_sim_dict = {}
         self.rhozz_sim_dict = {}
         for T in self.T_list:
             # Compute sim
-            sim_obj = SimADMR(T, self.params_dict, self.phis_dict[T], self.thetas_dict[T])
-            sim_obj.compute_rhozz()
-            self.sim_obj_dict[T] = sim_obj
-            self.rzz_sim_dict[T] = sim_obj.rzz_sim_matrix
-            self.rhozz_sim_dict[T] = sim_obj.rhozz_sim_matrix
+            self.sim_obj_dict[T].params_dict = self.params_dict[T]
+            self.sim_obj_dict[T].update_params()
+            self.sim_obj_dict[T].compute_rhozz()
+            self.rzz_sim_dict[T] = self.sim_obj_dict[T].rzz_sim_matrix
+            self.rhozz_sim_dict[T] = self.sim_obj_dict[T].rhozz_sim_matrix
             # Compute diff
             if self.normalized_data is True:
                 diff = self.rzz_data_dict[T].flatten() - self.rzz_sim_dict[T].flatten()
@@ -280,7 +275,7 @@ class Fitness:
         for T in self.T_list:
             fig = plot(T)
             fig_list.append(fig)
-            for condObject in self.sim_obj_dict[T].condObject_list:
+            for condObject in self.sim_obj_dict[T].admrObject.condObject_list:
                 fig_list.append(condObject.figParameters(fig_show=fig_show))
             if fig_show == True:
             ## Show figures
@@ -392,9 +387,9 @@ if __name__ == '__main__':
     params_dict = {}
     # keys are [data_T][band_name][parameter] = value
     params_dict[25] = {"band1":{**params_common,
-                                "gamma_0": 12.63,
-                                "gamma_k": 65.756,
-                                "power": 12.21,
+                                "scattering_params": {"constant": {"gamma_0": 12.63},
+                                                      "cos2phi": {"gamma_k": 65.756, "power": 12.21}
+                                                      },
                                 }
                     }
     # params_dict[20] = {"band1":{**params_common,

@@ -21,10 +21,7 @@ def scattering_method(func):
     return func
 
 class Scattering:
-    def __init__(self,
-                scattering_params={"constant": {"gamma_0": 15}
-                                  },
-                **trash):
+    def __init__(self, scattering_params, **kwargs):
 
         self._scattering_params = deepcopy(scattering_params)
         self.gamma_tot = None # [ps^-1] total scattering rate
@@ -63,40 +60,45 @@ class Scattering:
         # self.powerpi4 = powerpi4
         # self.l_path = l_path # in Angstrom, mean free path for gamma_vF
 
-    # Special Method >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
-    def __setitem__(self, key, value):
-        # Add security not to add keys later
-        if key not in self._scattering_params.keys():
-            print(key + " was not added (new scattering parameters are only"
-                  " allowed within object initialization)")
-        else:
-            self._scattering_params[key] = value
+    # # Special Method >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+    # def __setitem__(self, key, value):
+    #     # Add security not to add keys later
+    #     if key not in self._scattering_params.keys():
+    #         print(key + " was not added (new scattering parameters are only"
+    #               " allowed within object initialization)")
+    #     else:
+    #         self._scattering_params[key] = value
 
-    def __getitem__(self, key):
-        try:
-            assert self._scattering_params[key]
-        except KeyError:
-            print(key + " is not a defined scattering parameter")
-        else:
-            return self._scattering_params[key]
+    # def __getitem__(self, key):
+    #     try:
+    #         assert self._scattering_params[key]
+    #     except KeyError:
+    #         print(key + " is not a defined scattering parameter")
+    #     else:
+    #         return self._scattering_params[key]
 
-    def get_scattering_param(self, key):
-        return self[key]
+    # Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+    def _get_scattering_params(self):
+        return self._scattering_params
 
-    def set_scattering_param(self, key, val):
-        self[key] = val
+    def _set_scattering_params(self, scattering_params):
+        self._scattering_params = scattering_params
+        # Set method-specific parameters as class attributes
+        for method, params in self._scattering_params.items():
+            for param, value in params.items():
+                setattr(self, param, value)  # Set each parameter as an attribute
+    scattering_params = property(_get_scattering_params, _set_scattering_params)
 
-
-    ## Methods
+    ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
     def phi_func(self, kx, ky, kz):
         """
         To calcute the phi angle between the field and the a-axis
         """
         ## Make sure kx and ky are in the FBZ to compute Phi.
-        if self.phi is None: # avoid rerunning it if it has been before
-            a, b = self.bandObject.a, self.bandObject.b
-            kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-            ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
+        # if self.phi is None: # avoid rerunning it if it has been before
+        a, b = self.bandObject.a, self.bandObject.b
+        kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
+        ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
         self.phi = arctan2(ky, kx)
         return self.phi
 
@@ -230,7 +232,7 @@ class Scattering:
     def tau_tot_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
         """Computes the total lifetime based on the input model
         for the scattering rate"""
-        self.gamma_tot = np.ones_like(kx)
+        self.gamma_tot = np.zeros_like(kx)
         # Loop over each method in scattering_params
         for method_name, params in self._scattering_params.items():
             func = getattr(self, method_name)
@@ -251,4 +253,9 @@ if __name__=="__main__":
     scattObject = Scattering()
     print(scattObject.gamma_0)
     scattObject.gamma_0 = 10
+    print(scattObject.gamma_0)
+    print(scattObject.scattering_params)
+    scattObject.scattering_params = {"constant": {"gamma_0": 5},
+                                     "cos2phi": {"gamma_k":10, "power":12},
+                                    }
     print(scattObject.gamma_0)

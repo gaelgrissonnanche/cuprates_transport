@@ -9,18 +9,18 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 class ADMR:
     def __init__(self, condObject_list, Btheta_min=0, Btheta_max=110,
-                 Btheta_step=5, Bphi_array=[0, 15, 30, 45], show_progress=True, **trash):
+                 Btheta_step=5, Bphi_array=[0, 15, 30, 45],
+                 show_progress=True, **trash):
         # Band dictionary
-        self.condObject_dict = {} # will contain the condObject for each band, with key their bandname
-        self.total_filling = 0 # total bands filling (of electron) over all bands
-        for condObject in condObject_list:
-            self.total_filling += condObject.bandObject.n
-            self.condObject_dict[condObject.bandObject.band_name] = condObject
-        self.band_names = list(self.condObject_dict.keys())
-        self.total_hole_doping = 1 - self.total_filling # total bands hole doping over all bands
+        self.condObject_list = condObject_list
+        self.band_names = []
+        for i in range(len(self.condObject_list)):
+            self.band_names.append(condObject_list[i].bandObject.band_name)
 
         ## Miscellaneous
         self.show_progress = show_progress # shows progress bar or not
+        self.total_filling = 0 # total bands filling (of electron) over all bands
+        self.total_hole_doping = 0 # total bands hole doping over all bands
 
         # Magnetic field
         self.Btheta_min   = Btheta_min    # in degrees
@@ -35,7 +35,7 @@ class ADMR:
         self.rzz_array = None
 
 
-    ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+    ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
         rhozz_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
         if self.show_progress is True:
@@ -45,22 +45,28 @@ class ADMR:
         for l, phi in iterator:
             for m, theta in enumerate(self.Btheta_array):
                 sigma_tensor = 0
-                for _, condObject in list(self.condObject_dict.items()):
-                    condObject.Bphi = phi
-                    condObject.Btheta = theta
-                    condObject.runTransport()
-                    sigma_tensor += condObject.sigma
+                for i in range(len(self.condObject_list)):
+                    self.condObject_list[i].Bphi = phi
+                    self.condObject_list[i].Btheta = theta
+                    self.condObject_list[i].runTransport()
+                    sigma_tensor += self.condObject_list[i].sigma
                 rho = np.linalg.inv(sigma_tensor)
                 rhozz_array[l, m] = rho[2,2]
         rhozz_0_array = np.outer(rhozz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
         self.rhozz_array = rhozz_array
         self.rzz_array = rhozz_array / rhozz_0_array
+        self.update_total_doping()
 
     #---------------------------------------------------------------------------
+    def update_total_doping(self):
+        for i in range(len(self.condObject_list)):
+            self.total_filling += self.condObject_list[i].bandObject.n
+        self.total_hole_dopin = 1 - self.total_filling
+
     def file_name_func(self):
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
-        condObject0 = self.condObject_dict[self.band_names[0]]
+        condObject0 = self.condObject_list[0]
         bandObject0 = condObject0.bandObject
 
         # Detect if bands come from the AF reconstruction
@@ -80,13 +86,13 @@ class ADMR:
         if bandAF == True:
             file_parameters_list.append(r"M" + "{0:.3f}".format(bandObject0._band_params["M"]))
 
-        for (band_name, condObject) in self.condObject_dict.items():
-            file_parameters_list.extend([band_name,
-                                         r"gzero" + "{0:.1f}".format(condObject.gamma_0),
-                                         r"gdos" + "{0:.1f}".format(condObject.gamma_dos_max),
-                                         r"gk"  + "{0:.1f}".format(condObject.gamma_k),
-                                         r"pwr" + "{0:.1f}".format(condObject.power),
-                                         r"arc" + "{0:.1f}".format(condObject.factor_arcs)
+        for i in range(len(self.condObject_list)):
+            file_parameters_list.extend([self.band_names[i],
+                                         r"gzero" + "{0:.1f}".format(self.condObject_list[i].gamma_0),
+                                         r"gdos" + "{0:.1f}".format(self.condObject_list[i].gamma_dos_max),
+                                         r"gk"  + "{0:.1f}".format(self.condObject_list[i].gamma_k),
+                                         r"pwr" + "{0:.1f}".format(self.condObject_list[i].power),
+                                         r"arc" + "{0:.1f}".format(self.condObject_list[i].factor_arcs)
                                         ])
 
         if bandAF == True:
@@ -105,7 +111,7 @@ class ADMR:
     def fileADMR(self, folder="", filename=None):
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
-        condObject0 = self.condObject_dict[self.band_names[0]]
+        condObject0 = self.condObject_list[0]
         bandObject0 = condObject0.bandObject
 
         # Detect if bands come from the AF reconstruction
@@ -142,16 +148,16 @@ class ADMR:
         DataHeader += "res_xy\tres_z\t"
 
         condHeader = ""
-        for (band_name, condObject) in self.condObject_dict.items():
+        for i in range(len(self.condObject_list)):
             Data = np.vstack((Data,
-                              condObject.gamma_0 * Ones,
-                              condObject.gamma_dos_max * Ones,
-                              condObject.gamma_k * Ones,
-                              condObject.power   * Ones))
-            condHeader += band_name + "_g_0[THz]\t" + \
-                          band_name + "_g_dos_max[THz]\t" + \
-                          band_name + "_g_k[THz]\t" + \
-                          band_name + "_power\t"
+                              self.condObject_list[i].gamma_0 * Ones,
+                              self.condObject_list[i].gamma_dos_max * Ones,
+                              self.condObject_list[i].gamma_k * Ones,
+                              self.condObject_list[i].power   * Ones))
+            condHeader += self.band_names[i] + "_g_0[THz]\t" + \
+                          self.band_names[i] + "_g_dos_max[THz]\t" + \
+                          self.band_names[i] + "_g_k[THz]\t" + \
+                          self.band_names[i] + "_power\t"
         DataHeader += condHeader
 
         Data = Data.transpose()
@@ -196,7 +202,7 @@ class ADMR:
 
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
-        condObject0 = self.condObject_dict[self.band_names[0]]
+        condObject0 = self.condObject_list[0]
 
         # Labels
         fig.text(0.99, 0.9, r"$T$ = " + "{0:.0f}".format(condObject0.T) + " K", ha="right")
@@ -248,8 +254,8 @@ class ADMR:
             plt.show()
 
         ## Parameters figures ///////////////////////////////////////////////////#
-        for condObject in self.condObject_dict.values():
-            fig_list.append(condObject.figParameters(fig_show=fig_show))
+        for i in range(len(self.condObject_list)):
+            fig_list.append(self.condObject_list[i].figParameters(fig_show=fig_show))
 
         ## Save figure ////////////////////////////////////////////////////////#
         if fig_save == True:

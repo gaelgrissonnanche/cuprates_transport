@@ -125,6 +125,14 @@ class BandStructure:
         self[key] = val
 
     # Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+    def _get_band_params(self):
+        return self._band_params
+
+    def _set_band_params(self, band_params):
+        self._band_params = band_params
+        self.erase_Fermi_surface()
+    band_params = property(_get_band_params, _set_band_params)
+
     def _get_energy_scale(self):
         return self._energy_scale
 

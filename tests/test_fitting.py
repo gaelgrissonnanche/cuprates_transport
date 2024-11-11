@@ -20,11 +20,8 @@ class Tests_FittingADMR(unittest.TestCase):
         "T": 0,
         "Bamp": 45,
         "Bphi_array": [0, 15],
-        "gamma_0": 15.1,
-        "gamma_k": 66,
-        "gamma_dos_max": 0,
-        "power": 12,
-        "factor_arcs": 1,
+        "scattering_params":{"constant": {"gamma_0":15.1},
+                             "cos2phi": {"gamma_k": 66, "power": 12}}.
         "data_T": 25,
         "data_p": 0.24,
         "epsilon_z": "",

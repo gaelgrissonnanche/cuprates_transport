@@ -317,40 +317,38 @@ class Conductivity(Scattering):
         kf_perp = sqrt(kf[0, :]**2 + kf[1, :]**2) / Angstrom  # kf perp to B in m
         vf_perp = sqrt(vf[0, :]**2 + vf[1, :]**2)  # vf perp to B, in m / s
         prefactor = hbar / (2 * pi * e * self._Bamp)
-
         ## Function of k
         kf0, kf1, kf2 = kf[0, :], kf[1, :], kf[2, :]
         vf0, vf1, vf2 = vf[0, :], vf[1, :], kf[2, :]
         inverse_omegac_tau_k = (prefactor * 2*pi*kf_perp / vf_perp / picosecond *
                                 self.tau_tot_func(kf0, kf1, kf2, vf0, vf1, vf2))
         self.omegac_tau_k = 1 / inverse_omegac_tau_k
-
         # ## Integrated over the Fermi surface
         # inverse_omegac_tau = np.sum(prefactor * dks / vf_perp / (picosecond * self.tau_tot_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))) / self.bandObject.res_z  # divide by the number of kz to average over all kz
         # self.omegac_tau = 1 / inverse_omegac_tau
 
-    ## Bring up the total scattering time \tau
+    ## Bring up the total scattering time \tau ----------------------------------#
     def t_o_tau_func(self, epsilon = 0):
         ## Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
         ## Magnetic Field ON
         if self.Bamp !=0:
             self.tau_tot = self.tau_tot_func(self.kft[0, :, :],
-                                                          self.kft[1, :, :],
-                                                          self.kft[2, :, :],
-                                                          self.vft[0, :, :],
-                                                          self.vft[1, :, :],
-                                                          self.vft[2, :, :],
-                                                          epsilon)
+                                             self.kft[1, :, :],
+                                             self.kft[2, :, :],
+                                             self.vft[0, :, :],
+                                             self.vft[1, :, :],
+                                             self.vft[2, :, :],
+                                             epsilon)
             self.t_o_tau = np.cumsum( self.dtime_array / self.tau_tot, axis = 1)
         ## Magnetic Field OFF
         else:
             self.tau_tot = self.tau_tot_func(self.kft[0, :, 0],
-                                                   self.kft[1, :, 0],
-                                                   self.kft[2, :, 0],
-                                                   self.vft[0, :, 0],
-                                                   self.vft[1, :, 0],
-                                                   self.vft[2, :, 0],
-                                                   epsilon)
+                                             self.kft[1, :, 0],
+                                             self.kft[2, :, 0],
+                                             self.vft[0, :, 0],
+                                             self.vft[1, :, 0],
+                                             self.vft[2, :, 0],
+                                             epsilon)
             self.t_o_tau = 1 / self.tau_tot
 
     def tau_total_max(self):
@@ -684,14 +682,14 @@ class Conductivity(Scattering):
         fig.text(0.72, 0.86, "Scattering Parameters",
                     fontsize=16, color='#008080')
         label_parameters = [
-            r"$\Gamma_{\rm 0}$       = " + "{0:.1f}".format(self.gamma_0) +
-            "   THz",
-            r"$\Gamma_{\rm DOS}^{\rm max}$   = " +
-            "{0:.1f}".format(self.gamma_dos_max) + "   THz",
-            r"$\Gamma_{\rm k}$       = " + "{0:.1f}".format(self.gamma_k) +
-            "   THz",
-            r"$n$         = " + "{0:.1f}".format(self.power),
-            r"$A_{\rm arcs}$   = " + "{0:.1f}".format(self.factor_arcs),
+            # r"$\Gamma_{\rm 0}$       = " + "{0:.1f}".format(self.gamma_0) +
+            # "   THz",
+            # r"$\Gamma_{\rm DOS}^{\rm max}$   = " +
+            # "{0:.1f}".format(self.gamma_dos_max) + "   THz",
+            # r"$\Gamma_{\rm k}$       = " + "{0:.1f}".format(self.gamma_k) +
+            # "   THz",
+            # r"$n$         = " + "{0:.1f}".format(self.power),
+            # r"$A_{\rm arcs}$   = " + "{0:.1f}".format(self.factor_arcs),
             r"$\Gamma_{\rm tot}^{\rm max}$    = " +
             "{0:.1f}".format(self.gamma_tot_max) + "   THz",
             r"$\Gamma_{\rm tot}^{\rm min}$     = " +
