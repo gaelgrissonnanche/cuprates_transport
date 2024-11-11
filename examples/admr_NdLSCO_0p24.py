@@ -41,8 +41,8 @@ params = {
     "c": 13.2,
     "energy_scale": 160,
     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
-    "res_xy": 50,
-    "res_z": 15,
+    "res_xy": 20,
+    "res_z": 7,
     "N_time": 1000,
     "T" : 0,
     "Bamp": 45,
@@ -50,11 +50,8 @@ params = {
     "Btheta_max": 140,
     "Btheta_step": 5,
     "Bphi_array": [0],
-    "gamma_0": 12.595,
-    "gamma_k": 63.823,
-    "gamma_dos_max": 0,
-    "power": 12,
-    "factor_arcs": 1,
+    "scattering_params":{"constant": {"gamma_0":12.595},
+                         "cos2phi": {"gamma_k": 63.823, "power": 12}}
     # "e_z":"+2*tz*cos(c*kz)"
     # "e_z":"-2 * cos(c*kz/2)*(" +\
     #             "+0.50 * tz  *  cos(kx * a / 2) * cos(ky * b / 2)" +\
@@ -272,4 +269,4 @@ print("time admr = " + str(time() - tadmr) + " s")
 print("time total = " + str(time() - ttot) + " s")
 
 # amro1band.fileADMR(folder="sim/NdLSCO_0p24")
-admr1band.figADMR(folder="sim/NdLSCO_0p24")
+# admr1band.figADMR(folder="sim/NdLSCO_0p24")

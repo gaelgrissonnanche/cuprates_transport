@@ -7,7 +7,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from copy import deepcopy
-##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
+from cuprates_transport.scattering import Scattering
+##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Units ////////
 meV = physical_constants["electron volt"][0] * 1e-3 # 1 meV in Joule
@@ -22,20 +23,12 @@ kB = kB / meV # meV / K
 ## This coefficient takes into accound all units and constant to prefactor Chambers formula
 units_chambers = 2 * e**2 / (2*pi)**3 * picosecond / Angstrom**2
 
-class Conductivity:
-    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
+class Conductivity(Scattering):
+    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0,
+                 N_time=500, rtol = 1e-4, atol = 1e-4,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
-                 gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0, a_T = 0, a_T2 = 0,
-                 a_asym=0, p_asym=0,
-                 gamma_dos_max=0,
-                 gamma_cmfp_max=0,
-                 gamma_k=0, power=2,
-                 a0=0, a1=0, a2=0, a3=0, a4=0, a5=0,
-                 gamma_kpi4=0, powerpi4=0,
-                 l_path=0,
-                 gamma_step=0, phi_step=0,
-                 factor_arcs=1,
-                 **trash):
+                 **kwargs):
+        super().__init__(**kwargs)
 
         # Band object
         self.bandObject = deepcopy(bandObject)
@@ -56,52 +49,25 @@ class Conductivity:
                                               self.energyCutOff(self._dfdE_cut_percent * np.abs(self.dfdE(0))),
                                               self._N_epsilon)
 
-
-        # Scattering rate energy-dependent
-        self.a_epsilon     = a_epsilon # in THz/meV
-        self.a_abs_epsilon = a_abs_epsilon # in THz/meV
-        self.a_epsilon_2   = a_epsilon_2 # in THz/meV^2
-        self.a_T           = a_T # unitless
-        self.a_T2          = a_T2 # unitless
-
-        # Scattering rate asymmetric Antoine Georger
-        self.a_asym = a_asym # in THz/meV
-        self.p_asym = p_asym # unitless
-
-        # Scattering rate k-dependent
-        self.gamma_0       = gamma_0 # in THz
-        self.gamma_dos_max = gamma_dos_max # in THz
-        self.gamma_cmfp_max = gamma_cmfp_max
-        self.gamma_k       = gamma_k # in THz
-        self.power         = power
-        self.gamma_step    = gamma_step
-        self.phi_step      = np.deg2rad(phi_step)
-        self.factor_arcs   = factor_arcs # factor * gamma_0 outsite AF FBZ
-        self.a0 = a0
-        self.a1 = a1
-        self.a2 = a2
-        self.a3 = a3
-        self.a4 = a4
-        self.a5 = a5
-        self.gamma_kpi4 = gamma_kpi4
-        self.powerpi4 = powerpi4
-        self.l_path = l_path # in Angstrom, mean free path for gamma_vF
-
         # Time parameters
-        self.time_max = 8 * self.tau_total_max()  # in picoseconds
         self._N_time = N_time # number of steps in time
-        self.dtime = self.time_max / self.N_time
-        self.time_array = np.arange(0, self.time_max, self.dtime)
-        self.dtime_array = np.append(0, self.dtime * np.ones_like(self.time_array))[:-1] # integrand for tau_function
+        self.time_max = None # # in picoseconds
+        self.dtime = None # in picoseconds
+        self.time_array = None # in picoseconds
+        self.dtime_array = None # in picoseconds
+
+        # Maximum and Minimum scattering rate values
+        self.gamma_tot_max = None
+        self.gamma_tot_min = None
 
         ## Precision differential equation solver
-        self.rtol = 1e-4 # default is 1.49012e-8
-        self.atol = 1e-4 # default is 1.49012e-8
+        self.rtol = rtol # default is 1.49012e-8
+        self.atol = atol # default is 1.49012e-8
 
         # Time-dependent kf, vf
         self.kft = np.empty(1)
         self.vft = np.empty(1)
-        self.tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
+        self.tau_tot = np.empty(1) # array[i0, i_t] with i0 index of the initial index
         self.t_o_tau = np.empty(1) # array[i0, i_t] with i0 index of the initial index
         # i_t index of the time from the starting position
 
@@ -183,6 +149,8 @@ class Conductivity:
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runTransport(self):
+        self.reset_time() # calculates the upper cut of for the movement equation
+        self.phi = None # reset the phi angle
         if self._T != 0:
             #!!!! Add a warning if bandObject not already discretized
             self.dos_k_epsilon      = {}
@@ -211,6 +179,13 @@ class Conductivity:
 
         self.gamma_tot_max = 1 / self.tau_total_min() # in THz
         self.gamma_tot_min = 1 / self.tau_total_max() # in THz
+
+    def reset_time(self):
+        # Time parameters
+        self.time_max = 8 * self.tau_total_max()  # in picoseconds
+        self.dtime = self.time_max / self.N_time
+        self.time_array = np.arange(0, self.time_max, self.dtime)
+        self.dtime_array = np.append(0, self.dtime * np.ones_like(self.time_array))[:-1] # integrand for tau_function
 
     def B_func(self):
         B = self._Bamp * np.array([sin(self._Btheta*pi/180) * cos(self._Bphi*pi/180),
@@ -335,7 +310,6 @@ class Conductivity:
         else:
             return 0
 
-
     def omegac_tau_func(self):
         dks = self.bandObject.dks / Angstrom # in m^-1
         kf = self.bandObject.kf
@@ -348,201 +322,48 @@ class Conductivity:
         kf0, kf1, kf2 = kf[0, :], kf[1, :], kf[2, :]
         vf0, vf1, vf2 = vf[0, :], vf[1, :], kf[2, :]
         inverse_omegac_tau_k = (prefactor * 2*pi*kf_perp / vf_perp / picosecond *
-                                self.tau_total_func(kf0, kf1, kf2, vf0, vf1, vf2))
+                                self.tau_tot_func(kf0, kf1, kf2, vf0, vf1, vf2))
         self.omegac_tau_k = 1 / inverse_omegac_tau_k
 
         # ## Integrated over the Fermi surface
-        # inverse_omegac_tau = np.sum(prefactor * dks / vf_perp / (picosecond * self.tau_total_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))) / self.bandObject.res_z  # divide by the number of kz to average over all kz
+        # inverse_omegac_tau = np.sum(prefactor * dks / vf_perp / (picosecond * self.tau_tot_func(kf[0, :], kf[1, :], kf[2, :], vf[0, :], vf[1, :], vf[2, :]))) / self.bandObject.res_z  # divide by the number of kz to average over all kz
         # self.omegac_tau = 1 / inverse_omegac_tau
 
-
-    ## Scatterint rate models ---------------------------------------------------#
-
-    def gamma_DOS_func(self, vx, vy, vz):
-        dos = 1 / sqrt( vx**2 + vy**2 + vz**2 )
-        dos_max = np.max(self.bandObject.dos_k)
-        # value to normalize the DOS to a quantity without units
-        return self.gamma_dos_max * (dos / dos_max)
-
-    def gamma_cmfp_func(self, vx, vy, vz):
-        vf = sqrt( vx**2 + vy**2 + vz**2 )
-        vf_max = np.max(self.bandObject.vf)
-        # value to normalize the DOS to a quantity without units
-        return self.gamma_cmfp_max * (vf / vf_max)
-
-    def gamma_vF_func(self, vx, vy, vz):
-        """vx, vy, vz are in Angstrom.meV
-        l_path is in Angstrom
-        """
-        vF = sqrt(vx**2 + vy**2 + vz**2) / Angstrom * 1e-12 # in Angstrom / ps
-        return vF / self.l_path
-
-    def gamma_k_func(self, kx, ky, kz):
-        ## Make sure kx and ky are in the FBZ to compute Phi.
-        a, b = self.bandObject.a, self.bandObject.b
-        kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-        ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-        phi = arctan2(ky, kx) #+ np.pi/4
-        return self.gamma_k * np.abs(cos(2*phi))**self.power
-
-    def gamma_coskpi4_func(self, kx, ky, kz):
-        ## Make sure kx and ky are in the FBZ to compute Phi.
-        a, b = self.bandObject.a, self.bandObject.b
-        kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-        ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-        phi = arctan2(ky, kx) #+ np.pi/4
-        return self.gamma_kpi4 * np.abs(cos(2*(phi+1*pi/4)))**self.powerpi4
-
-    def gamma_poly_func(self, kx, ky, kz):
-        ## Make sure kx and ky are in the FBZ to compute Phi.
-        a, b = self.bandObject.a, self.bandObject.b
-        kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-        ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-        phi = arctan2(ky, kx)
-        phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
-        return (self.a0 + np.abs(self.a1 * phi_p + self.a2 * phi_p**2 +
-                self.a3 * phi_p**3 + self.a4 * phi_p**4 + self.a5 * phi_p**5))
-
-    def gamma_sinn_cosm(self, kx, ky, kz):
-        ## Make sure kx and ky are in the FBZ to compute Phi.
-        a, b = self.bandObject.a, self.bandObject.b
-        kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-        ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-        phi = arctan2(ky, kx) #+ np.pi/4
-        return self.a0 + self.a1 * np.abs(cos(2*phi))**self.a2 + self.a3 * np.abs(sin(2*phi))**self.a4
-
-    def gamma_tanh_func(self, kx, ky, kz):
-        ## Make sure kx and ky are in the FBZ to compute Phi.
-        a, b = self.bandObject.a, self.bandObject.b
-        kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-        ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-        phi = arctan2(ky, kx)
-        return self.a0 / np.abs(np.tanh(self.a1 + self.a2 * np.abs(cos(2*(phi+pi/4)))**self.a3))
-
-    def gamma_step_func(self, kx, ky, kz):
-        ## Make sure kx and ky are in the FBZ to compute Phi.
-        a, b = self.bandObject.a, self.bandObject.b
-        kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-        ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-        phi = arctan2(ky, kx)
-        index_low = ((np.mod(phi, pi/2) >= (pi/4 - self.phi_step)) *
-                    (np.mod(phi, pi/2) <= (pi/4 + self.phi_step)))
-        index_high = np.logical_not(index_low)
-        gamma_step_array = np.zeros_like(phi)
-        gamma_step_array[index_high] = self.gamma_step
-        return gamma_step_array
-
-    def gamma_ndlsco_tl2201_func(self, kx, ky, kz):
-        ## Make sure kx and ky are in the FBZ to compute Phi.
-        a, b = self.bandObject.a, self.bandObject.b
-        kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-        ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-        phi = arctan2(ky, kx)
-        return (self.a0 + self.a1 * np.abs(cos(2*phi))**12 +
-                self.a2 * np.abs(cos(2*phi))**2)
-
-    def gamma_skew_marginal_fl(self, epsilon):
-        return np.sqrt((self.a_epsilon * epsilon +
-                        self.a_abs_epsilon * np.abs(epsilon))**2 +
-                        (self.a_T * kB * meV / hbar * 1e-12 * self.T)**2)
-
-    def gamma_fl(self, epsilon):
-        return (self.a_epsilon_2 * epsilon**2 +
-                self.a_T2 * (kB * meV / hbar * 1e-12 * self.T)**2)
-
-    def gamma_skew_planckian(self, epsilon):
-        x = epsilon / (kB * self.T)
-        x = np.where(x == 0, 1.0e-20, x)
-        return ((self.a_asym * kB * self.T) * ((x + self.p_asym)/2) * np.cosh(x/2) /
-                np.sinh((x + self.p_asym)/2) / np.cosh(self.p_asym/2))
-
-    def factor_arcs_func(self, kx, ky, kz):
-        # line ky = kx + pi
-        d1 = ky * self.bandObject.b - kx * self.bandObject.a - pi  # line ky = kx + pi
-        d2 = ky * self.bandObject.b - kx * self.bandObject.a + pi  # line ky = kx - pi
-        d3 = ky * self.bandObject.b + kx * self.bandObject.a - pi  # line ky = -kx + pi
-        d4 = ky * self.bandObject.b + kx * self.bandObject.a + pi  # line ky = -kx - pi
-
-        is_in_FBZ_AF = np.logical_and((d1 <= 0)*(d2 >= 0), (d3 <= 0)*(d4 >= 0))
-        is_out_FBZ_AF = np.logical_not(is_in_FBZ_AF)
-        factor_out_of_FBZ_AF = np.ones_like(kx)
-        factor_out_of_FBZ_AF[is_out_FBZ_AF] = self.factor_arcs
-        return factor_out_of_FBZ_AF
-
-
-    # Calculates the total scattering rate using Matthiessen's rule -------------#
-
-    def tau_total_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
-        """Computes the total lifetime based on the input model
-        for the scattering rate"""
-
-        ## Initialize
-        gamma_tot = self.gamma_0 * np.ones_like(kx)
-
-        if self.a_epsilon!=0 or self.a_abs_epsilon!=0 or self.a_T!=0:
-            gamma_tot += self.gamma_skew_marginal_fl(epsilon)
-        if self.a_epsilon_2!=0 or self.a_T2!=0:
-            gamma_tot += self.gamma_fl(epsilon)
-        if self.a_asym!=0 or self.p_asym!=0:
-            gamma_tot += self.gamma_skew_planckian(epsilon)
-        if self.a0!=0 or self.a1!=0 or self.a2!=0 or self.a3!=0 or self.a4!=0 or self.a5!=0:
-            # gamma_tot += gamma_cosk_coskpi4_func(kx, ky, kz)
-            # gamma_tot += gamma_poly_func(kx, ky, kz)
-            gamma_tot += self.gamma_sinn_cosm(kx, ky, kz)
-            # gamma_tot += gamma_tanh_func(kx, ky, kz)
-            # gamma_tot += gamma_ndlsco_tl2201_func(kx, ky, kz)
-        if self.gamma_kpi4!=0:
-            gamma_tot += self.gamma_coskpi4_func(kx, ky, kz)
-        if self.gamma_k!=0:
-            gamma_tot += self.gamma_k_func(kx, ky, kz)
-        if self.gamma_step!=0:
-            gamma_tot += self.gamma_step_func(kx, ky, kz)
-        if self.gamma_dos_max!=0:
-            gamma_tot += self.gamma_DOS_func(vx, vy, vz)
-        if self.gamma_cmfp_max!=0:
-            gamma_tot += self.gamma_cmfp_func(vx, vy, vz)
-        if self.l_path != 0:
-            gamma_tot += self.gamma_vF_func(vx, vy, vz)
-        if self.factor_arcs!=1:
-            gamma_tot *= self.factor_arcs_func(kx, ky, kz)
-        # return 1/(gamma_tot*(1-0.065*cos(self.bandObject.c*kz)))
-        return 1/gamma_tot
-
-
+    ## Bring up the total scattering time \tau
     def t_o_tau_func(self, epsilon = 0):
         ## Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
         ## Magnetic Field ON
         if self.Bamp !=0:
-            self.t_o_tau = np.cumsum( self.dtime_array /
-                                     (self.tau_total_func(self.kft[0, :, :],
+            self.tau_tot = self.tau_tot_func(self.kft[0, :, :],
                                                           self.kft[1, :, :],
                                                           self.kft[2, :, :],
                                                           self.vft[0, :, :],
                                                           self.vft[1, :, :],
                                                           self.vft[2, :, :],
-                                                          epsilon)), axis = 1)
+                                                          epsilon)
+            self.t_o_tau = np.cumsum( self.dtime_array / self.tau_tot, axis = 1)
         ## Magnetic Field OFF
         else:
-            self.t_o_tau = 1 / self.tau_total_func(self.kft[0, :, 0],
+            self.tau_tot = self.tau_tot_func(self.kft[0, :, 0],
                                                    self.kft[1, :, 0],
                                                    self.kft[2, :, 0],
                                                    self.vft[0, :, 0],
                                                    self.vft[1, :, 0],
                                                    self.vft[2, :, 0],
                                                    epsilon)
+            self.t_o_tau = 1 / self.tau_tot
 
     def tau_total_max(self):
         # Compute the tau_max (the longest time between two collisions)
         # to better integrate from 0 --> 8 * 1 / gamma_min (instead of infinity)
         kf = self.bandObject.kf
         vf = self.bandObject.vf
-        return np.max(self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
+        return np.max(self.tau_tot_func(kf[0, :], kf[1, :], kf[2, :],
                                           vf[0, :], vf[1, :], vf[2, :]))
-
     def tau_total_min(self):
         kf = self.bandObject.kf
         vf = self.bandObject.vf
-        return np.min(self.tau_total_func(kf[0, :], kf[1, :], kf[2, :],
+        return np.min(self.tau_tot_func(kf[0, :], kf[1, :], kf[2, :],
                                           vf[0, :], vf[1, :], vf[2, :]))
 
 
@@ -592,7 +413,7 @@ class Conductivity:
             ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / bObj.b
             vx, vy, vz = bObj.v_3D_func(kx, ky, kz)
 
-            gamma_kz = 1 / self.tau_total_func(kx, ky, kz, vx, vy, vz)
+            gamma_kz = 1 / self.tau_tot_func(kx, ky, kz, vx, vy, vz)
             gamma_max_list.append(np.max(gamma_kz))
             gamma_min_list.append(np.min(gamma_kz))
 
@@ -652,7 +473,7 @@ class Conductivity:
             ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / bObj.b
             vx, vy, vz = bObj.v_3D_func(kx, ky, kz)
 
-            gamma_kz = 1 / self.tau_total_func(kx, ky, kz, vx, vy, vz)
+            gamma_kz = 1 / self.tau_tot_func(kx, ky, kz, vx, vy, vz)
 
             phi = np.rad2deg(np.arctan2(ky,kx))
 
@@ -941,7 +762,7 @@ class Conductivity:
                 (mesh_xy - 1) - 0.5) * 2 * pi / bObj.b
             vx, vy, vz = bObj.v_3D_func(kx, ky, np.zeros_like(kx))
 
-            gamma_kz0 = 1 / self.tau_total_func(kx, ky, 0, vx, vy, vz)
+            gamma_kz0 = 1 / self.tau_tot_func(kx, ky, 0, vx, vy, vz)
             gamma_max_list.append(np.max(gamma_kz0))
             gamma_min_list.append(np.min(gamma_kz0))
 
@@ -985,3 +806,40 @@ class Conductivity:
         #//////////////////////////////////////////////////////////////////////////////#
 
         return fig
+
+
+
+if __name__=="__main__":
+    from cuprates_transport.bandstructure import BandStructure
+    from scipy import linalg
+
+    params = {
+    "band_name": "Nd-LSCO",
+    "a": 3.75,
+    "b": 3.75,
+    "c": 13.2,
+    "res_xy": 20,
+    "res_z": 7,
+    "energy_scale": 160,
+    "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
+    "N_time": 1000,
+    "T" : 0,
+    "Bamp": 45,
+    "scattering_params":{"constant": {"gamma_0":12.595},
+                         "cos2phi": {"gamma_k": 63.823, "power": 12}}
+    }
+
+    bandObject = BandStructure(**params)
+    bandObject.runBandStructure(printDoping=False)
+    ## Compute conductivity
+    condObject = Conductivity(bandObject, **params)
+    condObject.runTransport()
+
+    rho = linalg.inv(condObject.sigma).transpose()
+    rhoxx = rho[0,0]
+    rhoxy = rho[0,1]
+    rhozz = rho[2,2]
+    print("1band-------------")
+    print("rhoxx =", rhoxx*1e8, "uOhm.cm")
+    print("rhozz =", rhozz*1e5, "mOhm.cm")
+    print("RH =", rhoxy * 1e9 / params["Bamp"], "mm^3 / C")

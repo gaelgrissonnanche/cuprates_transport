@@ -23,26 +23,21 @@ class TestTransport(unittest.TestCase):
             "T": 0,
             "Bamp": 45,
             "Bphi_array": [0, 15, 30, 45],
-            "gamma_0": 15.1,
-            "gamma_k": 66,
-            "power": 12,
+            "scattering_params":{"constant": {"gamma_0":15.1},
+                                 "cos2phi": {"gamma_k": 66, "power": 12}}
         }
 
     def test_doping(self):
+        """Doping"""
         bandObject = BandStructure(**TestTransport.params)
         bandObject.doping()
         self.assertEqual(np.round(bandObject.p, 3), 0.233)
 
     def test_conductivity_T_0_B_0(self):
         """T = 0 & B = 0"""
-
         bandObject = BandStructure(**TestTransport.params)
-
         # Discretize
         bandObject.runBandStructure()
-        # bandObject.figMultipleFS2D()
-        # bandObject.figDiscretizeFS2D()
-
         # Conductivity
         condObject = Conductivity(bandObject, **TestTransport.params)
         condObject.Bamp = 0
@@ -52,12 +47,9 @@ class TestTransport(unittest.TestCase):
 
     def test_conductivity_T_0(self):
         """T = 0"""
-
         bandObject = BandStructure(**TestTransport.params)
-
         # Discretize
         bandObject.runBandStructure()
-
         # Conductivity
         condObject = Conductivity(bandObject, **TestTransport.params)
         condObject.runTransport()
@@ -66,15 +58,11 @@ class TestTransport(unittest.TestCase):
 
     def test_conductivity_T(self):
         """T > 0"""
-
         params = deepcopy(TestTransport.params)
         params["T"] = 25  # in K
-
         bandObject = BandStructure(**params)
-
         # Discretize
         bandObject.runBandStructure()
-
         # Conductivity
         condObject = Conductivity(bandObject, **params)
         condObject.runTransport()

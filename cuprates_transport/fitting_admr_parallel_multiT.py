@@ -62,20 +62,20 @@ class DataADMR:
         self.rzz_data_matrix = np.zeros((len(self.Bphi_array), len(self.Btheta_array)))
         self.rhozz_data_matrix = np.zeros((len(self.Bphi_array), len(self.Btheta_array)))
         for i, phi in enumerate(self.Bphi_array):
-            filename     = self.data_dict[self.T, phi][0]
-            col_theta    = self.data_dict[self.T, phi][1]
-            col_rhozz      = self.data_dict[self.T, phi][2]
+            filename  = self.data_dict[self.T, phi][0]
+            col_theta = self.data_dict[self.T, phi][1]
+            col_rhozz = self.data_dict[self.T, phi][2]
             ## Load data
-            data = np.loadtxt(filename, dtype="float", comments="#")
+            data  = np.loadtxt(filename, dtype="float", comments="#")
             theta = data[:, col_theta]
-            rhozz   = data[:, col_rhozz]
+            rhozz = data[:, col_rhozz]
             ## Sort data
             index_order = np.argsort(theta)
             theta = theta[index_order]
-            rhozz   = rhozz[index_order]
+            rhozz = rhozz[index_order]
             ## Normalize data
             rhozz_i = np.interp(self.Btheta_array, theta, rhozz) # "i" is for interpolated
-            rzz_i  = rhozz_i / np.interp(Btheta_norm, theta, rhozz) # rhozz / rhozz(theta=theta_norm)
+            rzz_i   = rhozz_i / np.interp(Btheta_norm, theta, rhozz) # rhozz / rhozz(theta=theta_norm)
             ## Store data
             self.rhozz_data_matrix[i, :] = rhozz_i
             self.rzz_data_matrix[i, :] = rzz_i
@@ -92,14 +92,37 @@ class SimADMR:
         self.Btheta_array = Btheta_array
         self.rhozz_sim_matrix  = None
         self.rzz_sim_matrix    = None
+        self.bandObject_list = []
         self.condObject_list = []
+
+        ## I want to create the ADMR object in the constructor
+        ## and compute_rhozz will just rerun
+        ## runBandStructure
+        ## runADMR
+
+        ## The way to achieve that is through using only the parameters
+        ## in band_params and in scattering_params
+
+        ## And below, instead of having a list of bandObjects and condObject
+        ## we should just have the ADMR object and run things from within it once
+        ## it is initialized in the constructor
+        for band in self.bands_list:
+            bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
+            bandObject.march_square = True
+            self.bandObject_list.append(bandObject)
+
+
+    def update_band_params(self):
+
+
 
     def compute_rhozz(self):
         """Calculate the simulated rhozz from ADMR object"""
         self.condObject_list = []
-        for band in self.bands_list:
-            bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
-            bandObject.march_square = True
+        for i, band in enumerate(self.bands_list):
+            # bandObject = BandStructure(**self.params_dict[self.T][band], parallel=False)
+            # bandObject.march_square = True
+            bandObject = self.bandObject_list[i]
             bandObject.runBandStructure()
             self.condObject_list.append(Conductivity(bandObject, **self.params_dict[self.T][band]))
         admrObject = ADMR(self.condObject_list, show_progress=False)
