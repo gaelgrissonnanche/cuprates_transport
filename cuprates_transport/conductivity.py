@@ -279,7 +279,13 @@ class Conductivity:
             self.v_product = np.einsum('ji,ki->jki',vi,vj) # (3, 3, len_kf)
                                         # with 3, 3 the indices for i, j in sigma
         else:
-            self.v_product = np.einsum('ji,ki->jki', vft[:, :, 0], vft[:, :, 0] * (1 / t_o_tau))
+            if self.omega != 0:
+                vj = np.sum(vft[:, :, :] * exp((-1j * self.omega - t_o_tau[:, None])
+                    * self.time_array) * self.dtime, axis=2) # (3, len_kf)
+                self.v_product = np.einsum('ji,ki->jki', vft[:, :, 0], vj)
+            else:
+                self.v_product = np.einsum(
+                    'ji,ki->jki', vft[:, :, 0], vft[:, :, 0] * (1 / t_o_tau))
         return self.v_product
 
     def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau):
