@@ -11,6 +11,10 @@ doc/readme_units_conversion_ADMR.pdf
 
 .vscode/
 
+# User generated data and plots
+user_data/*
+user_plots/*
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
