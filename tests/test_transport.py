@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+from numpy import pi
 from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.conductivity import Conductivity
 from cuprates_transport.admr import ADMR
@@ -20,10 +21,11 @@ class Tests_BandStructure(unittest.TestCase):
                             "tz": 0.07},
             "fixdoping": 0.24,
             "resolution": [21, 21, 7],
+            "k_max": [pi, pi, 2*pi],
             "T": 0,
             "Bamp": 45,
             "Bphi_array": [0, 15, 30, 45],
-            "scattering_params":{"constant": {"gamma_0":15.1},
+            "scattering_params":{"isotropic": {"gamma_0":15.1},
                                  "cos2phi": {"gamma_k": 66, "power": 12}}
         }
 
@@ -38,7 +40,7 @@ class Tests_BandStructure(unittest.TestCase):
         self.assertEqual(bObj.parallel, True)
         self.assertEqual(bObj._band_params, p["band_params"])
         self.assertEqual(bObj.band_name, p["band_name"])
-        self.assertEqual(bObj.numberOfBZ, 1)
+        self.assertEqual(bObj.number_of_bz, 1)
 
         # # e_xy_sym, e_z_sym, e_3D_sym
         # print(bObj.e_3D_sym)

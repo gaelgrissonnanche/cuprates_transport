@@ -16,6 +16,7 @@ params = {
     "energy_scale": 160,
     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
     "resolution": [21, 21, 7],
+    "k_max": [pi, pi, 2*pi],
     "N_time": 1000,
     "T" : 0,
     "Bamp": 45,
@@ -23,8 +24,8 @@ params = {
     "Btheta_max": 140,
     "Btheta_step": 5,
     "Bphi_array": [0],
-    "scattering_params":{"constant": {"gamma_0":12.595},
-                         "cos2phi": {"gamma_k": 63.823, "power": 12}}
+    "scattering_params":{"isotropic": {"gamma_0":12.595},
+                         "cos2phi": {"gamma_k": 63.823, "power": 12}},
 }
 
 
@@ -43,6 +44,7 @@ print("time structure = " + str(time()-tband) + " s")
 ttransport = time()
 condObject = Conductivity(bandObject, **params)
 condObject.runTransport()
+condObject.figOnekft()
 
 ## Compute resistivity
 rho = linalg.inv(condObject.sigma).transpose()
@@ -64,4 +66,4 @@ print("time admr = " + str(time() - tadmr) + " s")
 print("time total = " + str(time() - ttot) + " s")
 
 # amro1band.fileADMR(folder="sim/NdLSCO_0p24")
-admr1band.figADMR(fig_save=False) #(folder="sim/NdLSCO_0p24")
+# admr1band.figADMR(fig_save=False) #(folder="sim/NdLSCO_0p24")

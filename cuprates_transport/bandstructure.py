@@ -28,7 +28,8 @@ class BandStructure:
                     "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))" +
                     "- 2*tz*(cos(a*kx) " +
                     "- cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)"),
-                 resolution=[20, 20, 1],
+                 resolution=[20, 20, 1], k_max=[pi, pi, pi],
+                 number_of_bz = 1,
                  parallel = True, march_square=False,
                  **trash):
         """
@@ -55,9 +56,8 @@ class BandStructure:
         # if multiprocessing is running
         self.parallel = parallel
 
-        self._band_params = deepcopy(band_params)
-        # all a fraction of the bandwidth
-        self.numberOfBZ = 1  # number of BZ we intregrate on
+        self._band_params = deepcopy(band_params) # all a fraction of the energy scale
+        self.number_of_bz = number_of_bz  # number of Brillouin zone we intregrate on
         self.band_name = band_name  # a string to designate the band
 
         # Build the symbolic variables
@@ -68,13 +68,15 @@ class BandStructure:
         self.var_sym = tuple(self.var_sym)
 
         # Create the dispersion and velocity functions
-        self.e_3D_sym = sp.sympify(tight_binding)
-        self.e_3D_v_3D_definition()
+        self.energy_sym = sp.sympify(tight_binding)
+        self.energy_velocity_definition()
 
         # Discretization
         self.res_xy_rough = 501
         # Number of subdivisions of the FBZ in units of Pi
         self.resolution = [res if res % 2 != 0 else res + 1 for res in resolution]
+        # Unitless bounds of the Brillouin zone : k_x = [- k_max / a ... + k_max / a]
+        self.k_max = k_max # list
 
         # Whether to use or not the marching square for higher symmetries
         self.march_square = march_square
@@ -152,7 +154,7 @@ class BandStructure:
         self.dos_epsilon = None
         self.number_of_points_per_kz_list = []
 
-    def e_3D_v_3D_definition(self):
+    def energy_velocity_definition(self):
         """
         Defines with Sympy the dispersion relation and
         symbolicly derives the velocity
@@ -162,9 +164,9 @@ class BandStructure:
         ky = sp.Symbol('ky')
         kz = sp.Symbol('kz')
         # Velocity ////////////////////////////////////////////////////////////
-        self.v_sym = [sp.diff(self.e_3D_sym, kx)* meV / hbar * Angstrom,
-                      sp.diff(self.e_3D_sym, ky)* meV / hbar * Angstrom,
-                      sp.diff(self.e_3D_sym, kz)* meV / hbar * Angstrom] # m / s
+        self.v_sym = [sp.diff(self.energy_sym, kx)* meV / hbar * Angstrom,
+                      sp.diff(self.energy_sym, ky)* meV / hbar * Angstrom,
+                      sp.diff(self.energy_sym, kz)* meV / hbar * Angstrom] # m / s
 
         # Check is one of the velocitiy components is "0" ////////////////////
         k_list = ['kx', 'ky', 'kz']
@@ -173,7 +175,7 @@ class BandStructure:
                 self.v_sym[i] = "numpy.zeros_like(" + k_list[i] + ")"
 
         # Lambdafity //////////////////////////////////////////////////////////
-        epsilon_func = sp.lambdify(self.var_sym, self.e_3D_sym, 'numpy')
+        epsilon_func = sp.lambdify(self.var_sym, self.energy_sym, 'numpy')
         v_func = sp.lambdify(self.var_sym, self.v_sym, 'numpy')
         # Just in Time Compile with Numba /////////////////////////////////////
         if self.parallel is True:
@@ -189,7 +191,7 @@ class BandStructure:
                in sorted(self._band_params.items())]
         return abc + val
 
-    def e_3D_func(self, kx, ky, kz):
+    def energy_func(self, kx, ky, kz):
         return self.epsilon_func(kx, ky, kz, *self.bandParameters())
 
     def v_3D_func(self, kx, ky, kz):
@@ -222,17 +224,17 @@ class BandStructure:
 
 
     def dispersion_grid(self, resolution):
-        kx_a = np.linspace(-pi / self.a, pi / self.a, resolution[0])
-        ky_a = np.linspace(-pi / self.b, pi / self.b, resolution[1])
-        kz_a = np.linspace(-2*pi / self.c, 2*pi / self.c, resolution[2])
+        kx_a = np.linspace(-self.k_max[0] / self.a, self.k_max[0] / self.a, resolution[0])
+        ky_a = np.linspace(-self.k_max[1] / self.b, self.k_max[1] / self.b, resolution[1])
+        kz_a = np.linspace(-self.k_max[2] / self.c, self.k_max[2] / self.c, resolution[2])
         kxx, kyy, kzz = np.meshgrid(kx_a, ky_a, kz_a, indexing='ij')
-        e_3D = self.e_3D_func(kxx, kyy, kzz)
-        return e_3D, kxx, kyy, kzz, kx_a, ky_a, kz_a
+        energy = self.energy_func(kxx, kyy, kzz)
+        return energy, kxx, kyy, kzz, kx_a, ky_a, kz_a
 
     def update_filling(self, res_x=500, res_y=500, res_z=500):
-        e_3D, _, _, _, _, _, _ = self.dispersion_grid([res_x, res_y, res_z])
-        kVolume = e_3D.shape[0] * e_3D.shape[1] * e_3D.shape[2]
-        self.n = 2 * np.sum(np.greater_equal(0, e_3D)) / kVolume / self.numberOfBZ
+        energy, _, _, _, _, _, _ = self.dispersion_grid([res_x, res_y, res_z])
+        kVolume = energy.shape[0] * energy.shape[1] * energy.shape[2]
+        self.n = 2 * np.sum(np.greater_equal(0, energy)) / kVolume / self.number_of_bz
         # 2 is for the spin
         self.p = 1 - self.n
         return self.n
@@ -249,11 +251,11 @@ class BandStructure:
         return self.n
 
     def doping_per_kz(self, res_x=500, res_y=500, res_z=11):
-        e_3D, _, _, _, _, _, _ = self.dispersion_grid([res_x, res_y, res_z])
+        energy, _, _, _, _, _, _ = self.dispersion_grid([res_x, res_y, res_z])
         # Number of k in the Brillouin zone per plane
-        Nz = e_3D.shape[0] * e_3D.shape[1]
+        Nz = energy.shape[0] * energy.shape[1]
         # Number of electron in the Brillouin zone per plane
-        n_per_kz = 2 * np.sum(np.greater_equal(0, e_3D), axis=(0, 1)) / Nz / self.numberOfBZ
+        n_per_kz = 2 * np.sum(np.greater_equal(0, energy), axis=(0, 1)) / Nz / self.number_of_bz
         # 2 is for the spin
         p_per_kz = 1 - n_per_kz
         return n_per_kz, p_per_kz
@@ -306,9 +308,9 @@ class BandStructure:
                     - dkf with dimensions (position on FS)
         """
         # Generate a uniform meshgrid
-        e_3D, _, _, _, kx_a, ky_a, kz_a = self.dispersion_grid(self.resolution)
+        energy, _, _, _, kx_a, ky_a, kz_a = self.dispersion_grid(self.resolution)
         # Use marching cubes to discritize the Fermi surface
-        verts, faces, _, _ = measure.marching_cubes(e_3D,
+        verts, faces, _, _ = measure.marching_cubes(energy,
                 level=epsilon, spacing=(kx_a[1]-kx_a[0],
                                         ky_a[1]-ky_a[0],
                                         kz_a[1]-kz_a[0]),
@@ -351,31 +353,31 @@ class BandStructure:
         # Initialize kx and ky arrays
         # res_xy_rough: make denser rough meshgrid to interpolate after
         if self.a == self.b:  # tetragonal case
-            kx_a = np.linspace(0, pi / self.a, self.res_xy_rough)
-            ky_a = np.linspace(0, pi / self.b, self.res_xy_rough)
+            kx_a = np.linspace(0, self.k_max[0] / self.a, self.res_xy_rough)
+            ky_a = np.linspace(0, self.k_max[1] / self.b, self.res_xy_rough)
         else:  # orthorhombic
-            kx_a = np.linspace(-pi / self.a, pi / self.a, 2*self.res_xy_rough)
-            ky_a = np.linspace(-pi / self.b, pi / self.b, 2*self.res_xy_rough)
+            kx_a = np.linspace(-self.k_max[0] / self.a, self.k_max[0] / self.a, 2*self.res_xy_rough)
+            ky_a = np.linspace(-self.k_max[1] / self.b, self.k_max[1] / self.b, 2*self.res_xy_rough)
         # Initialize kz array
-        kz_a = np.linspace(-2 * pi / self.c, 2 * pi / self.c, self.resolution[2])
+        kz_a = np.linspace(-self.k_max[2] / self.c, self.k_max[2] / self.c, self.resolution[2])
         dkz = kz_a[1] - kz_a[0]  # integrand along z, in A^-1
         # Meshgrid for kx and ky
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
         self.number_of_points_per_kz_list = []
         # Loop over the kz array
         for j, kz in enumerate(kz_a):
-            contours = measure.find_contours(self.e_3D_func(kxx, kyy, kz), epsilon)
+            contours = measure.find_contours(self.energy_func(kxx, kyy, kz), epsilon)
             number_of_points_per_kz = 0
             ## Loop over the different pieces of Fermi surfaces
             for i, contour in enumerate(contours):
                 # Contour come in units proportionnal to size of meshgrid
                 # one want to scale to units of kx and ky
                 if self.a == self.b:
-                    x = contour[:, 0] / (self.res_xy_rough - 1) * pi
-                    y = contour[:, 1] / (self.res_xy_rough - 1) * pi / (self.b / self.a)  # anisotropy
+                    x = contour[:, 0] / (self.res_xy_rough - 1) * self.k_max[0]
+                    y = contour[:, 1] / (self.res_xy_rough - 1) * self.k_max[1] / (self.b / self.a)  # anisotropy
                 else:
-                    x = (contour[:, 0] / (2*self.res_xy_rough - 1) - 0.5) * 2*pi
-                    y = (contour[:, 1] / (2*self.res_xy_rough - 1) - 0.5) * 2*pi / (self.b / self.a) # anisotropy
+                    x = (contour[:, 0] / (2*self.res_xy_rough - 1) - 0.5) * 2*self.k_max[0]
+                    y = (contour[:, 1] / (2*self.res_xy_rough - 1) - 0.5) * 2*self.k_max[1] / (self.b / self.a) # anisotropy
                 # path
                 ds = sqrt(np.diff(x)**2 + np.diff(y)**2)  # segment lengths
                 s = np.zeros_like(x)  # arrays of zeros
@@ -454,8 +456,8 @@ class BandStructure:
 
 
         mesh_graph = meshXY
-        kx = np.linspace(-pi / self.a, pi / self.a, mesh_graph)
-        ky = np.linspace(-pi / self.b, pi / self.b, mesh_graph)
+        kx = np.linspace(-self.k_max[0] / self.a, self.k_max[0] / self.a, mesh_graph)
+        ky = np.linspace(-self.k_max[1] / self.b, self.k_max[1] / self.b, mesh_graph)
         kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
 
         fig, axes = plt.subplots(1, 1, figsize = (5.6, 5.6))
@@ -463,7 +465,7 @@ class BandStructure:
 
         fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
-        axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
 
         nb_pkz = self.number_of_points_per_kz_list
         nkz = len(nb_pkz)
@@ -486,17 +488,19 @@ class BandStructure:
         #             self.vf[1,:self.number_of_points_per_kz_list[0]],
         #             color = 'k')
 
-        axes.set_xlim(-pi, pi)
-        axes.set_ylim(-pi, pi)
+        axes.set_xlim(-self.k_max[0], self.k_max[0])
+        axes.set_ylim(-self.k_max[1], self.k_max[1])
         axes.tick_params(axis='x', which='major', pad=7)
         axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$k_{\rm x}$", labelpad = 8)
         axes.set_ylabel(r"$k_{\rm y}$", labelpad = 8)
 
-        axes.set_xticks([-pi, 0., pi])
-        axes.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
-        axes.set_yticks([-pi, 0., pi])
-        axes.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
+        axes.set_xticks([-self.k_max[0], 0., self.k_max[0]])
+        a_x = self.k_max[0] / pi
+        axes.set_xticklabels([r"-" + str(a_x) + r"$\pi$", "0", str(a_x) + r"$\pi$"])
+        axes.set_yticks([-self.k_max[1], 0., self.k_max[1]])
+        a_y = self.k_max[1] / pi
+        axes.set_yticklabels([r"-" + str(a_y) + r"$\pi$", "0", str(a_y) + r"$\pi$"])
         plt.show()
 
     def figDiscretizeFS3D(self, show_veloticites = False):
@@ -515,8 +519,8 @@ class BandStructure:
         Show 2D Fermi Surface for different kz.
         """
         mesh_graph = meshXY
-        kx = np.linspace(-4*pi / self.a, 4*pi / self.a, mesh_graph)
-        ky = np.linspace(-4*pi / self.b, 4*pi / self.b, mesh_graph)
+        kx = np.linspace(-4*self.k_max[0] / self.a, 4*self.k_max[0] / self.a, mesh_graph)
+        ky = np.linspace(-4*self.k_max[1] / self.b, 4*self.k_max[1] / self.b, mesh_graph)
         kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
         ## Figure
         fig, axes = plt.subplots(1, 1, figsize=(8.5, 5.6))
@@ -528,15 +532,15 @@ class BandStructure:
         fig.text(0.63,0.72, r"$k_{\rm z}$ = 2$\pi/c$, $p$ $\in$ $k_{\rm z}$ = " + str(np.round(doping_per_kz[2], 3)), color = "#6577FF", fontsize = 18)
         fig.text(0.63,0.3, r"Average over $k_{\rm z}$", fontsize = 18)
         fig.text(0.63,0.24, r"Total $p$ = " + str(np.round(self.doping(), 3)), fontsize = 18)
-        axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
-        axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, pi/self.c), 0, colors = '#00DC39', linewidths = 3)
-        axes.contour(kxx*self.a, kyy*self.b, self.e_3D_func(kxx, kyy, 2*pi/self.c), 0, colors = '#6577FF', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 0), 0, colors = '#FF0000', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, pi/self.c), 0, colors = '#00DC39', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 2*pi/self.c), 0, colors = '#6577FF', linewidths = 3)
         ## Averaged FS among all kz
         if averaged_kz_FS == True:
             kz_array = np.linspace(-2*pi/self.c, 2*pi/self.c, 5)
             dump = 0
             for kz in kz_array:
-                dump += self.e_3D_func(kxx, kyy, kz)
+                dump += self.energy_func(kxx, kyy, kz)
             axes.contour(kxx*self.a, kyy*self.b, (1/self.resolution[2])*dump, 0, colors = '#000000', linewidths = 3, linestyles = "dashed")
         axes.set_xlim(-pi, pi)
         axes.set_ylim(-pi, pi)

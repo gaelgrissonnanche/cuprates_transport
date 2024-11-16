@@ -24,10 +24,10 @@ class Scattering:
     def __init__(self, scattering_params, **kwargs):
 
         self._scattering_params = deepcopy(scattering_params)
-        self.gamma_tot = None # [ps^-1] total scattering rate
+        self.gamma_tot = np.empty(1) # [ps^-1] total scattering rate array
 
         # Set method-specific parameters as class attributes
-        for method, params in self._scattering_params.items():
+        for func, params in self._scattering_params.items():
             for param, value in params.items():
                 setattr(self, param, value)  # Set each parameter as an attribute
 
@@ -84,7 +84,7 @@ class Scattering:
     def _set_scattering_params(self, scattering_params):
         self._scattering_params = scattering_params
         # Set method-specific parameters as class attributes
-        for method, params in self._scattering_params.items():
+        for func, params in self._scattering_params.items():
             for param, value in params.items():
                 setattr(self, param, value)  # Set each parameter as an attribute
     scattering_params = property(_get_scattering_params, _set_scattering_params)
@@ -104,7 +104,7 @@ class Scattering:
 
     ## Scatterint rate models ---------------------------------------------------#
     @scattering_method
-    def constant(self, kx, ky, kz):
+    def isotropic(self, kx, ky, kz):
         """
         Scattering rate function
         gamma = gamma_0 for all k states:
@@ -250,12 +250,15 @@ class Scattering:
 
 
 if __name__=="__main__":
-    scattObject = Scattering()
+    scattering_params = {"isotropic": {"gamma_0": 2},
+                         "cos2phi": {"gamma_k":10, "power":12},
+                        }
+    scattObject = Scattering(scattering_params)
     print(scattObject.gamma_0)
     scattObject.gamma_0 = 10
     print(scattObject.gamma_0)
     print(scattObject.scattering_params)
-    scattObject.scattering_params = {"constant": {"gamma_0": 5},
+    scattObject.scattering_params = {"isotropic": {"gamma_0": 5},
                                      "cos2phi": {"gamma_k":10, "power":12},
                                     }
     print(scattObject.gamma_0)

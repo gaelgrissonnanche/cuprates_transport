@@ -253,7 +253,7 @@ class Conductivity(Scattering):
         return self.v_product
 
     def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau):
-        sigma_epsilon = (units_chambers / self.bandObject.numberOfBZ *
+        sigma_epsilon = (units_chambers / self.bandObject.number_of_bz *
          np.sum(dkf * dos_k * self.velocity_product(kft, vft, t_o_tau), axis=2))
         return sigma_epsilon
 
@@ -398,7 +398,7 @@ class Conductivity(Scattering):
 
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
-        bands = bObj.e_3D_func(kxx, kyy, kz)
+        bands = bObj.energy_func(kxx, kyy, kz)
         contours = measure.find_contours(bands, 0)
 
         gamma_max_list = []
@@ -461,7 +461,7 @@ class Conductivity(Scattering):
 
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
-        bands = bObj.e_3D_func(kxx, kyy, kz)
+        bands = bObj.energy_func(kxx, kyy, kz)
         contours = measure.find_contours(bands, 0)
 
         for contour in contours:
@@ -518,7 +518,7 @@ class Conductivity(Scattering):
         fig.text(0.39,0.84, r"$k_{\rm z}$ = 0", ha = "right", fontsize = 16)
 
         line = axes.contour(kxx*bObj.a, kyy*bObj.b,
-                            bObj.e_3D_func(kxx, kyy, - 2*pi / bObj.c), 0, colors = '#FF0000', linewidths = 3)
+                            bObj.energy_func(kxx, kyy, - 2*pi / bObj.c), 0, colors = '#FF0000', linewidths = 3)
         line = axes.plot(self.kft[0, index_kf,:]*bObj.a, self.kft[1, index_kf,:]*bObj.b)
         plt.setp(line, ls ="-", c = 'b', lw = 1, marker = "", mfc = 'b', ms = 5, mec = "#7E2320", mew= 0) # trajectory
         line = axes.plot(bObj.kf[0, index_kf]*bObj.a, bObj.kf[1, index_kf]*bObj.b)
@@ -712,11 +712,11 @@ class Conductivity(Scattering):
 
         axes_FS = plt.axes([-0.02, 0.56, .4, .4])
         axes_FS.set_aspect(aspect=1)
-        axes_FS.contour(kxx, kyy, bObj.e_3D_func(
+        axes_FS.contour(kxx, kyy, bObj.energy_func(
             kxx, kyy, 0), 0, colors='#FF0000', linewidths=1)
-        axes_FS.contour(kxx, kyy, bObj.e_3D_func(
+        axes_FS.contour(kxx, kyy, bObj.energy_func(
             kxx, kyy, pi / c), 0, colors='#00DC39', linewidths=1)
-        axes_FS.contour(kxx, kyy, bObj.e_3D_func(
+        axes_FS.contour(kxx, kyy, bObj.energy_func(
             kxx, kyy, 2 * pi / c), 0, colors='#6577FF', linewidths=1)
         fig.text(0.30, 0.67, r"$k_{\rm z}$", fontsize=14)
         fig.text(0.30, 0.63, r"0", color='#FF0000', fontsize=14)
@@ -745,7 +745,7 @@ class Conductivity(Scattering):
 
         kxx, kyy = np.meshgrid(kx_a, ky_a, indexing='ij')
 
-        bands = bObj.e_3D_func(kxx, kyy, 0)
+        bands = bObj.energy_func(kxx, kyy, 0)
         contours = measure.find_contours(bands, 0)
 
         gamma_max_list = []

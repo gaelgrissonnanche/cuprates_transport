@@ -1,6 +1,7 @@
 import unittest
 from copy import deepcopy
 import numpy as np
+from numpy import pi
 from cuprates_transport.bandstructure import BandStructure
 from cuprates_transport.conductivity import Conductivity
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< #
@@ -19,10 +20,11 @@ class TestTransport(unittest.TestCase):
                             "tz": 0.07},
             "fixdoping": 0.24,
             "resolution": [20, 20, 7],
+            "k_max": [pi, pi, 2*pi],
             "T": 0,
             "Bamp": 45,
             "Bphi_array": [0, 15, 30, 45],
-            "scattering_params":{"constant": {"gamma_0":15.1},
+            "scattering_params":{"isotropic": {"gamma_0":15.1},
                                  "cos2phi": {"gamma_k": 66, "power": 12}}
         }
 
