@@ -68,6 +68,7 @@ class BandStructure:
         self.var_sym = tuple(self.var_sym)
 
         # Create the dispersion and velocity functions
+        self.tight_binding = tight_binding
         self.energy_sym = sp.sympify(tight_binding)
         self.energy_velocity_definition()
 
@@ -557,8 +558,8 @@ class BandStructure:
         fig.text(0.76, 0.86, r"$k_{\rm z}$", color="k", fontsize=18)  # k_z
         fig.text(0.88, 0.86, r"$p_{\rm z}$", color="k", fontsize=18)  # p_z
         # Adding the first value line, aligning under the respective labels
-        fig.text(0.76, 0.80, r"$0$", color="#fa6244", fontsize=18)  # k_z
-        fig.text(0.88, 0.80, (np.round(doping_per_kz[0], 3)), color="#fa6244", fontsize=18)  # p_z
+        fig.text(0.76, 0.80, r"$0$", color="#ff0000", fontsize=18)  # k_z
+        fig.text(0.88, 0.80, (np.round(doping_per_kz[0], 3)), color="#ff0000", fontsize=18)  # p_z
         # Adding the second value line
         fig.text(0.76, 0.74, r"$" + f"{a_z/2:g}" + r"\pi/c$", color="#ee9c54", fontsize=18)  # k_z
         fig.text(0.88, 0.74, (np.round(doping_per_kz[1], 3)), color="#ee9c54", fontsize=18)  # p_z
@@ -566,7 +567,7 @@ class BandStructure:
         fig.text(0.76, 0.68, r"$" + f"{a_z:g}" + r"\pi/c$", color="#f3d36b", fontsize=18)  # k_z
         fig.text(0.88, 0.68, (np.round(doping_per_kz[2], 3)), color="#f3d36b", fontsize=18)  # p_z
         fig.text(0.76, 0.54, r"$p_{\rm tot}$ = " + str(np.round(self.doping(), 3)), fontsize = 18)
-        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 0), 0, colors = '#fa6244', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 0), 0, colors = '#ff0000', linewidths = 3)
         axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, pi/self.c), 0, colors = '#ee9c54', linewidths = 3)
         axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 2*pi/self.c), 0, colors = '#f3d36b', linewidths = 3)
         axes.set_xlim(-self.k_max[0], self.k_max[0])

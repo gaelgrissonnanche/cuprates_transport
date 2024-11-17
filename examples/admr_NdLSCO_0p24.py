@@ -10,7 +10,7 @@ ttot = time()
 ## ADMR Published Nature 2021 ////////////////////////////////////////////////////
 params = {
     "band_name": "Nd-LSCO",
-    "a": 5.75,
+    "a": 3.75,
     "b": 3.75,
     "c": 13.2,
     "energy_scale": 160,
@@ -34,18 +34,17 @@ tband = time()
 bandObject = BandStructure(**params)
 bandObject.march_square = True
 
-
 ## Discretize Fermi surface
 bandObject.runBandStructure(printDoping=False)
-bandObject.figDiscretizeFS2D()
 
-# print("time structure = " + str(time()-tband) + " s")
+print("time structure = " + str(time()-tband) + " s")
 
-# ## Compute conductivity
-# ttransport = time()
-# condObject = Conductivity(bandObject, **params)
-# condObject.runTransport()
+## Compute conductivity
+ttransport = time()
+condObject = Conductivity(bandObject, **params)
+condObject.runTransport()
 # condObject.figOnekft()
+condObject.figParameters()
 
 # ## Compute resistivity
 # rho = linalg.inv(condObject.sigma).transpose()
