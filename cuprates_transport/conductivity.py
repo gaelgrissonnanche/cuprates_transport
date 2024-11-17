@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from copy import deepcopy
 from cuprates_transport.scattering import Scattering
-
-from scipy.integrate import solve_ivp
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Units ////////
@@ -210,26 +208,11 @@ class Conductivity(Scattering):
         if self.Bamp != 0:
             # Flatten to get all the initial kf solved at the same time
             kf0 = self.bandObject.kf.flatten()
-            # # Sovle differential equation
-            # self.kft = odeint(self.movement_equation, kf0, self.time_array,
-            #                   rtol = self.rtol, atol = self.atol).transpose()
-
-
-            ## NEW START ------------
-            result = solve_ivp(
-                fun=self.ode_system,
-                t_span=(0, self.time_array[-1]),
-                y0=kf0,
-                method='LSODA',  # Choose an explicit Runge-Kutta method
-                t_eval=self.time_array,  # Optionally specify time points for evaluation
-                rtol=self.rtol, atol=self.atol
-            )
-            self.kft = result.y.reshape((3, len_kf, -1))
-            ## NEW END ---------
-
-
+            # Sovle differential equation
+            self.kft = odeint(self.movement_equation, kf0, self.time_array,
+                              rtol = self.rtol, atol = self.atol).transpose()
             # Reshape arrays
-            # self.kft.shape = (3, len_kf, len_t)
+            self.kft.shape = (3, len_kf, len_t)
             # Velocity function of time
             self.vft = np.empty_like(self.kft, dtype = np.float64)
             kft0, kft1, kft2 = self.kft[0, :, :], self.kft[1, :, :], self.kft[2, :, :]
@@ -245,15 +228,6 @@ class Conductivity(Scattering):
             vf0, vf1, vf2 = (self.bandObject.vf[0, :], self.bandObject.vf[1, :],
                              self.bandObject.vf[2, :])
             self.vft[0, :, 0], self.vft[1, :, 0], self.vft[2, :, 0] = vf0, vf1, vf2
-
-    ## NEW ODE EQUATION
-    def ode_system(self, t, k):
-        len_k = k.shape[0] // 3
-        k = k.reshape((3, len_k))
-        vx, vy, vz = self.bandObject.velocity_func(k[0, :], k[1, :], k[2, :])
-        dkdt = (-e * picosecond * Angstrom / hbar) * self.crossProductVectorized(vx, vy, vz)
-        return dkdt.flatten()
-
 
     def movement_equation(self, k, t):
         len_k = int(k.shape[0]/3)
