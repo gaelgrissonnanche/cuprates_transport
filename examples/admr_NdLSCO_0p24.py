@@ -44,26 +44,26 @@ ttransport = time()
 condObject = Conductivity(bandObject, **params)
 condObject.runTransport()
 # condObject.figOnekft()
-condObject.figParameters()
+# condObject.figParameters()
 
-# ## Compute resistivity
-# rho = linalg.inv(condObject.sigma).transpose()
-# rhoxx = rho[0,0]
-# rhoxy = rho[0,1]
-# rhozz = rho[2,2]
-# print("1band-------------")
-# print("rhoxx =", rhoxx*1e8, "uOhm.cm")
-# print("rhozz =", rhozz*1e5, "mOhm.cm")
-# print("RH =", rhoxy * 1e9 / params["Bamp"], "mm^3 / C")
-# print("time transport = " + str(time()-ttransport) + " s")
+## Compute resistivity
+rho = linalg.inv(condObject.sigma).transpose()
+rhoxx = rho[0,0]
+rhoxy = rho[0,1]
+rhozz = rho[2,2]
+print("1band-------------")
+print("rhoxx =", rhoxx*1e8, "uOhm.cm")
+print("rhozz =", rhozz*1e5, "mOhm.cm")
+print("RH =", rhoxy * 1e9 / params["Bamp"], "mm^3 / C")
+print("time transport = " + str(time()-ttransport) + " s")
 
-# # ## Compute ADMR
-# tadmr = time()
-# admr1band = ADMR([condObject], **params)
-# admr1band.runADMR()
-# print("time admr = " + str(time() - tadmr) + " s")
+# ## Compute ADMR
+tadmr = time()
+admr1band = ADMR([condObject], **params)
+admr1band.runADMR()
+print("time admr = " + str(time() - tadmr) + " s")
 
-# print("time total = " + str(time() - ttot) + " s")
+print("time total = " + str(time() - ttot) + " s")
 
-# # amro1band.fileADMR(folder="sim/NdLSCO_0p24")
-# admr1band.figADMR(fig_save=False) #(folder="sim/NdLSCO_0p24")
+# amro1band.fileADMR(folder="sim/NdLSCO_0p24")
+admr1band.figADMR(fig_save=False) #(folder="sim/NdLSCO_0p24")

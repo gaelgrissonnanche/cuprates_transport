@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from copy import deepcopy
 from cuprates_transport.scattering import Scattering
+
+from scipy.integrate import solve_ivp
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 ## Units ////////
@@ -208,15 +210,30 @@ class Conductivity(Scattering):
         if self.Bamp != 0:
             # Flatten to get all the initial kf solved at the same time
             kf0 = self.bandObject.kf.flatten()
-            # Sovle differential equation
-            self.kft = odeint(self.movement_equation, kf0, self.time_array,
-                              rtol = self.rtol, atol = self.atol).transpose()
+            # # Sovle differential equation
+            # self.kft = odeint(self.movement_equation, kf0, self.time_array,
+            #                   rtol = self.rtol, atol = self.atol).transpose()
+
+
+            ## NEW START ------------
+            result = solve_ivp(
+                fun=self.ode_system,
+                t_span=(0, self.time_array[-1]),
+                y0=kf0,
+                method='LSODA',  # Choose an explicit Runge-Kutta method
+                t_eval=self.time_array,  # Optionally specify time points for evaluation
+                rtol=self.rtol, atol=self.atol
+            )
+            self.kft = result.y.reshape((3, len_kf, -1))
+            ## NEW END ---------
+
+
             # Reshape arrays
-            self.kft.shape = (3, len_kf, len_t)
+            # self.kft.shape = (3, len_kf, len_t)
             # Velocity function of time
             self.vft = np.empty_like(self.kft, dtype = np.float64)
             kft0, kft1, kft2 = self.kft[0, :, :], self.kft[1, :, :], self.kft[2, :, :]
-            vft0, vft1, vft2 = self.bandObject.v_3D_func(kft0, kft1, kft2)
+            vft0, vft1, vft2 = self.bandObject.velocity_func(kft0, kft1, kft2)
             self.vft[0, :, :], self.vft[1, :, :], self.vft[2, :, :] = vft0, vft1, vft2
         ## Magnetic Field OFF
         else:
@@ -229,10 +246,19 @@ class Conductivity(Scattering):
                              self.bandObject.vf[2, :])
             self.vft[0, :, 0], self.vft[1, :, 0], self.vft[2, :, 0] = vf0, vf1, vf2
 
+    ## NEW ODE EQUATION
+    def ode_system(self, t, k):
+        len_k = k.shape[0] // 3
+        k = k.reshape((3, len_k))
+        vx, vy, vz = self.bandObject.velocity_func(k[0, :], k[1, :], k[2, :])
+        dkdt = (-e * picosecond * Angstrom / hbar) * self.crossProductVectorized(vx, vy, vz)
+        return dkdt.flatten()
+
+
     def movement_equation(self, k, t):
         len_k = int(k.shape[0]/3)
         k.shape = (3, len_k) # reshape the flatten k
-        vx, vy, vz =  self.bandObject.v_3D_func(k[0,:], k[1,:], k[2,:])
+        vx, vy, vz =  self.bandObject.velocity_func(k[0,:], k[1,:], k[2,:])
         dkdt = ( - e * picosecond * Angstrom / hbar ) * self.crossProductVectorized(vx, vy, vz)
         dkdt.shape = (3*len_k,) # flatten k again
         return dkdt
@@ -409,7 +435,7 @@ class Conductivity(Scattering):
             # one want to scale to units of kx and ky
             kx = (contour[:, 0] / (mesh_xy - 1) -0.5) * 2*pi / bObj.a
             ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / bObj.b
-            vx, vy, vz = bObj.v_3D_func(kx, ky, kz)
+            vx, vy, vz = bObj.velocity_func(kx, ky, kz)
 
             gamma_kz = 1 / self.tau_tot_func(kx, ky, kz, vx, vy, vz)
             gamma_max_list.append(np.max(gamma_kz))
@@ -469,7 +495,7 @@ class Conductivity(Scattering):
             # one want to scale to units of kx and ky
             kx = (contour[:, 0] / (mesh_xy - 1) -0.5) * 2*pi / bObj.a
             ky = (contour[:, 1] / (mesh_xy - 1) -0.5) * 2*pi / bObj.b
-            vx, vy, vz = bObj.v_3D_func(kx, ky, kz)
+            vx, vy, vz = bObj.velocity_func(kx, ky, kz)
 
             gamma_kz = 1 / self.tau_tot_func(kx, ky, kz, vx, vy, vz)
 
@@ -675,7 +701,7 @@ class Conductivity(Scattering):
             # one want to scale to units of kx and ky
             kx = (contour[:, 0] / (mesh_graph - 1) - 0.5) * 2 * pi / a
             ky = (contour[:, 1] / (mesh_graph - 1) - 0.5) * 2 * pi / b
-            vx, vy, vz = self.bandObject.v_3D_func(kx, ky, np.zeros_like(kx))
+            vx, vy, vz = self.bandObject.velocity_func(kx, ky, np.zeros_like(kx))
             gamma_kz0 = 1 / self.tau_tot_func(kx, ky, 0, vx, vy, vz)
             gamma_max_list.append(np.max(gamma_kz0))
             gamma_min_list.append(np.min(gamma_kz0))

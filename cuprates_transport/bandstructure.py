@@ -195,7 +195,7 @@ class BandStructure:
     def energy_func(self, kx, ky, kz):
         return self.epsilon_func(kx, ky, kz, *self.bandParameters())
 
-    def v_3D_func(self, kx, ky, kz):
+    def velocity_func(self, kx, ky, kz):
         return self.v_func(kx, ky, kz, *self.bandParameters())
 
     def mass_func(self):
@@ -275,7 +275,7 @@ class BandStructure:
         else:
             self.kf, self.dkf = self.marching_cube(epsilon)
         # Compute Velocity at t = 0 on Fermi Surface
-        vx, vy, vz = self.v_3D_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
+        vx, vy, vz = self.velocity_func(self.kf[0, :], self.kf[1, :], self.kf[2, :])
         # dim -> (n, i0) = (xyz, position on FS)
         self.vf = np.vstack([vx, vy, vz])
         # Density of State of k, dos_k in  Joule^1 m^-1
