@@ -24,8 +24,8 @@ params = {
     "Btheta_max": 140,
     "Btheta_step": 5,
     "Bphi_array": [0, 15, 30, 45],
-    "scattering_params":{"isotropic": {"gamma_0":12.595},
-                         "cos2phi": {"gamma_k": 63.823, "power": 12}},
+    "scattering_models":["isotropic", "cos2phi"],
+    "scattering_params":{"gamma_0":12.595, "gamma_k": 63.823, "power": 12},
 }
 
 

@@ -106,6 +106,7 @@ class SimADMR:
 
     def _set_params_dict(self, params_dict):
         self._params_dict = deepcopy(params_dict)
+        self.update_params()
     params_dict = property(_get_params_dict, _set_params_dict)
 
     def update_params(self):
@@ -178,6 +179,8 @@ class Fitness:
             self.params_dict[T][band][param] = x_i
         elif param in self.params_dict[T][band]["band_params"].keys():
             self.params_dict[T][band]["band_params"][param] = x_i
+        elif param in self.params_dict[T][band]["scattering_params"].keys():
+            self.params_dict[T][band]["scattering_params"][param] = x_i
         else:
             print(str(param)+" does not exist in params_dict["+str(T)+"]["+str(band)+"]")
 
@@ -204,7 +207,6 @@ class Fitness:
         for T in self.T_list:
             # Compute sim
             self.sim_obj_dict[T].params_dict = self.params_dict[T]
-            self.sim_obj_dict[T].update_params()
             self.sim_obj_dict[T].compute_rhozz()
             self.rzz_sim_dict[T] = self.sim_obj_dict[T].rzz_sim_matrix
             self.rhozz_sim_dict[T] = self.sim_obj_dict[T].rhozz_sim_matrix
