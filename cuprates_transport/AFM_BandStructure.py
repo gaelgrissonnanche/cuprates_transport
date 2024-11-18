@@ -82,18 +82,19 @@ class AFMBandStructure(BandStructure):
         self.epsilon_AFM_sym = 0.5 * (self.epsilon_sym + self.epsilon_sym.subs([(kx, kx+ self._Q_vector*sp.pi/a), (ky, ky+sp.pi/b)])) + \
             sign_pocket * sp.sqrt(0.25*(self.epsilon_sym - self.epsilon_sym.subs([(kx, kx+ self._Q_vector*sp.pi/a), (ky, ky+sp.pi/b)]))**2 + M**2)
 
+        # self.epsilon_AFM_sym += - mu
 
         ## Velocity ////////////////////////////////////////////////////////////
-        self.v_PiPi_sym = [sp.diff(self.epsilon_PiPi_sym, kx), 
-                           sp.diff(self.epsilon_PiPi_sym, ky), 
-                           sp.diff(self.epsilon_PiPi_sym, kz)]
+        self.v_PiPi_sym = [sp.diff(self.epsilon_AFM_sym, kx), 
+                           sp.diff(self.epsilon_AFM_sym, ky), 
+                           sp.diff(self.epsilon_AFM_sym, kz)]
         # Check is one of the velocitiy components is "0" ////////////////////
         k_list = ['kx', 'ky', 'kz']
         for i, v in enumerate(self.v_PiPi_sym):
             if v == 0:
                 self.v_PiPi_sym[i] = "numpy.zeros_like(" + k_list[i] + ")"
         ## Lambdafity //////////////////////////////////////////////////////////
-        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_PiPi_sym, 'numpy')
+        epsilon_func = sp.lambdify(self.var_sym, self.epsilon_AFM_sym, 'numpy')
         v_func = sp.lambdify(self.var_sym, self.v_PiPi_sym, 'numpy')
 
         ## Numba ////////////////////////////////////////////////////////////////
