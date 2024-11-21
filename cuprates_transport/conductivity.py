@@ -23,7 +23,7 @@ kB = kB / meV # meV / K
 units_chambers = 2 * e**2 / (2*pi)**3 * picosecond / Angstrom**2
 
 class Conductivity:
-    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, N_time=500,
+    def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0, omega=0, N_time=500,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
                  gamma_0=15, a_epsilon = 0, a_abs_epsilon = 0, a_epsilon_2 = 0, a_T = 0, a_T2 = 0,
                  a_asym=0, p_asym=0,
@@ -45,6 +45,7 @@ class Conductivity:
         self._Btheta = Btheta
         self._Bphi   = Bphi
         self._B_vector = self.B_func() # np array fo Bx,By,Bz
+        self.omega = omega # in THz
         self.omegac_tau = None
 
         # Temperature and energy integration
@@ -270,11 +271,21 @@ class Conductivity:
             for example, if i = 0: vif = vxf """
         if self.Bamp != 0:
             vi = vft[:, :, 0] # (3, len_kf)
-            vj = np.sum(vft[:, :, :] * exp(-t_o_tau) * self.dtime, axis=2) # (3, len_kf)
+            if self.omega == 0:
+                vj = np.sum(vft[:, :, :] * exp(-t_o_tau) * self.dtime, axis=2) # (3, len_kf)
+            else:
+                vj = np.sum(vft[:, :, :] * exp(-t_o_tau) * self.dtime
+                            * exp(-1j * self.omega * self.time_array), axis=2) # (3, len_kf)
             self.v_product = np.einsum('ji,ki->jki',vi,vj) # (3, 3, len_kf)
                                         # with 3, 3 the indices for i, j in sigma
         else:
-            self.v_product = np.einsum('ji,ki->jki', vft[:, :, 0], vft[:, :, 0] * (1 / t_o_tau))
+            if self.omega != 0:
+                vj = np.sum(vft[:, :, :] * exp((-1j * self.omega - t_o_tau[:, None])
+                    * self.time_array) * self.dtime, axis=2) # (3, len_kf)
+                self.v_product = np.einsum('ji,ki->jki', vft[:, :, 0], vj)
+            else:
+                self.v_product = np.einsum(
+                    'ji,ki->jki', vft[:, :, 0], vft[:, :, 0] * (1 / t_o_tau))
         return self.v_product
 
     def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau):
