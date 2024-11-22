@@ -46,6 +46,7 @@ condObject.runTransport()
 # condObject.figOnekft()
 # condObject.figParameters()
 
+
 ## Compute resistivity
 rho = linalg.inv(condObject.sigma).transpose()
 rhoxx = rho[0,0]
