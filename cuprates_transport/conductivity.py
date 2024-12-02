@@ -602,11 +602,11 @@ class Conductivity(Scattering):
         for param, value in self._scattering_params.items():
             labels_dict[param] = value
 
-
+        ## Subfigure that serves the table of parameters
         fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
         fig.subplots_adjust(left=0.15, right=0.25, bottom=0.18, top=0.95)
         axes.remove()
-        axes_params = plt.axes([0.65, 0.12, .4, .4])
+        axes_params = plt.axes([0.8, 0.12, .4, .4])
         # Hide the axes
         axes_params.axis('off')
         # Convert dictionary into rows for the table

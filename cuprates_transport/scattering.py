@@ -127,12 +127,12 @@ class Scattering:
     def sin2phi(self, kx, ky, kz):
         """
         Scattering rate function
-        gamma = gamma_k_sin * |cos(2*phi)|^power_sin:
+        gamma = gamma_k_sin * |sin(2*phi)|^power_sin:
         - gamma_k_sin [ps^-1]
         - power_sin [unitless]
         """
         phi = self.phi_func(kx, ky, kz)
-        return self.gamma_k_sin * np.abs(cos(2*phi))**self.power_sin
+        return self.gamma_k_sin * np.abs(sin(2*phi))**self.power_sin
 
     @scattering_method
     def gamma_dos_func(self, vx, vy, vz):

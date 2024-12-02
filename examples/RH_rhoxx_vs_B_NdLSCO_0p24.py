@@ -12,8 +12,8 @@ from cuprates_transport.conductivity import Conductivity
 
 ## Field parameters ------------------
 Bmin = 0.1
-Bmax = 10000
-Bstep = 100
+Bmax = 100
+Bstep = 10
 B_array = np.arange(Bmin, Bmax, Bstep)
 
 ## ADMR Published Nature 2021 ////////////////////////////////////////////////////
@@ -30,8 +30,8 @@ params = {
     "T" : 0,
     "Bamp": 45,
     "Btheta_step": 5,
-    "scattering_models":["isotropic"],#, "cos2phi"],
-    "scattering_params":{"gamma_0":12.595} #, "gamma_k": 0, "power": 12},
+    "scattering_models":["isotropic", "cos2phi"],
+    "scattering_params":{"gamma_0":12.595, "gamma_k": 0, "power": 12},
 }
 
 

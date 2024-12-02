@@ -319,8 +319,7 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
     if num_cpu is None:
         num_cpu = cpu_count(logical=False)
     num_workers = int(percent_workers / 100 * num_cpu)
-    print("# cpu cores: " + str(num_cpu))
-    print("# workers: " + str(num_workers))
+    print("# Parallelization | CPU cores: " + str(num_cpu) + " | Workers: " + str(num_workers) )
     ## Initialize counter
     num_member = Value('i', 0)
     ## Create pool of workers
@@ -335,13 +334,13 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
     ## Callback function to print the evolution of differential evolution
     def callback(xk, convergence):
         globals()['iteration'] += 1
-        text = "Iteration: %d\titer time: %.3f\tconvergence: %.3e" % (globals()['iteration'], (time() - globals()['time_iter']), convergence)
+        text = "gen %d | %.1f s | convergence: %.3f" % (globals()['iteration'], (time() - globals()['time_iter']), convergence) + "/1 |"
         globals()['time_iter'] = time()
         if (xk != globals()['best_x']).all():
             globals()['best_x'] = xk
             # obj_val = fit_object.compute_diff2(xk, verbose=False)
             # text += "\tNew best:" + str([round(x, 10) for x in xk]) + "\tchi^2: %.3e" % obj_val
-            text += "\tNew best:" + str([round(x, 10) for x in xk])
+            text += " New best:" + str([round(x, 2) for x in xk])
         print(text)
         sys.stdout.flush()
     ## Differential evolution
