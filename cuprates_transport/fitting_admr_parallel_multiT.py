@@ -355,10 +355,6 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
     ## Export final parameters from the fit
     fitness_obj.update_parameters(res.x)
     fitness_obj.compute_fitness()
-    ## Save BEST member to JSON
-    fitness_obj.save_member_to_json(filename=filename, folder=folder)
-    ## Compute the FINAL member
-    fitness_obj.fig_compare(fig_save=True, figname=filename, folder=folder)
     return fitness_obj
 
 ## -------------------------------------------------------------------------------
