@@ -189,9 +189,9 @@ class Fitness:
             T     = label[0]
             band  = label[1]
             param = label[2]
-            if T!="all": # for parameters that are different at different T
+            if T=="all": # for parameters that are different at different T
                 self.update_conditions(T, band, param, x[i])
-            elif T=="all": # for parameters that are the same at all T
+            elif T!="all": # for parameters that are the same at all T
                 for T in self.T_list:
                     self.update_conditions(T, band, param, x[i])
 
