@@ -599,15 +599,14 @@ class Conductivity(Scattering):
         for label, value in self.bandObject._band_params.items():
             labels_dict[label] = value
         labels_dict["# of BZ"] = self.bandObject.number_of_bz
-        for func, params in self._scattering_params.items():
-            for param, value in params.items():
-                labels_dict[param] = value
+        for param, value in self._scattering_params.items():
+            labels_dict[param] = value
 
-
+        ## Subfigure that serves the table of parameters
         fig, axes = plt.subplots(1, 1, figsize=(10.5, 5.8))
         fig.subplots_adjust(left=0.15, right=0.25, bottom=0.18, top=0.95)
         axes.remove()
-        axes_params = plt.axes([0.65, 0.12, .4, .4])
+        axes_params = plt.axes([0.8, 0.12, .4, .4])
         # Hide the axes
         axes_params.axis('off')
         # Convert dictionary into rows for the table
@@ -729,15 +728,14 @@ if __name__=="__main__":
     "a": 3.75,
     "b": 3.75,
     "c": 13.2,
-    "res_xy": 20,
-    "res_z": 7,
+    "resolution": [21, 21, 3],
     "energy_scale": 160,
     "band_params":{"mu":-0.82439881, "t": 1, "tp":-0.13642799, "tpp":0.06816836, "tz":0.06512192},
     "N_time": 1000,
     "T" : 0,
     "Bamp": 45,
-    "scattering_params":{"constant": {"gamma_0":12.595},
-                         "cos2phi": {"gamma_k": 63.823, "power": 12}}
+    "scattering_models":["isotropic", "cos2phi"],
+    "scattering_params":{"gamma_0":12.595, "gamma_k": 63.823, "power": 12},
     }
 
     bandObject = BandStructure(**params)

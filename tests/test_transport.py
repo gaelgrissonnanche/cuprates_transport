@@ -25,8 +25,8 @@ class Tests_BandStructure(unittest.TestCase):
             "T": 0,
             "Bamp": 45,
             "Bphi_array": [0, 15, 30, 45],
-            "scattering_params":{"isotropic": {"gamma_0":15.1},
-                                 "cos2phi": {"gamma_k": 66, "power": 12}}
+            "scattering_models":["isotropic", "cos2phi"],
+            "scattering_params":{"gamma_0":15.1, "gamma_k": 66, "power": 12},
         }
 
     def test_initialization(self):

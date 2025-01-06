@@ -22,13 +22,13 @@ class BandStructure:
                  energy_scale,
                  band_params={"t": 1, "tp": -0.136, "tpp": 0.068, "tz": 0.07,
                               "mu": -0.83},
-                 band_name="band_1",
-                 tight_binding=("- mu - 2*t*(cos(a*kx) + cos(b*ky))" +
+                 band_model=("- mu - 2*t*(cos(a*kx) + cos(b*ky))" +
                     "- 4*tp*cos(a*kx)*cos(b*ky)" +
                     "- 2*tpp*(cos(2*a*kx) + cos(2*b*ky))" +
                     "- 2*tz*(cos(a*kx) " +
                     "- cos(b*ky))**2*cos(a*kx/2)*cos(b*ky/2)*cos(c*kz/2)"),
-                 resolution=[20, 20, 1], k_max=[pi, pi, pi],
+                 band_name="band_1",
+                 resolution=[20, 20, 3], k_max=[pi, pi, 2*pi],
                  number_of_bz = 1,
                  parallel = True, march_square=False,
                  **trash):
@@ -36,10 +36,9 @@ class BandStructure:
         Initializes the BandStructure object.
         :param a, b, c: lattice parameters for orthorombic systems
         :param band_params: tight-binding parameters
+        :param band_model: dispersions of the band as a function of kx, ky, kz
         :param band_name: name of the band that this object corresponds to
-        :param e_xy, e_z: dispersions of the band along xy and z
-        :param res_xy, res_z: resolution of the discretization in plane xy
-                              or along z
+        :param resolution: list for the discretization along kx, ky, z
         :param parallel: decides if the run Numba in parallel or not,
                          it increases the speed for
                          a single instance, but it decreases the speed
@@ -68,8 +67,8 @@ class BandStructure:
         self.var_sym = tuple(self.var_sym)
 
         # Create the dispersion and velocity functions
-        self.tight_binding = tight_binding
-        self.energy_sym = sp.sympify(tight_binding)
+        self.band_model = band_model
+        self.energy_sym = sp.sympify(band_model)
         self.energy_velocity_definition()
 
         # Discretization

@@ -3,6 +3,5 @@
 # Except this file
 !.gitignore
 !admr_NdLSCO_0p24.py
-!fitting_admr_NdLSCO_0p24.py
-!fitting_admr_NdLSCO_0p24_multi_T.py
-!fitting_admr_NdLSCO_0p24_full_tz.py
+!check_free_electrons.py
+!RH_rhoxx_vs_B_NdLSCO_0p24.py

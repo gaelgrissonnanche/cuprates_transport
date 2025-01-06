@@ -21,15 +21,15 @@ def scattering_method(func):
     return func
 
 class Scattering:
-    def __init__(self, scattering_params, **kwargs):
+    def __init__(self, scattering_models, scattering_params, **kwargs):
 
+        self.scattering_models = scattering_models
         self._scattering_params = deepcopy(scattering_params)
         self.gamma_tot = np.empty(1) # [ps^-1] total scattering rate array
 
-        # Set method-specific parameters as class attributes
-        for func, params in self._scattering_params.items():
-            for param, value in params.items():
-                setattr(self, param, value)  # Set each parameter as an attribute
+        # Set scattering rate model parameters as class attributes
+        for param, value in self._scattering_params.items():
+            setattr(self, param, value)  # Set each parameter as an attribute
 
         ## Phi angle
         self.phi = None # [radians] angle between the field and the a-axis
@@ -83,11 +83,11 @@ class Scattering:
 
     def _set_scattering_params(self, scattering_params):
         self._scattering_params = scattering_params
-        # Set method-specific parameters as class attributes
-        for func, params in self._scattering_params.items():
-            for param, value in params.items():
-                setattr(self, param, value)  # Set each parameter as an attribute
+        # Set scattering rate model parameters as class attributes
+        for param, value in self._scattering_params.items():
+            setattr(self, param, value)  # Set each parameter as an attribute
     scattering_params = property(_get_scattering_params, _set_scattering_params)
+
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
     def phi_func(self, kx, ky, kz):
@@ -127,12 +127,12 @@ class Scattering:
     def sin2phi(self, kx, ky, kz):
         """
         Scattering rate function
-        gamma = gamma_k_sin * |cos(2*phi)|^power_sin:
+        gamma = gamma_k_sin * |sin(2*phi)|^power_sin:
         - gamma_k_sin [ps^-1]
         - power_sin [unitless]
         """
         phi = self.phi_func(kx, ky, kz)
-        return self.gamma_k_sin * np.abs(cos(2*phi))**self.power_sin
+        return self.gamma_k_sin * np.abs(sin(2*phi))**self.power_sin
 
     @scattering_method
     def gamma_dos_func(self, vx, vy, vz):
@@ -233,12 +233,9 @@ class Scattering:
         """Computes the total lifetime based on the input model
         for the scattering rate"""
         self.gamma_tot = np.zeros_like(kx)
-        # Loop over each method in scattering_params
-        for method_name, params in self._scattering_params.items():
-            func = getattr(self, method_name)
         # Execute each method in scattering_params
-        for method_name, params in self._scattering_params.items():
-            func = getattr(self, method_name)
+        for model in self.scattering_models:
+            func = getattr(self, model)
             func_args = func.__code__.co_varnames
             if "epsilon" in func_args:
                 self.gamma_tot += func(epsilon)
@@ -250,15 +247,12 @@ class Scattering:
 
 
 if __name__=="__main__":
-    scattering_params = {"isotropic": {"gamma_0": 2},
-                         "cos2phi": {"gamma_k":10, "power":12},
-                        }
-    scattObject = Scattering(scattering_params)
+    scattering_models = ["isotropic", "cos2phi"]
+    scattering_params = {"gamma_0": 2, "gamma_k":10, "power":12}
+    scattObject = Scattering(scattering_models, scattering_params)
     print(scattObject.gamma_0)
     scattObject.gamma_0 = 10
     print(scattObject.gamma_0)
     print(scattObject.scattering_params)
-    scattObject.scattering_params = {"isotropic": {"gamma_0": 5},
-                                     "cos2phi": {"gamma_k":10, "power":12},
-                                    }
+    scattObject.scattering_params = {"gamma_0": 5, "gamma_k":10, "power":12}
     print(scattObject.gamma_0)
