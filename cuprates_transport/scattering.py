@@ -96,7 +96,8 @@ class Scattering:
         """
         ## Make sure kx and ky are in the FBZ to compute Phi.
         # if self.phi is None: # avoid rerunning it if it has been before
-        a, b = self.bandObject.a, self.bandObject.b
+        # a, b = self.bandObject.a, self.bandObject.b
+        a, b = 3.76, 3.76
         kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
         ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
         self.phi = arctan2(ky, kx)
@@ -122,6 +123,20 @@ class Scattering:
         """
         phi = self.phi_func(kx, ky, kz)
         return self.gamma_k * np.abs(cos(2*phi))**self.power
+
+    @scattering_method
+    def kz_cos2phi(self, kx, ky, kz):
+        """
+        Scattering rate function
+        gamma = gamma_kz + |cos(kz * c / 2)|^power_z
+        - gamma_kz [ps^-1]
+        - power_z [unitless]
+        """
+        print("new model called : ")
+        print( self.gamma_kz, self.power, self.power_z)
+        phi = self.phi_func(kx, ky, kz)
+        # return self.gamma_kz * np.abs(cos(kz*self.bandObject.c / 2))**self.power_z * np.abs(cos(2*phi))**self.power
+        return self.gamma_kz * np.abs(cos(kz* 13.22 / 2))**self.power_z * np.abs(cos(2*phi))**self.power
 
     @scattering_method
     def sin2phi(self, kx, ky, kz):
