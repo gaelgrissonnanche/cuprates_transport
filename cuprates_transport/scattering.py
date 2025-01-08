@@ -123,12 +123,25 @@ class Scattering:
         """
         phi = self.phi_func(kx, ky, kz)
         return self.gamma_k * np.abs(cos(2*phi))**self.power
-
+    
     @scattering_method
-    def kz_cos2phi(self, kx, ky, kz):
+    def coskzc(self, kx, ky, kz):
         """
         Scattering rate function
-        gamma = gamma_kz + |cos(kz * c / 2)|^power_z
+        gamma = gamma_kz * |cos(kz * c / 2)|^power_z
+        - gamma_kz [ps^-1]
+        - power_z [unitless]
+        """
+        print("new model called : ")
+        print( self.gamma_kz, self.power, self.power_z)
+        # return self.gamma_kz * np.abs(cos(kz*self.bandObject.c / 2))**self.power_z
+        return self.gamma_kz * np.abs(cos(kz* 13.22 / 2))**self.power_z
+
+    @scattering_method
+    def cos2phicoskzc(self, kx, ky, kz):
+        """
+        Scattering rate function
+        gamma = gamma_kz * |cos(2*phi)|^power * |cos(kz * c / 2)|^power_z
         - gamma_kz [ps^-1]
         - power_z [unitless]
         """
