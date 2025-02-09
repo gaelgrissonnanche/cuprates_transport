@@ -31,7 +31,7 @@ class BandStructure:
                  resolution=[20, 20, 3], k_max=[pi, pi, 2*pi],
                  number_of_bz = 1,
                  parallel = True, march_square=False,
-                 **trash):
+                 **kwargs):
         """
         Initializes the BandStructure object.
         :param a, b, c: lattice parameters for orthorombic systems

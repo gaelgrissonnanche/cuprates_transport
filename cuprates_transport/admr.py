@@ -9,52 +9,59 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 class ADMR:
     def __init__(self, condObject_list, Btheta_min=0, Btheta_max=110,
-                 Btheta_step=5, Bphi_array=[0, 15, 30, 45],
-                 show_progress=True, **trash):
+                 Btheta_step=5, Btheta_norm=0, Bphi_array=[0, 15, 30, 45],
+                 show_progress=True, **kwargs):
         # Band dictionary
         self.condObject_list = condObject_list
         self.band_names = []
         for i in range(len(self.condObject_list)):
             self.band_names.append(condObject_list[i].bandObject.band_name)
 
-        ## Miscellaneous
-        self.show_progress = show_progress # shows progress bar or not
-        self.total_filling = 0 # total bands filling (of electron) over all bands
-        self.total_hole_doping = 0 # total bands hole doping over all bands
-
         # Magnetic field
-        self.Btheta_min   = Btheta_min    # in degrees
-        self.Btheta_max   = Btheta_max    # in degrees
-        self.Btheta_step  = Btheta_step  # in degrees
+        self.Btheta_min   = Btheta_min # in degrees
+        self.Btheta_max   = Btheta_max # in degrees
+        self.Btheta_step  = Btheta_step # in degrees
+        self.Btheta_norm = Btheta_norm # in degrees, rzz = rhozz / rhozz ( Btheta_norm )
         self.Btheta_array = np.arange(self.Btheta_min, self.Btheta_max + self.Btheta_step, self.Btheta_step)
         self.Bphi_array = np.array(Bphi_array)
 
         # Resistivity array rho_zz
         self.rhozz_array = None
-        # Resistivity array rho_zz / rho_zz(0)
+        # Resistivity array rho_zz / rho_zz( Btheta_norm )
         self.rzz_array = None
+
+        ## Miscellaneous
+        self.show_progress = show_progress # shows progress bar or not
+        self.total_filling = 0 # total bands filling (of electron) over all bands
+        self.total_hole_doping = 0 # total bands hole doping over all bands
+
 
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
-        rhozz_array = np.empty((self.Bphi_array.size, self.Btheta_array.size), dtype= np.float64)
+        self.rhozz_array = np.empty((self.Bphi_array.size,
+                                     self.Btheta_array.size), dtype= np.float64)
         if self.show_progress is True:
             iterator = enumerate(tqdm(self.Bphi_array, ncols=80, unit="phi", desc="ADMR"))
         else:
             iterator = enumerate(self.Bphi_array)
-        for l, phi in iterator:
-            for m, theta in enumerate(self.Btheta_array):
+        for i, phi in iterator:
+            for j, theta in enumerate(self.Btheta_array):
                 sigma_tensor = 0
-                for i in range(len(self.condObject_list)):
-                    self.condObject_list[i].Bphi = phi
-                    self.condObject_list[i].Btheta = theta
-                    self.condObject_list[i].runTransport()
-                    sigma_tensor += self.condObject_list[i].sigma
+                for l in range(len(self.condObject_list)):
+                    self.condObject_list[l].Bphi = phi
+                    self.condObject_list[l].Btheta = theta
+                    self.condObject_list[l].runTransport()
+                    sigma_tensor += self.condObject_list[l].sigma
                 rho = np.linalg.inv(sigma_tensor)
-                rhozz_array[l, m] = rho[2,2]
-        rhozz_0_array = np.outer(rhozz_array[:, 0], np.ones(self.Btheta_array.shape[0]))
-        self.rhozz_array = rhozz_array
-        self.rzz_array = rhozz_array / rhozz_0_array
+                self.rhozz_array[i, j] = rho[2,2]
+
+        ## Normalization
+        self.rzz_array = np.empty_like(self.rhozz_array)
+        for i in range(len(self.Bphi_array)):
+            rhozz_norm = np.interp(self.Btheta_norm,
+                                   self.Btheta_array, self.rhozz_array[i,:])
+            self.rzz_array[i,:] = self.rhozz_array[i,:] / rhozz_norm
         self.update_total_doping()
 
     #---------------------------------------------------------------------------
@@ -209,14 +216,13 @@ class ADMR:
         # Labels
         fig.text(0.99, 0.9, r"$T$ = " + "{0:.0f}".format(condObject0.T) + " K", ha="right")
         fig.text(0.99, 0.84, r"$B$ = " + "{0:.0f}".format(condObject0.Bamp) + " T", ha="right")
-        fig.text(0.99, 0.78, r"$p$ = " + "{0:.3f}".format(self.total_hole_doping), ha="right")
+        # fig.text(0.99, 0.78, r"$p$ = " + "{0:.3f}".format(self.total_hole_doping), ha="right")
 
         ## Colors
         if self.Bphi_array.size > 4:
             cmap = mpl.cm.get_cmap('jet', self.Bphi_array.size)
             colors = cmap(np.arange(self.Bphi_array.size))
         else:
-            # colors = ['#1A52A5', '#00D127', '#CE0000'][::-1]
             colors = ['#000000', '#3B528B', '#FF0000', '#C7E500']
 
         axes2 = axes.twinx()
@@ -227,25 +233,19 @@ class ADMR:
             line = axes.plot(self.Btheta_array, self.rzz_array[i, :], label = r"$\phi$ = " + r"{0:.0f}".format(B_phi))
             plt.setp(line, ls ="-", c = colors[i], lw = 3, marker = "o", mfc = colors[i], ms = 5, mec = colors[i], mew= 0)  # set properties
 
-        axes.set_xlim(0, self.Btheta_max)
+        axes.set_xlim(self.Btheta_min, self.Btheta_max)
         axes.tick_params(axis='x', which='major', pad=7)
         axes.tick_params(axis='y', which='major', pad=8)
         axes.set_xlabel(r"$\theta$ ( $^{\circ}$ )", labelpad = 8)
-        axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( 0 )", labelpad = 8)
+        axes.set_ylabel(r"$\rho_{\rm zz}$ / $\rho_{\rm zz}$ ( " + str(self.Btheta_norm) + " )", labelpad = 8)
         ymin, ymax = axes.axis()[2:]
         axes2.set_ylim(ymin * self.rhozz_array[0, 0] * 1e5, ymax * self.rhozz_array[0, 0] * 1e5)
         axes2.set_ylabel(r"$\rho_{\rm zz}$ ( m$\Omega$ cm )", labelpad = 40, rotation = 270)
 
-
         axes.legend(loc = 0, fontsize = 14, frameon = False, numpoints = 1, markerscale = 1, handletextpad = 0.5)
 
-        ## Set ticks space and minor ticks
-        xtics = 30. # space between two ticks
-        mxtics = xtics / 2.  # space between two minor ticks
+        ## Set label ticks formats
         majorFormatter = FormatStrFormatter('%g') # put the format of the number of ticks
-        # axes.xaxis.set_major_locator(MultipleLocator(xtics))
-        # axes.xaxis.set_major_formatter(majorFormatter)
-        # axes.xaxis.set_minor_locator(MultipleLocator(mxtics))
         axes.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
         axes.locator_params(axis='y', nbins=6)
 

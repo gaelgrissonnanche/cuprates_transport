@@ -23,6 +23,7 @@ class FitAnglesADMR:
         self.data_dict = data_dict
         self.Bphi_array = np.array([])
         self.Btheta_array= np.array([])
+        self.Btheta_norm = 0 # theta used for rzz = rhozz / rhozz(theta)
 
     def create_angles(self):
         """Creates the theta angles at the selected temperatures and phi"""
@@ -36,6 +37,8 @@ class FitAnglesADMR:
             Btheta_min_list.append(self.data_dict[self.T, phi][3])
             Btheta_max_list.append(self.data_dict[self.T, phi][4])
             Btheta_steps_list.append(self.data_dict[self.T, phi][5])
+        ## Btheta_norm is in principle the same for all phis (here with the last phi)
+        self.Btheta_norm = self.data_dict[self.T, phi][6]
         Btheta_min = min(Btheta_min_list)
         Btheta_max = max(Btheta_max_list)
         Btheta_steps = min(Btheta_steps_list)
@@ -65,6 +68,7 @@ class DataADMR:
             filename  = self.data_dict[self.T, phi][0]
             col_theta = self.data_dict[self.T, phi][1]
             col_rhozz = self.data_dict[self.T, phi][2]
+            rhozz_norm = self.data_dict[self.T, phi][7]
             ## Load data
             data  = np.loadtxt(filename, dtype="float", comments="#")
             theta = data[:, col_theta]
@@ -76,6 +80,7 @@ class DataADMR:
             ## Normalize data
             rhozz_i = np.interp(self.Btheta_array, theta, rhozz) # "i" is for interpolated
             rzz_i   = rhozz_i / np.interp(Btheta_norm, theta, rhozz) # rhozz / rhozz(theta=theta_norm)
+            rhozz_i *= rhozz_norm
             ## Store data
             self.rhozz_data_matrix[i, :] = rhozz_i
             self.rzz_data_matrix[i, :] = rzz_i
@@ -116,12 +121,13 @@ class SimADMR:
             self.admrObject.condObject_list[i].bandObject.band_params =  band_params
             self.admrObject.condObject_list[i].scattering_params = scattering_params
 
-    def compute_rhozz(self):
+    def compute_rhozz(self, Btheta_norm=0):
         """Calculate the simulated rhozz from ADMR object"""
         for i in range(len(self.bands_list)):
             self.admrObject.condObject_list[i].bandObject.runBandStructure()
         self.admrObject.Bphi_array = self.Bphi_array
         self.admrObject.Btheta_array = self.Btheta_array
+        self.admrObject.Btheta_norm = Btheta_norm
         self.admrObject.runADMR()
         self.rhozz_sim_matrix = self.admrObject.rhozz_array
         self.rzz_sim_matrix   = self.admrObject.rzz_array
@@ -157,18 +163,22 @@ class Fitness:
         self.rzz_sim_dict = {}
         self.rhozz_sim_dict = {}
         self.sim_obj_dict = {}
+        self.angles_obj_dict = {}
         for T in self.T_list:
+            ## Angles
             angles_obj = FitAnglesADMR(T, self.data_dict)
             phis, thetas = angles_obj.create_angles()
+            self.angles_obj_dict[T] = angles_obj
+            ## Data
             data_obj = DataADMR(T, data_dict, phis, thetas)
-            data_obj.load_data()
+            data_obj.load_data(angles_obj.Btheta_norm)
             rzz = data_obj.rzz_data_matrix  # normalized rhozz/rhozz(B=constant)
             rhozz = data_obj.rhozz_data_matrix
             self.phis_dict[T] = phis
             self.thetas_dict[T] = thetas
             self.rzz_data_dict[T] = rzz
             self.rhozz_data_dict[T] = rhozz
-            # Create Simulation objects
+            # Simulation
             self.sim_obj_dict[T] = SimADMR(self.params_dict[T],
                                            self.phis_dict[T],
                                            self.thetas_dict[T])
@@ -207,7 +217,7 @@ class Fitness:
         for T in self.T_list:
             # Compute sim
             self.sim_obj_dict[T].params_dict = self.params_dict[T]
-            self.sim_obj_dict[T].compute_rhozz()
+            self.sim_obj_dict[T].compute_rhozz(self.angles_obj_dict[T].Btheta_norm)
             self.rzz_sim_dict[T] = self.sim_obj_dict[T].rzz_sim_matrix
             self.rhozz_sim_dict[T] = self.sim_obj_dict[T].rhozz_sim_matrix
             # Compute diff

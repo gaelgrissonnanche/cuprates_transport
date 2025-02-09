@@ -124,6 +124,18 @@ class Scattering:
         return self.gamma_k * np.abs(cos(2*phi))**self.power
 
     @scattering_method
+    def cos2phi_coskz(self, kx, ky, kz):
+        """
+        Scattering rate function
+        gamma = gamma_k * |cos(2*phi)|^power:
+        - gamma_k [ps^-1]
+        - power [unitless]
+        """
+        a, b, c = self.bandObject.a, self.bandObject.b, self.bandObject.c
+        phi = self.phi_func(kx, ky, kz)
+        return self.gamma_k * np.abs(cos(2*phi))**self.power * np.abs(cos(kz*c/2))**self.power_z
+
+    @scattering_method
     def sin2phi(self, kx, ky, kz):
         """
         Scattering rate function

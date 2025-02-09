@@ -7,16 +7,12 @@ from scipy.constants import Boltzmann, hbar, elementary_charge, physical_constan
 
 ## Results
 # m* = 3.8099736731790803
-# RH (Chambers) = -0.51233 mm^3/C
+# RH (Chambers) = -1.02466 mm^3/C
 # RH (Drude) =  -1.036 mm^3/C
-# rho_xx (Chambers) = 14.072087197973831 uOhm.cm
+# rho_xx (Chambers) = 28.144174395947662 uOhm.cm
 # rho_xx (Drude) = 28.26566466784027 uOhm.cm
 # S/T (Chambers) =  -0.04835742884232023 uV / K^2 T_F = 5862.571847857093  K
 # S/T (Drude) =  -0.04889228720420854 uV / K^2 T_F = 5798.43810091454  K
-
-
-##!!!!!!! WARNING !!!!!!!!##
-# You need to set kz_max = pi / c, instead of 2pi / c for it work. #####
 
 params = {
     "band_name": "Free electrons",
@@ -25,7 +21,7 @@ params = {
     "c": 13.2,
     "energy_scale": 1000,
     "band_params":{"mu":-0.5, "t": 1},
-    "band_model": "mu + t*((kx)**2+(ky)**2)", #+ t*((kx+pi/a)**2+(ky-pi/b)**2) + t*((kx-pi/a)**2+(ky-pi/b)**2)",
+    "band_model": "mu + t*((kx)**2+(ky)**2)",
     "resolution": [300, 300, 3],
     "k_max": [pi, pi, pi],
     "dfdE_cut_percent": 0.001,
