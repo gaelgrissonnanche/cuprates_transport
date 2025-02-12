@@ -132,7 +132,7 @@ class Scattering:
         - gamma_kz [ps^-1]
         - power_z [unitless]
         """
-        print("new model called : ")
+        print("calling additive model : ")
         print( self.gamma_kz, self.power, self.power_z)
         # return self.gamma_kz * np.abs(cos(kz*self.bandObject.c / 2))**self.power_z
         return self.gamma_kz * np.abs(cos(kz* 13.22 / 2))**self.power_z
@@ -145,7 +145,7 @@ class Scattering:
         - gamma_kz [ps^-1]
         - power_z [unitless]
         """
-        print("new model called : ")
+        print("calling product model : ")
         print( self.gamma_kz, self.power, self.power_z)
         phi = self.phi_func(kx, ky, kz)
         # return self.gamma_kz * np.abs(cos(kz*self.bandObject.c / 2))**self.power_z * np.abs(cos(2*phi))**self.power
