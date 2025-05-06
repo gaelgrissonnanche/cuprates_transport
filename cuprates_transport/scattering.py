@@ -158,6 +158,12 @@ class Scattering:
         # value to normalize the DOS to a quantity without units
         return self.gamma_dos_max * (self.bandObject.dos_k / dos_max)
 
+    @scattering_method
+    def polynomial(self, kx, ky, kz):
+        phi = self.phi_func(kx, ky, kz)
+        return np.abs(self.a1 * phi + self.a2 * phi**2 + self.a3 * phi**3 +
+                      self.a4 * phi**4 + self.a5 * phi**5)
+
     # @scattering_method
     # def gamma_cmfp_func(self, vx, vy, vz):
     #     vf = sqrt( vx**2 + vy**2 + vz**2 )
@@ -173,16 +179,6 @@ class Scattering:
     #     vF = sqrt(vx**2 + vy**2 + vz**2) / Angstrom * 1e-12 # in Angstrom / ps
     #     return vF / self.l_path
 
-    # @scattering_method
-    # def gamma_poly_func(self, kx, ky, kz):
-    #     ## Make sure kx and ky are in the FBZ to compute Phi.
-    #     a, b = self.bandObject.a, self.bandObject.b
-    #     kx = np.remainder(kx + pi / a, 2*pi / a) - pi / a
-    #     ky = np.remainder(ky + pi / b, 2*pi / b) - pi / b
-    #     phi = arctan2(ky, kx)
-    #     phi_p = np.abs((np.mod(phi, pi/2)-pi/4))
-    #     return (self.a0 + np.abs(self.a1 * phi_p + self.a2 * phi_p**2 +
-    #             self.a3 * phi_p**3 + self.a4 * phi_p**4 + self.a5 * phi_p**5))
 
     # @scattering_method
     # def gamma_tanh_func(self, kx, ky, kz):

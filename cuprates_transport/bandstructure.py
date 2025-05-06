@@ -106,11 +106,9 @@ class BandStructure:
 
     def __getitem__(self, key):
         try:
-            assert self._band_params[key]
-        except KeyError:
-            print(key + " is not a defined band parameter")
-        else:
             return self._band_params[key]
+        except KeyError:
+            print(f"{key} is not a defined band parameter")
 
     def get_band_param(self, key):
         return self[key]
