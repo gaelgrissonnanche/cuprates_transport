@@ -123,33 +123,54 @@ class Scattering:
         """
         phi = self.phi_func(kx, ky, kz)
         return self.gamma_k * np.abs(cos(2*phi))**self.power
+ 
+    @scattering_method
+    def cos3phi(self, kx, ky, kz):
+        """
+        Scattering rate function
+        gamma = gamma_k * |cos(3*phi)|^power:
+        - gamma_k [ps^-1]
+        - power [unitless]
+        """
+        phi = self.phi_func(kx, ky, kz)
+        return self.gamma_k * np.abs(cos(3*phi))**self.power
     
     @scattering_method
-    def coskzc(self, kx, ky, kz):
+    def sin3phi(self, kx, ky, kz):
         """
         Scattering rate function
-        gamma = gamma_kz * |cos(kz * c / 2)|^power_z
-        - gamma_kz [ps^-1]
-        - power_z [unitless]
+        gamma = gamma_k * |sin(3*phi)|^power:
+        - gamma_k [ps^-1]
+        - power [unitless]
         """
-        print("calling additive model : ")
-        print( self.gamma_kz, self.power, self.power_z)
-        # return self.gamma_kz * np.abs(cos(kz*self.bandObject.c / 2))**self.power_z
-        return self.gamma_kz * np.abs(cos(kz* 13.22 / 2))**self.power_z
+        a, b, c = self.bandObject.a, self.bandObject.b, self.bandObject.c
+        phi = self.phi_func(kx, ky, kz)
+        return self.gamma_k * np.abs(sin(3*phi))**self.power
+    
+    @scattering_method
+    def cos3phi_hs_offnodes(self, kx, ky, kz):
+        """
+        Scattering rate function
+        gamma = gamma_k * ( |cos(3*(phi-hs_loc))|^power + |cos(3*(phi+hs_loc))|^power):
+        - gamma_k [ps^-1]
+        - power [unitless]
+        """
+        a, b, c = self.bandObject.a, self.bandObject.b, self.bandObject.c
+        phi = self.phi_func(kx, ky, kz)
+        hs_loc = np.deg2rad(self.hs_loc)
+        return self.gamma_k * (np.abs(cos(3*(phi+hs_loc)))**self.power+np.abs(cos(3*(phi-hs_loc)))**self.power)
 
     @scattering_method
-    def cos2phicoskzc(self, kx, ky, kz):
+    def cos2phi_coskz(self, kx, ky, kz):
         """
         Scattering rate function
-        gamma = gamma_kz * |cos(2*phi)|^power * |cos(kz * c / 2)|^power_z
-        - gamma_kz [ps^-1]
-        - power_z [unitless]
+        gamma = gamma_k * |cos(2*phi)|^power:
+        - gamma_k [ps^-1]
+        - power [unitless]
         """
-        print("calling product model : ")
-        print( self.gamma_kz, self.power, self.power_z)
+        a, b, c = self.bandObject.a, self.bandObject.b, self.bandObject.c
         phi = self.phi_func(kx, ky, kz)
-        # return self.gamma_kz * np.abs(cos(kz*self.bandObject.c / 2))**self.power_z * np.abs(cos(2*phi))**self.power
-        return self.gamma_kz * np.abs(cos(kz* 13.22 / 2))**self.power_z * np.abs(cos(2*phi))**self.power
+        return self.gamma_k * np.abs(cos(2*phi))**self.power * np.abs(cos(kz*c/2))**self.power_z
 
     @scattering_method
     def sin2phi(self, kx, ky, kz):
