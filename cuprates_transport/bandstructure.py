@@ -459,7 +459,7 @@ class BandStructure:
         kx = np.linspace(-self.k_max[0] / self.a, self.k_max[0] / self.a, mesh_graph)
         ky = np.linspace(-self.k_max[1] / self.b, self.k_max[1] / self.b, mesh_graph)
         kxx, kyy = np.meshgrid(kx, ky, indexing = 'ij')
-        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, self.k_max[2]/self.c), 0, colors = '#FF0000', linewidths = 3) # problem for orthorhombic
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, self.k_max[2]/self.c), levels = [0], colors = '#FF0000', linewidths = 3) # problem for orthorhombic
         ## k-points
         line = axes.plot(self.kf[0,:self.number_of_points_per_kz_list[-1]] * self.a,
                          self.kf[1,:self.number_of_points_per_kz_list[-1]] * self.b)
@@ -564,9 +564,9 @@ class BandStructure:
         fig.text(0.76, 0.68, r"$" + f"{a_z:g}" + r"\pi/c$", color="#f3d36b", fontsize=18)  # k_z
         fig.text(0.88, 0.68, (np.round(doping_per_kz[2], 3)), color="#f3d36b", fontsize=18)  # p_z
         fig.text(0.76, 0.54, r"$p_{\rm tot}$ = " + str(np.round(self.doping(), 3)), fontsize = 18)
-        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 0), 0, colors = '#ff0000', linewidths = 3)
-        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, pi/self.c), 0, colors = '#ee9c54', linewidths = 3)
-        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 2*pi/self.c), 0, colors = '#f3d36b', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 0), levels = [0], colors = '#ff0000', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, pi/self.c), levels = [0], colors = '#ee9c54', linewidths = 3)
+        axes.contour(kxx*self.a, kyy*self.b, self.energy_func(kxx, kyy, 2*pi/self.c), levels = [0], colors = '#f3d36b', linewidths = 3)
         axes.set_xlim(-self.k_max[0], self.k_max[0])
         axes.set_ylim(-self.k_max[1], self.k_max[1])
         axes.tick_params(axis='x', which='major', pad=7)
