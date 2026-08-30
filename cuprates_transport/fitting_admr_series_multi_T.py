@@ -15,6 +15,35 @@ from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMR:
+    """Fit ADMR datasets at several temperatures with shared parameters.
+
+    Parameters
+    ----------
+    init_member : dict
+        Complete simulation mapping. ``data_T`` is a temperature sequence.
+        Other top-level values may be dictionaries keyed by temperature; such
+        values are expanded into ``member_dict``.
+    ranges_dict : dict
+        Fit bounds. Temperature-dependent entries map each temperature to a
+        lower/upper pair; shared top-level or band parameters use one pair.
+    data_dict : dict
+        Experimental data mapping indexed by ``(temperature, phi)``. Entries
+        follow ``[filename, theta_column, rzz_column, theta_cut,
+        rhozz_at_zero]``.
+    pipi_FSR : bool, optional
+        Select the historical reconstructed-band path. That optional class is
+        not imported by the current module and therefore requires external
+        project context.
+    folder, method, normalized_data : optional
+        Output directory, lmfit optimizer selection, and residual convention.
+    population, N_generation, mutation_s, crossing_p : number, optional
+        Retained optimizer settings from the original workflow.
+
+    Notes
+    -----
+    This provisional API mutates one member dictionary and one simulation
+    object per temperature during optimization.
+    """
     def __init__(self, init_member, ranges_dict, data_dict, pipi_FSR=False,
                  folder="",
                  method="differential_evolution",
@@ -77,6 +106,13 @@ class FittingADMR:
 
 
     def produce_ADMR_object(self):
+        """Rebuild ADMR simulation objects for every fitted temperature.
+
+        Shared band parameters are applied to all temperatures. Requested
+        fixed doping is enforced before surface discretization. Results are
+        stored in ``condObject_dict`` and ``admrObject_dict`` keyed by
+        temperature.
+        """
         ## Update bandObject
         for param_name in self.ranges_dict.keys():
                 if hasattr(self.bandObject, param_name):
@@ -100,6 +136,11 @@ class FittingADMR:
 
 
     def load_Bphi_data(self):
+        """Collect selected azimuthal angles for each temperature.
+
+        Populates ``Bphi_dict[T]`` with sorted floating-point arrays drawn from
+        ``data_dict`` and filtered by the configured angle list.
+        """
         ## Loop over all temperatures
         for T in self.data_T_list:
             ## Create array of phi at the selected temperature
@@ -112,6 +153,11 @@ class FittingADMR:
 
 
     def load_Btheta_data(self):
+        """Construct common polar-angle grids for all temperatures.
+
+        Each grid begins with the configured range and is truncated to the
+        smallest data cutoff across the azimuths available at that temperature.
+        """
         ## Loop over all temperatures
         for T in self.data_T_list:
             ## Create Initial Btheta
@@ -130,8 +176,12 @@ class FittingADMR:
 
 
     def load_and_interp_data(self):
-        """
-        data_dict[data_T,phi] = [filename, col_theta, col_rzz, theta_cut, rhozz_0]
+        """Load and interpolate normalized and absolute ADMR datasets.
+
+        For every temperature and azimuth, sorts the source data by polar
+        angle, normalizes at zero degrees, interpolates onto the simulation
+        grid, and stores matrices in ``rzz_data_i_dict`` and
+        ``rhozz_data_i_dict``.
         """
         ## Create Btheta array
         self.load_Btheta_data()
@@ -174,7 +224,12 @@ class FittingADMR:
 
 
     def compute_diff(self, pars):
-        """Compute diff = sim - data matrix"""
+        """Return one flattened residual vector across all temperatures.
+
+        ``pars`` is an ``lmfit.Parameters`` object. This method updates shared
+        and temperature-dependent values, rebuilds all simulations, runs ADMR,
+        prints progress, and concatenates normalized or absolute residuals.
+        """
 
         self.pars = pars
 
@@ -235,6 +290,12 @@ class FittingADMR:
 
 
     def runFit(self, filename=None):
+        """Optimize all configured datasets and write final reports.
+
+        ``filename`` is the optional output stem. The method runs the selected
+        lmfit algorithm, prints its report, propagates optimized values into
+        ``member_dict``, writes JSON, and creates comparison figures.
+        """
         ## Initialize parameters
 
         self.nb_calls = 0
@@ -278,11 +339,21 @@ class FittingADMR:
 
 
     def load_member_from_json(self):
+        """Replace ``member_dict`` from ``folder/json_name`` JSON content.
+
+        Set ``json_name`` before calling. Per-temperature simulation objects
+        remain unchanged until they are explicitly rebuilt.
+        """
         with open(self.folder + "/" + self.json_name, "r") as f:
             self.member_dict = json.load(f)
 
 
     def save_member_to_json(self, filename=None):
+        """Write all temperature-specific member dictionaries to JSON.
+
+        ``filename`` is an optional stem without extension. The destination
+        ``folder`` must already exist.
+        """
         self.produce_ADMR_object()
         if filename==None:
             path = self.folder + "/data_" + "p" + "{0:.2f}".format(self.member_dict[self.data_T_list[0]]["data_p"]) + "_T_"
@@ -296,6 +367,12 @@ class FittingADMR:
 
 
     def fig_compare(self, fig_show=True, fig_save=False, figname=None):
+        """Compare experimental and simulated ADMR at every temperature.
+
+        Creates one data/simulation figure plus parameter-summary figures per
+        temperature. Figures may be displayed and/or written to a multipage
+        PDF named from ``figname``.
+        """
 
         ## Load data  ------------------------------------------------------------
         self.load_and_interp_data()

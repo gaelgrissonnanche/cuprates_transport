@@ -8,6 +8,37 @@ from matplotlib.backends.backend_pdf import PdfPages
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#
 
 class ADMR:
+    """Angle-dependent magnetoresistance driver for one or more bands.
+
+    Parameters
+    ----------
+    condObject_list : sequence of Conductivity
+        One transport object per independent band. Conductivities are summed
+        before tensor inversion at every field orientation.
+    Btheta_min, Btheta_max, Btheta_step : float, optional
+        Inclusive polar-angle range and step in degrees.
+    Btheta_norm : float, optional
+        Polar angle in degrees used to normalize each ``rho_zz`` curve.
+    Bphi_array : sequence of float, optional
+        Azimuthal field angles in degrees.
+    show_progress : bool, optional
+        Display a ``tqdm`` progress bar over azimuthal angles.
+    **kwargs
+        Ignored compatibility parameters, allowing construction from a shared
+        calculation dictionary.
+
+    Attributes
+    ----------
+    rhozz_array : ndarray, shape (N_phi, N_theta)
+        Absolute out-of-plane resistivity in ohm metre after :meth:`runADMR`.
+    rzz_array : ndarray, shape (N_phi, N_theta)
+        Curves normalized at ``Btheta_norm``.
+
+    Notes
+    -----
+    Calling :meth:`runADMR` mutates the field angles and transport histories of
+    every supplied ``Conductivity`` object.
+    """
     def __init__(self, condObject_list, Btheta_min=0, Btheta_max=110,
                  Btheta_step=5, Btheta_norm=0, Bphi_array=[0, 15, 30, 45],
                  show_progress=True, **kwargs):
@@ -39,6 +70,12 @@ class ADMR:
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runADMR(self):
+        """Calculate ``rho_zz`` across the configured field-angle grid.
+
+        For each ``(phi, theta)``, all band conductivity tensors are evaluated,
+        summed, and inverted. The method stores absolute ``rhozz_array`` in
+        ohm metre and normalized ``rzz_array``; it returns ``None``.
+        """
         self.rhozz_array = np.empty((self.Bphi_array.size,
                                      self.Btheta_array.size), dtype= np.float64)
         if self.show_progress is True:
@@ -66,11 +103,30 @@ class ADMR:
 
     #---------------------------------------------------------------------------
     def update_total_doping(self):
+        """Accumulate electron filling across the configured bands.
+
+        Notes
+        -----
+        This legacy method increments ``total_filling`` and writes the derived
+        hole doping to the historically misspelled attribute
+        ``total_hole_dopin``. Repeated calls therefore accumulate filling. The
+        behavior is documented here but retained for numerical compatibility.
+        """
         for i in range(len(self.condObject_list)):
             self.total_filling += self.condObject_list[i].bandObject.n
         self.total_hole_dopin = 1 - self.total_filling
 
     def file_name_func(self):
+        """Build a descriptive filename stem from calculation parameters.
+
+        Returns
+        -------
+        str
+            Stem containing doping, temperature, field, energy scale,
+            tight-binding values, and band names. A leading ``AF`` marker is
+            included when the first band's parameter dictionary contains
+            ``M``.
+        """
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
         condObject0 = self.condObject_list[0]
@@ -116,6 +172,21 @@ class ADMR:
 
     #---------------------------------------------------------------------------
     def fileADMR(self, folder="", filename=None):
+        """Write calculated ADMR curves and metadata as a text table.
+
+        Parameters
+        ----------
+        folder : str, optional
+            Output directory. It must already exist.
+        filename : str, optional
+            Explicit filename. If omitted, a ``Rzz_*.dat`` name is generated.
+
+        Notes
+        -----
+        Call :meth:`runADMR` first. Columns contain polar angle, one absolute
+        ``rho_zz`` curve per azimuth in ohm metre, field, energy scale, band
+        parameters, and grid resolution.
+        """
         # To point to bandstructure parameters, we use just one band
         # as they should share the same parameters
         condObject0 = self.condObject_list[0]
@@ -183,6 +254,25 @@ class ADMR:
 
 
     def figADMR(self, fig_show=True, fig_save=True, folder="", filename=None):
+        """Plot normalized and absolute ADMR with parameter-summary pages.
+
+        Parameters
+        ----------
+        fig_show : bool, optional
+            Display generated Matplotlib figures.
+        fig_save : bool, optional
+            Save all figures to a multipage PDF.
+        folder : str, optional
+            Existing output directory.
+        filename : str, optional
+            Explicit PDF filename. If omitted, a descriptive ``Rzz_*.pdf``
+            name is generated.
+
+        Notes
+        -----
+        ``rzz_array`` and ``rhozz_array`` must already be populated. This
+        method returns ``None``.
+        """
         #///// RC Parameters //////#
         mpl.rcdefaults()
         mpl.rcParams['font.size'] = 24. # change the size of the font in every figure

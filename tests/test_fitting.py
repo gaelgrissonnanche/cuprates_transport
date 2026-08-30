@@ -6,7 +6,7 @@ from cuprates_transport.fitting_admr_series_oneT import FittingADMR
 class Tests_FittingADMR(unittest.TestCase):
 
     # ONE BAND Horio et al.
-    init_memeber = {
+    init_member = {
         "band_name": "LargePocket",
         "a": 3.74767,
         "b": 3.74767,
@@ -35,6 +35,7 @@ class Tests_FittingADMR(unittest.TestCase):
     data_dict[25, 0] = [prepath % (0, 25), 0, 1, 90, 6.71e-5]
     data_dict[25, 15] = [prepath % (15, 25), 0, 1, 90, 6.71e-5]
 
+    @unittest.skip("requires Nd-LSCO data that are not distributed with the package")
     def test_fit_least_square(self):
         """
         Test a simple and quick fit.

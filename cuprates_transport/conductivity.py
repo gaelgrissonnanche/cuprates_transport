@@ -24,6 +24,48 @@ kB = kB / meV # meV / K
 units_chambers = 2 * e**2 / (2*pi)**3 * picosecond / Angstrom**2
 
 class Conductivity(Scattering):
+    """Evaluate Chambers transport for one discretized band.
+
+    Parameters
+    ----------
+    bandObject : BandStructure
+        Band with a previously discretized constant-energy surface. A deep
+        copy is stored, so subsequent changes to the caller's object do not
+        affect this calculation.
+    Bamp : float
+        Magnetic-field magnitude in tesla.
+    Bphi, Btheta : float, optional
+        Azimuthal and polar field angles in degrees. ``Btheta=0`` is along the
+        positive crystallographic ``z`` axis.
+    N_time : int, optional
+        Number of samples used for the velocity-history integral.
+    rtol, atol : float, optional
+        Relative and absolute tolerances passed to ``scipy.integrate.odeint``.
+    T : float, optional
+        Temperature in kelvin. Zero selects a Fermi-surface-only calculation.
+    dfdE_cut_percent : float, optional
+        Relative cutoff used to truncate the finite-temperature derivative of
+        the Fermi function.
+    N_epsilon : int, optional
+        Number of energy samples at nonzero temperature.
+    **kwargs
+        Must include ``scattering_models`` and ``scattering_params`` accepted
+        by :class:`~cuprates_transport.scattering.Scattering`.
+
+    Attributes
+    ----------
+    sigma : ndarray, shape (3, 3)
+        Electrical-conductivity tensor in ``S m^-1`` after
+        :meth:`runTransport`.
+    alpha, beta : ndarray, shape (3, 3)
+        Finite-temperature thermoelectric transport moments in the package's
+        historical charge convention.
+
+    Notes
+    -----
+    Cartesian indices are ``x=0``, ``y=1``, and ``z=2``. Lifetimes and time
+    arrays use ps; velocities use m/s; internal momenta use inverse angstrom.
+    """
     def __init__(self, bandObject, Bamp, Bphi=0, Btheta=0,
                  N_time=500, rtol = 1e-4, atol = 1e-4,
                  T=0, dfdE_cut_percent=0.001, N_epsilon=20,
@@ -149,6 +191,19 @@ class Conductivity(Scattering):
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
     def runTransport(self):
+        """Run orbit propagation and assemble transport tensors.
+
+        At zero temperature the calculation uses the existing Fermi surface.
+        At finite temperature it rebuilds constant-energy surfaces on
+        ``epsilon_array``, evaluates their orbit histories, integrates against
+        ``-df/dE``, and finally restores ``bandObject`` to the Fermi surface.
+
+        Notes
+        -----
+        This method mutates ``sigma``, ``alpha``, ``beta``, orbit-history
+        arrays, lifetime arrays, and the extrema ``gamma_tot_min`` and
+        ``gamma_tot_max``. It returns ``None``.
+        """
         self.reset_time() # calculates the upper cut of for the movement equation
         self.phi = None # reset the phi angle
         if self._T != 0:
@@ -181,6 +236,11 @@ class Conductivity(Scattering):
         self.gamma_tot_min = 1 / self.tau_total_max() # in THz
 
     def reset_time(self):
+        """Rebuild the time grid from the longest Fermi-surface lifetime.
+
+        The upper limit is ``8 * tau_total_max()`` ps. ``time_array`` and the
+        integration increments ``dtime_array`` contain ``N_time`` samples.
+        """
         # Time parameters
         self.time_max = 8 * self.tau_total_max()  # in picoseconds
         self.dtime = self.time_max / self.N_time
@@ -188,12 +248,23 @@ class Conductivity(Scattering):
         self.dtime_array = np.append(0, self.dtime * np.ones_like(self.time_array))[:-1] # integrand for tau_function
 
     def B_func(self):
+        """Return the Cartesian magnetic-field vector in tesla.
+
+        Spherical angles are interpreted in degrees as
+        ``(sin(theta)cos(phi), sin(theta)sin(phi), cos(theta))``.
+        """
         B = self._Bamp * np.array([sin(self._Btheta*pi/180) * cos(self._Bphi*pi/180),
                                    sin(self._Btheta*pi/180) * sin(self._Bphi*pi/180),
                                    cos(self._Btheta*pi/180)])
         return B
 
     def crossProductVectorized(self, vx, vy, vz):
+        """Evaluate the vectorized velocity cross product with ``-B``.
+
+        The reversed field lets a positive numerical time represent the past
+        trajectory required by the conventional Chambers integral. Inputs are
+        matching velocity arrays; the result has shape ``(3, ...)``.
+        """
         # (- B) represents -t in vj(-t, k) in the Chambers formula
         # if integrated from 0 to +infinity, instead of -infinity to 0
         product_x = vy[:] * -self._B_vector[2] - vz[:] * -self._B_vector[1]
@@ -202,6 +273,12 @@ class Conductivity(Scattering):
         return np.vstack((product_x, product_y, product_z))
 
     def solve_movement(self):
+        """Propagate every initial surface point through the Lorentz orbit.
+
+        For nonzero field, ``odeint`` solves all flattened trajectories at
+        once and populates ``kft`` and ``vft`` with shapes ``(3, N_k, N_time)``.
+        At zero field, both arrays contain a single time slice.
+        """
         len_t = self.time_array.shape[0]
         len_kf = self.bandObject.kf.shape[1]
         ## Magnetic Field ON
@@ -230,6 +307,20 @@ class Conductivity(Scattering):
             self.vft[0, :, 0], self.vft[1, :, 0], self.vft[2, :, 0] = vf0, vf1, vf2
 
     def movement_equation(self, k, t):
+        """Return flattened ``dk/dt`` for the simultaneous orbit ODE.
+
+        Parameters
+        ----------
+        k : ndarray, shape (3*N_k,)
+            Flattened momenta in inverse angstrom.
+        t : float
+            Time in ps. The equation is autonomous; the value is unused.
+
+        Returns
+        -------
+        ndarray, shape (3*N_k,)
+            Momentum derivatives in inverse angstrom per ps.
+        """
         len_k = int(k.shape[0]/3)
         k.shape = (3, len_k) # reshape the flatten k
         vx, vy, vz =  self.bandObject.velocity_func(k[0,:], k[1,:], k[2,:])
@@ -241,8 +332,13 @@ class Conductivity(Scattering):
     ## Chambers formula's parts -------------------------------------------------#
 
     def velocity_product(self, kft, vft, t_o_tau):
-        """ Index i and j represent x, y, z = 0, 1, 2
-            for example, if i = 0: vif = vxf """
+        """Form the initial-velocity and survival-weighted history product.
+
+        Parameters are orbit momenta, velocities, and the integrated
+        scattering exponent. The returned array has shape ``(3, 3, N_k)`` and
+        contains ``v_i(0) * integral[v_j(t) exp(-t/tau) dt]``. At zero field,
+        the analytic constant-trajectory limit is used.
+        """
         if self.Bamp != 0:
             vi = vft[:, :, 0] # (3, len_kf)
             vj = np.sum(vft[:, :, :] * exp(-t_o_tau) * self.dtime, axis=2) # (3, len_kf)
@@ -253,11 +349,23 @@ class Conductivity(Scattering):
         return self.v_product
 
     def sigma_epsilon(self, dos_k, dkf, kft, vft, t_o_tau):
+        """Evaluate the conductivity tensor at one energy.
+
+        ``dos_k`` and ``dkf`` are local DOS and surface-integration weights;
+        the remaining arguments describe the orbit history. Returns a
+        ``(3, 3)`` tensor in ``S m^-1``.
+        """
         sigma_epsilon = (units_chambers / self.bandObject.number_of_bz *
          np.sum(dkf * dos_k * self.velocity_product(kft, vft, t_o_tau), axis=2))
         return sigma_epsilon
 
     def integrand_coeff(self, epsilon, coeff_name):
+        """Return the finite-temperature moment multiplying conductivity.
+
+        ``coeff_name`` may be ``'sigma'``, ``'alpha'``, or ``'beta'``.
+        ``epsilon`` is in meV. Invalid names print a warning and return
+        ``None`` for historical compatibility.
+        """
         if coeff_name == "sigma":
             return 1
         elif coeff_name == "alpha":
@@ -268,8 +376,14 @@ class Conductivity(Scattering):
             print("!Warming! You have not enter a correct coefficient name")
 
     def chambers_func(self):
-        """ Index i and j represent x, y, z = 0, 1, 2
-            for example, if i = 0 and j = 1 : sigma[i,j] = sigma_xy """
+        """Assemble electrical and thermal transport moments.
+
+        At ``T=0``, evaluates the surface tensor once. At finite temperature,
+        integrates energy-resolved tensors against the derivative of the Fermi
+        function and the relevant charge/energy moments. Results are stored in
+        ``sigma``, ``alpha``, and ``beta``; Cartesian tensor indices map to
+        ``x=0``, ``y=1``, and ``z=2``.
+        """
         if self._T == 0:
             coeff_tot = self.sigma_epsilon(self.bandObject.dos_k,
                                                   self.bandObject.dkf,
@@ -299,18 +413,42 @@ class Conductivity(Scattering):
             self.beta  = beta_tot
 
     def dfdE(self, epsilon):
+        """Return the derivative of the Fermi function with respect to energy.
+
+        ``epsilon`` is in meV and the finite-temperature result has units of
+        ``meV^-1``. At ``T=0`` the method returns the historical sentinel value
+        ``1``; the zero-temperature path does not perform an energy integral.
+        """
         if self._T == 0:
             return 1
         """Returns in fact dfdE * t in order to get epsilon unitless"""
         return -1 / (4 * kB * self._T) / (cosh(epsilon / (2*kB * self._T)))**2
 
     def energyCutOff(self, dfdE_cut):
+        """Return the symmetric energy cutoff associated with ``|df/dE|``.
+
+        Parameters
+        ----------
+        dfdE_cut : float
+            Absolute derivative threshold in ``meV^-1``.
+
+        Returns
+        -------
+        float
+            Positive cutoff energy in meV, or zero at zero temperature.
+        """
         if self._T != 0:
             return 2*kB*self._T * arccosh(1/sqrt(dfdE_cut * 4*kB*self._T))
         else:
             return 0
 
     def omegac_tau_func(self):
+        """Estimate the local dimensionless cyclotron parameter ``omega_c*tau``.
+
+        The result is stored as ``omegac_tau_k`` on the discretized surface.
+        The current implementation assumes the perpendicular plane is ``xy``
+        and requires nonzero ``Bamp`` plus marching-squares line elements.
+        """
         dks = self.bandObject.dks / Angstrom # in m^-1
         kf = self.bandObject.kf
         vf = self.bandObject.vf # in m / s
@@ -329,6 +467,13 @@ class Conductivity(Scattering):
 
     ## Bring up the total scattering time \tau ----------------------------------#
     def t_o_tau_func(self, epsilon = 0):
+        """Evaluate lifetimes and their accumulated orbit exponent.
+
+        At nonzero field, stores ``tau_tot`` and
+        ``t_o_tau = cumulative_sum(dt/tau)`` with shape ``(N_k, N_time)``. At
+        zero field, ``t_o_tau`` stores the local rate ``1/tau`` used by the
+        analytic velocity-product limit. ``epsilon`` is in meV.
+        """
         ## Integral from 0 to t of dt' / tau( k(t') ) or dt' * gamma( k(t') )
         ## Magnetic Field ON
         if self.Bamp !=0:
@@ -352,6 +497,11 @@ class Conductivity(Scattering):
             self.t_o_tau = 1 / self.tau_tot
 
     def tau_total_max(self):
+        """Return the longest Fermi-surface lifetime in ps.
+
+        Lifetimes are recomputed from the current surface velocities and
+        selected scattering models; no cached ``tau_tot`` array is required.
+        """
         # Compute the tau_max (the longest time between two collisions)
         # to better integrate from 0 --> 8 * 1 / gamma_min (instead of infinity)
         kf = self.bandObject.kf
@@ -359,6 +509,11 @@ class Conductivity(Scattering):
         return np.max(self.tau_tot_func(kf[0, :], kf[1, :], kf[2, :],
                                           vf[0, :], vf[1, :], vf[2, :]))
     def tau_total_min(self):
+        """Return the shortest Fermi-surface lifetime in ps.
+
+        Lifetimes are recomputed from the current surface velocities and
+        selected scattering models; no cached ``tau_tot`` array is required.
+        """
         kf = self.bandObject.kf
         vf = self.bandObject.vf
         return np.min(self.tau_tot_func(kf[0, :], kf[1, :], kf[2, :],
@@ -389,6 +544,21 @@ class Conductivity(Scattering):
 
 
     def figScatteringColor(self, kz=0, gamma_min=None, gamma_max=None, mesh_xy=501):
+        """Plot total scattering rate along a two-dimensional Fermi contour.
+
+        Parameters
+        ----------
+        kz : float, optional
+            Slice momentum in inverse angstrom.
+        gamma_min, gamma_max : float, optional
+            Color limits in ``ps^-1``. If omitted, limits are inferred.
+        mesh_xy : int, optional
+            Resolution of the contour-finding grid.
+
+        Notes
+        -----
+        Displays a Matplotlib figure and returns ``None``.
+        """
         bObj = self.bandObject
         fig, axes = plt.subplots(1, 1, figsize=(6.5, 5.6))
         fig.subplots_adjust(left=0.10, right=0.85, bottom=0.20, top=0.9)
@@ -449,6 +619,12 @@ class Conductivity(Scattering):
 
 
     def figScatteringPhi(self, kz=0, mesh_xy=501):
+        """Plot scattering rate and out-of-plane velocity versus azimuth.
+
+        ``kz`` is in inverse angstrom and ``mesh_xy`` controls contour
+        resolution. The scattering-rate axis is in ``ps^-1``; the secondary
+        velocity axis uses m/s. The figure is displayed and not returned.
+        """
         bObj = self.bandObject
         fig, axes = plt.subplots(1, 1, figsize=(6.5, 4.6))
         fig.subplots_adjust(left=0.20, right=0.8, bottom=0.20, top=0.9)
@@ -506,6 +682,15 @@ class Conductivity(Scattering):
 
 
     def figOnekft(self, index_kf = 0, meshXY = 1001):
+        """Plot one momentum trajectory over the Fermi-surface contour.
+
+        Parameters
+        ----------
+        index_kf : int, optional
+            Initial Fermi-surface point index.
+        meshXY : int, optional
+            Resolution of the background energy contour.
+        """
         mesh_graph = meshXY
         bObj = self.bandObject
         kx = np.linspace(-pi / bObj.a, pi / bObj.a, mesh_graph)
@@ -536,6 +721,11 @@ class Conductivity(Scattering):
 
 
     def figOnevft(self, index_kf = 0):
+        """Plot ``v_z(t)`` for one orbit starting point.
+
+        ``index_kf`` selects the Fermi-surface point. Call
+        :meth:`runTransport` first so that ``time_array`` and ``vft`` exist.
+        """
         fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
         fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
         axes.axhline(y = 0, ls ="--", c ="k", linewidth = 0.6)
@@ -549,6 +739,11 @@ class Conductivity(Scattering):
         plt.show()
 
     def figCumulativevft(self, index_kf = -1):
+        """Plot the cumulative survival-weighted ``v_z`` history.
+
+        ``index_kf`` selects the Fermi-surface trajectory. The displayed sum
+        is diagnostic and omits multiplicative transport prefactors.
+        """
         fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
         fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
         line = axes.plot(self.time_array, np.cumsum(self.vft[2, index_kf, :] * exp(-self.t_o_tau[index_kf, :])))
@@ -562,6 +757,11 @@ class Conductivity(Scattering):
 
 
     def figdfdE(self):
+        """Plot ``-df/dE`` and the configured finite-temperature cutoffs.
+
+        Requires nonzero temperature and an initialized ``epsilon_array``.
+        Energies are shown in meV.
+        """
         fig, axes = plt.subplots(1, 1, figsize = (9.2, 5.6))
         fig.subplots_adjust(left = 0.17, right = 0.81, bottom = 0.18, top = 0.95)
         axes.axhline(y=0, ls="--", c="k", linewidth=0.6)
@@ -586,8 +786,16 @@ class Conductivity(Scattering):
         plt.show()
 
     def figParameters(self, fig_show=True):
-        """
-        Figure that regroups the parameters of the computation
+        """Create a summary figure for band and scattering parameters.
+
+        The figure contains a parameter table, representative Fermi-surface
+        contours, and the ``kz=0`` scattering-rate distribution. If
+        ``fig_show`` is false, the figure is closed before being returned.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            Figure suitable for saving or inclusion in a fit report.
         """
         ## Dictionary of labels + parameters
         labels_dict = {}

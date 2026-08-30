@@ -17,6 +17,33 @@ from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMRParallel:
+    """Objective for parallel single-temperature differential evolution.
+
+    Parameters
+    ----------
+    init_member : dict
+        Complete simulation and data metadata.
+    bounds_dict : dict
+        Mapping from free parameter names to ``(lower, upper)`` bounds. Names
+        may address top-level member values or entries in ``band_params``.
+    data_dict : dict
+        Mapping ``(temperature, phi)`` to ``[filename, theta_column,
+        rzz_column, theta_cut, rhozz_at_zero]``.
+    pipi_FSR : bool, optional
+        Retained compatibility switch; the current implementation constructs a
+        standard ``BandStructure``.
+    folder : str, optional
+        Directory used for JSON and PDF outputs.
+    normalized_data : bool, optional
+        Minimize normalized ADMR when true, absolute resistivity otherwise.
+    popsize : int, optional
+        Differential-evolution population multiplier used for progress counts.
+
+    Notes
+    -----
+    Band compilation is forced to ``parallel=False`` because process-level
+    parallelism is provided by :func:`fit_admr_parallel`.
+    """
     def __init__(self, init_member, bounds_dict, data_dict, pipi_FSR=False,
                  folder=".",
                  normalized_data=True, popsize=15,
@@ -71,7 +98,12 @@ class FittingADMRParallel:
 
 
     def generate_admr(self):
-        """Takes care of creating the ADMR object with the member values"""
+        """Rebuild the band, conductivity, and ADMR objects from ``member``.
+
+        Applies fitted parameters, optionally solves chemical potential for
+        fixed doping, discretizes the band, and configures the simulation with
+        the experimental angle arrays.
+        """
         ## Update bandObject
         for param_name in self.bounds_dict.keys():
                 if hasattr(self.bandObject, param_name):
@@ -93,7 +125,11 @@ class FittingADMRParallel:
 
 
     def load_Bphi_data(self):
-        """Create array of phi angles at the selected temperature"""
+        """Store sorted selected azimuths available at ``member['data_T']``.
+
+        Angles must occur in both ``data_dict`` and ``member['Bphi_array']``.
+        They are converted to floats to remain JSON serializable.
+        """
         Bphi_array = []
         for t, phi in self.data_dict.keys():
             if (self.member["data_T"] == t) * np.isin(phi, np.array(self.member["Bphi_array"])):
@@ -103,7 +139,11 @@ class FittingADMRParallel:
 
 
     def load_Btheta_data(self):
-        """Creates the theta angles at the selected temperatures and phi"""
+        """Build and truncate the common polar-angle simulation grid.
+
+        The configured grid is cut at the smallest experimental ``theta_cut``
+        among the selected azimuths.
+        """
         Btheta_array = np.arange(self.member["Btheta_min"],
                                  self.member["Btheta_max"] + self.member["Btheta_step"],
                                  self.member["Btheta_step"])
@@ -119,8 +159,11 @@ class FittingADMRParallel:
 
 
     def load_and_interp_data(self):
-        """
-        data_dict[data_T,phi] = [filename, col_theta, col_rzz, theta_cut, rhozz_0]
+        """Load, normalize, and interpolate the experimental curves.
+
+        Populates ``rzz_data_matrix`` and ``rhozz_data_matrix`` on the common
+        polar-angle grid. Absolute resistivity is reconstructed using the
+        per-curve ``rhozz_at_zero`` metadata.
         """
         ## Create Btheta array
         self.load_Btheta_data()
@@ -151,7 +194,13 @@ class FittingADMRParallel:
 
 
     def compute_diff2(self, x, verbose=False):
-        """Compute diff = sim - data matrix"""
+        """Return the scalar sum of squared residuals for parameter vector ``x``.
+
+        Parameters follow the sorted order ``free_pars_name``. A full ADMR
+        simulation is created for every call. When ``verbose`` is true, the
+        multiprocessing-safe evaluation counter and estimated generation are
+        printed.
+        """
         ## Creates the dictionnary of variables with updated values
         for i, pars_name in enumerate(self.free_pars_name):
             self.pars[pars_name] = x[i]
@@ -193,14 +242,29 @@ class FittingADMRParallel:
         return np.sum(diff_matrix.flatten()**2)
 
     def compute_diff(self, x):
+        """Verbose wrapper around :meth:`compute_diff2` for optimizer use.
+
+        Returns the same scalar sum of squared residuals while updating and
+        printing the shared multiprocessing evaluation counter.
+        """
         return self.compute_diff2(x, verbose=True)
 
     def load_member_from_json(self):
+        """Replace ``member`` with JSON loaded from ``folder/json_name``.
+
+        Set ``json_name`` before calling. Simulation objects are not rebuilt
+        automatically after the mapping is replaced.
+        """
         with open(self.folder + "/" + self.json_name, "r") as f:
             self.member = json.load(f)
 
 
     def save_member_to_json(self, filename=None):
+        """Write the current fitted member dictionary as JSON.
+
+        ``filename`` is an optional stem. If absent, a descriptive name is
+        generated after rebuilding the current ADMR object.
+        """
         self.generate_admr()
         if filename==None:
             filename = "data_" + \
@@ -212,6 +276,12 @@ class FittingADMRParallel:
 
 
     def fig_compare(self, fig_show=True, fig_save=False, figname=None):
+        """Plot experimental data against the current simulated ADMR.
+
+        Solid curves represent data and dashed curves represent simulations.
+        The method may display figures and/or save a multipage PDF containing
+        parameter summaries.
+        """
         ## Load non-interpolated data ------------------------------------------
         Btheta_cut = np.max(self.Btheta_array)
         for i, phi in enumerate(self.Bphi_array):
@@ -338,7 +408,11 @@ global shared_num_member
 shared_num_member = None
 
 def init(num_member):
-    """store the counter for later use """
+    """Install a shared multiprocessing evaluation counter in each worker.
+
+    The supplied ``multiprocessing.Value`` is stored in module globals so
+    objective evaluations can update it under its process-safe lock.
+    """
     # global shared_num_member
     globals()['shared_num_member'] = num_member
 
@@ -346,6 +420,28 @@ def fit_admr_parallel(init_member, bounds_dict, data_dict,
                     normalized_data=True, filename=None,
                     popsize=15, mutation=(0.5, 1), recombination=0.7,
                     percent_workers=100, num_cpu=None):
+    """Fit one-temperature ADMR using process-parallel differential evolution.
+
+    Parameters
+    ----------
+    init_member, bounds_dict, data_dict : dict
+        Inputs accepted by :class:`FittingADMRParallel`.
+    normalized_data : bool, optional
+        Select normalized or absolute residuals.
+    filename : str, optional
+        Stem for final JSON and PDF output.
+    popsize, mutation, recombination : optional
+        Parameters passed to :func:`scipy.optimize.differential_evolution`.
+    percent_workers : float, optional
+        Percentage of available physical cores to use.
+    num_cpu : int, optional
+        Override the detected number of physical cores.
+
+    Returns
+    -------
+    dict
+        Best-fit member mapping after output files have been written.
+    """
     ## Create fitting object for parallel calculations
     fit_object = FittingADMRParallel(init_member=init_member,
                 bounds_dict=bounds_dict, data_dict=data_dict, popsize=popsize,

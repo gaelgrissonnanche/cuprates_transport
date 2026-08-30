@@ -16,11 +16,36 @@ kB = kB / meV # meV / K
 
 ## Decorator
 def scattering_method(func):
-    """Decorator to mark a method as a scattering function."""
+    """Mark a method as a selectable scattering-rate model.
+
+    The decorator leaves the callable unchanged except for attaching the
+    boolean attribute ``is_scattering_method``.
+    """
     func.is_scattering_method = True
     return func
 
 class Scattering:
+    """Composable quasiparticle scattering-rate model.
+
+    Parameters
+    ----------
+    scattering_models : sequence of str
+        Method names evaluated and added as rates according to Matthiessen's
+        rule. Built-in choices include ``isotropic``, ``cos2phi``,
+        ``cos2phi_coskz``, ``sin2phi``, ``gamma_dos_func``, ``polynomial``, and
+        ``gamma_skew_marginal_fl``.
+    scattering_params : dict
+        Parameters required by the selected models. Each item is also exposed
+        as an instance attribute.
+    **kwargs
+        Accepted for cooperative construction from larger parameter mappings.
+
+    Notes
+    -----
+    Scattering rates are expressed in ``ps^-1`` (numerically THz) and lifetimes
+    in ps. ``Conductivity`` subclasses this class and supplies ``bandObject``
+    and ``T``, which are needed by some models.
+    """
     def __init__(self, scattering_models, scattering_params, **kwargs):
 
         self.scattering_models = scattering_models
@@ -91,8 +116,12 @@ class Scattering:
 
     ## Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
     def phi_func(self, kx, ky, kz):
-        """
-        To calcute the phi angle between the field and the a-axis
+        """Return the in-plane momentum angle inside the first Brillouin zone.
+
+        ``kx`` and ``ky`` are wrapped into their first-zone intervals before
+        evaluating ``arctan2(ky, kx)``. ``kz`` is accepted for the common model
+        signature but is not used. The result, in radians, is cached as
+        ``phi``.
         """
         ## Make sure kx and ky are in the FBZ to compute Phi.
         # if self.phi is None: # avoid rerunning it if it has been before
@@ -105,31 +134,30 @@ class Scattering:
     ## Scatterint rate models ---------------------------------------------------#
     @scattering_method
     def isotropic(self, kx, ky, kz):
-        """
-        Scattering rate function
-        gamma = gamma_0 for all k states:
-        - gamma_0 [ps^-1]
+        """Return the constant rate ``gamma_0`` in ``ps^-1``.
+
+        The output has the shape of ``kx``; ``ky`` and ``kz`` are accepted for
+        interface consistency.
         """
         return self.gamma_0 * np.ones_like(kx)
 
     @scattering_method
     def cos2phi(self, kx, ky, kz):
-        """
-        Scattering rate function
-        gamma = gamma_k * |cos(2*phi)|^power:
-        - gamma_k [ps^-1]
-        - power [unitless]
+        """Return ``gamma_k * |cos(2*phi)|**power`` in ``ps^-1``.
+
+        ``gamma_k`` is the antinodal amplitude and ``power`` controls angular
+        sharpness. ``phi`` is computed after wrapping momenta into the first
+        Brillouin zone.
         """
         phi = self.phi_func(kx, ky, kz)
         return self.gamma_k * np.abs(cos(2*phi))**self.power
 
     @scattering_method
     def cos2phi_coskz(self, kx, ky, kz):
-        """
-        Scattering rate function
-        gamma = gamma_k * |cos(2*phi)|^power:
-        - gamma_k [ps^-1]
-        - power [unitless]
+        """Return a ``cos(2*phi)`` rate modulated along ``kz``.
+
+        The model is ``gamma_k * |cos(2*phi)|**power *
+        |cos(kz*c/2)|**power_z`` in ``ps^-1``.
         """
         a, b, c = self.bandObject.a, self.bandObject.b, self.bandObject.c
         phi = self.phi_func(kx, ky, kz)
@@ -137,22 +165,22 @@ class Scattering:
 
     @scattering_method
     def sin2phi(self, kx, ky, kz):
-        """
-        Scattering rate function
-        gamma = gamma_k_sin * |sin(2*phi)|^power_sin:
-        - gamma_k_sin [ps^-1]
-        - power_sin [unitless]
+        """Return ``gamma_k_sin * |sin(2*phi)|**power_sin`` in ``ps^-1``.
+
+        The required amplitude and power are read from ``scattering_params``;
+        momenta are wrapped before evaluating the in-plane angle.
         """
         phi = self.phi_func(kx, ky, kz)
         return self.gamma_k_sin * np.abs(sin(2*phi))**self.power_sin
 
     @scattering_method
     def gamma_dos_func(self, vx, vy, vz):
-        """
-        Scattering rate function
-        gamma = gamma_dos_max * ( dos_k / dos_k_max):
-        - gamma_dos_max [ps^-1]
-        Reminder: (v_F_max / v_F) = ( dos_k / dos_k_max)
+        """Return a rate proportional to the local Fermi-surface DOS.
+
+        The model is ``gamma_dos_max * dos_k / max(dos_k)`` in ``ps^-1``.
+        Velocity arguments are accepted so :meth:`tau_tot_func` recognizes
+        this as a velocity-based model, but the cached ``bandObject.dos_k`` is
+        used directly.
         """
         dos_max = np.max(self.bandObject.dos_k)
         # value to normalize the DOS to a quantity without units
@@ -160,12 +188,31 @@ class Scattering:
 
     @scattering_method
     def polynomial(self, kx, ky, kz):
+        """Return an absolute fifth-order polynomial in in-plane angle.
+
+        The implemented rate is ``|a1*phi + a2*phi**2 + ... + a5*phi**5|`` in
+        ``ps^-1``. Coefficients must be provided through ``scattering_params``.
+        """
         phi = self.phi_func(kx, ky, kz)
         return np.abs(self.a1 * phi + self.a2 * phi**2 + self.a3 * phi**3 +
                       self.a4 * phi**4 + self.a5 * phi**5)
 
     @scattering_method
     def gamma_skew_marginal_fl(self, epsilon):
+        """Return the skewed marginal-Fermi-liquid rate.
+
+        Parameters
+        ----------
+        epsilon : array_like
+            Energy relative to the chemical potential in meV.
+
+        Returns
+        -------
+        ndarray or scalar
+            Rate in ``ps^-1`` combining asymmetric linear-energy terms and a
+            temperature term controlled by ``a_epsilon``, ``a_abs_epsilon``,
+            and ``a_T``.
+        """
         return np.sqrt((self.a_epsilon * epsilon +
                         self.a_abs_epsilon * np.abs(epsilon))**2 +
                         (self.a_T * kB * meV / hbar * 1e-12 * self.T)**2)
@@ -237,8 +284,29 @@ class Scattering:
 
     # Calculates the total scattering rate using Matthiessen's rule -------------#
     def tau_tot_func(self, kx, ky, kz, vx, vy, vz, epsilon = 0):
-        """Computes the total lifetime based on the input model
-        for the scattering rate"""
+        """Evaluate the total lifetime using Matthiessen's rule.
+
+        Parameters
+        ----------
+        kx, ky, kz : array_like
+            Momenta in inverse angstrom.
+        vx, vy, vz : array_like
+            Group velocities in m/s. They are used only by models whose method
+            signature requests velocities.
+        epsilon : float or array_like, optional
+            Energy in meV for energy-dependent models.
+
+        Returns
+        -------
+        ndarray
+            Total lifetime in ps, with the broadcast shape of the selected
+            model outputs.
+
+        Notes
+        -----
+        The summed rate is stored in ``gamma_tot`` in ``ps^-1``. Model dispatch
+        is based on the selected method's argument names.
+        """
         self.gamma_tot = np.zeros_like(kx)
         # Execute each method in scattering_params
         for model in self.scattering_models:

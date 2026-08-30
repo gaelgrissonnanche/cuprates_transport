@@ -18,6 +18,16 @@ from cuprates_transport.conductivity import Conductivity
 
 ## -------------------------------------------------------------------------------
 class FitAnglesADMR:
+    """Derive a common ADMR angle grid for one temperature.
+
+    Parameters
+    ----------
+    T : number
+        Temperature key used in ``data_dict``.
+    data_dict : dict
+        Mapping ``(T, phi)`` to data metadata. Angle bounds, spacing, and the
+        normalization angle are read from positions 3 through 6.
+    """
     def __init__(self, T, data_dict):
         self.T = T
         self.data_dict = data_dict
@@ -26,7 +36,14 @@ class FitAnglesADMR:
         self.Btheta_norm = 0 # theta used for rzz = rhozz / rhozz(theta)
 
     def create_angles(self):
-        """Creates the theta angles at the selected temperatures and phi"""
+        """Create and store azimuthal and common polar-angle arrays.
+
+        Returns
+        -------
+        Bphi_array, Btheta_array : ndarray
+            Azimuths found at ``T`` and a uniform polar grid spanning the union
+            of their declared ranges at the finest declared spacing.
+        """
         ## Create Bphi
         self.Bphi_array = np.array([key[1] for key in self.data_dict.keys() if key[0] == self.T])
         ## Create Btheta_array
@@ -49,6 +66,12 @@ class FitAnglesADMR:
 
 ## -------------------------------------------------------------------------------
 class DataADMR:
+    """Load experimental ADMR matrices for one temperature.
+
+    ``Bphi_array`` and ``Btheta_array`` define the target interpolation grid.
+    ``data_dict`` entries are ``[filename, theta_column, rhozz_column,
+    theta_min, theta_max, theta_step, theta_norm, rhozz_scale]``.
+    """
     def __init__(self, T, data_dict, Bphi_array, Btheta_array):
         self.data_dict = data_dict
         self.T = T
@@ -58,8 +81,11 @@ class DataADMR:
         self.Btheta_array = Btheta_array
 
     def load_data(self, Btheta_norm=0):
-        """
-        data_dict[data_T, phi] = [filename, col_theta, col_rhozz, theta_min, theta_max, theta_steps]
+        """Load, sort, interpolate, normalize, and store ADMR data.
+
+        ``Btheta_norm`` is the polar angle used for normalized resistivity.
+        Populates ``rhozz_data_matrix`` in the units implied by each stored
+        scale factor and dimensionless ``rzz_data_matrix``.
         """
         ## Interpolate data over theta of simulation
         self.rzz_data_matrix = np.zeros((len(self.Bphi_array), len(self.Btheta_array)))
@@ -88,6 +114,21 @@ class DataADMR:
 
 ## -------------------------------------------------------------------------------
 class SimADMR:
+    """Multiband ADMR simulation wrapper for one temperature.
+
+    Parameters
+    ----------
+    params_dict : dict
+        Mapping from band label to complete ``BandStructure`` and
+        ``Conductivity`` keyword dictionaries.
+    Bphi_array, Btheta_array : array_like
+        Magnetic-field angle grids in degrees.
+
+    Notes
+    -----
+    One conductivity object is constructed per band with Numba thread
+    parallelism disabled for compatibility with process-level fitting.
+    """
     def __init__(self, params_dict, Bphi_array, Btheta_array):
         self._params_dict = deepcopy(params_dict)
         self.bands_list = [key for key in self.params_dict.keys()]
@@ -115,6 +156,11 @@ class SimADMR:
     params_dict = property(_get_params_dict, _set_params_dict)
 
     def update_params(self):
+        """Copy current band and scattering dictionaries into simulations.
+
+        Updating the band parameter property invalidates each cached surface;
+        :meth:`compute_rhozz` rebuilds those surfaces before transport.
+        """
         for i, band in enumerate(self.bands_list):
             band_params = self.params_dict[band]["band_params"]
             scattering_params = self.params_dict[band]["scattering_params"]
@@ -122,7 +168,18 @@ class SimADMR:
             self.admrObject.condObject_list[i].scattering_params = scattering_params
 
     def compute_rhozz(self, Btheta_norm=0):
-        """Calculate the simulated rhozz from ADMR object"""
+        """Run the multiband ADMR calculation on the configured angle grid.
+
+        Parameters
+        ----------
+        Btheta_norm : float, optional
+            Polar normalization angle in degrees.
+
+        Notes
+        -----
+        Rebuilds every band surface and stores absolute ``rhozz_sim_matrix``
+        and normalized ``rzz_sim_matrix``.
+        """
         for i in range(len(self.bands_list)):
             self.admrObject.condObject_list[i].bandObject.runBandStructure()
         self.admrObject.Bphi_array = self.Bphi_array
@@ -136,6 +193,28 @@ class SimADMR:
 
 ## -------------------------------------------------------------------------------
 class Fitness:
+    """Joint multi-temperature objective for parallel ADMR fitting.
+
+    Parameters
+    ----------
+    data_dict : dict
+        Experimental file and angle metadata indexed by ``(temperature, phi)``.
+    params_dict : dict
+        Nested mapping ``params_dict[T][band]`` containing all simulation
+        parameters for each temperature and band.
+    bounds_dict : dict
+        Nested mapping ``bounds_dict[T_or_all][band][parameter]`` to lower and
+        upper bounds. The special key ``'all'`` shares a parameter across all
+        fitted temperatures.
+    normalized_data : bool, optional
+        Compare normalized matrices when true and absolute matrices otherwise.
+
+    Attributes
+    ----------
+    free_params_labels : list
+        Ordered ``[temperature_scope, band, parameter]`` labels corresponding
+        to optimizer vector elements and ``bounds``.
+    """
     def __init__(self, data_dict, params_dict, bounds_dict, normalized_data=True):
         ## Initialize
         self.params_dict = deepcopy(params_dict) # contains all the parameters to calculate ADMR
@@ -184,7 +263,11 @@ class Fitness:
                                            self.thetas_dict[T])
 
     def update_conditions(self, T, band, param, x_i):
-        """Update parameters"""
+        """Assign one fitted value in a nested simulation dictionary.
+
+        The parameter may be top-level, inside ``band_params``, or inside
+        ``scattering_params``. Unknown names are reported to standard output.
+        """
         if param in self.params_dict[T][band].keys():
             self.params_dict[T][band][param] = x_i
         elif param in self.params_dict[T][band]["band_params"].keys():
@@ -195,6 +278,11 @@ class Fitness:
             print(str(param)+" does not exist in params_dict["+str(T)+"]["+str(band)+"]")
 
     def update_parameters(self, x):
+        """Map an optimizer vector onto all labelled free parameters.
+
+        Values labelled with temperature scope ``'all'`` are propagated to
+        every temperature in ``T_list``.
+        """
         for i, label in enumerate(self.free_params_labels):
             T     = label[0]
             band  = label[1]
@@ -206,7 +294,12 @@ class Fitness:
                     self.update_conditions(T, band, param, x[i])
 
     def compute_fitness(self, x=np.array([0])):
-        """Compute chi2 = sum((sim[i] - data[i])**2)"""
+        """Return the unweighted sum of squared ADMR residuals.
+
+        If ``x`` is not the historical sentinel ``array([0])``, parameters are
+        updated first. Simulations are run at every temperature and residuals
+        are concatenated before squaring and summing.
+        """
         ## Update the params_dict with fit values
         if x.all()!=0:
             self.update_parameters(x)
@@ -231,7 +324,12 @@ class Fitness:
         return chi2
 
     def fig_compare(self, fig_show=True, fig_save=False, folder= "", figname="figure"):
-        "Plot Data vs Sim"
+        """Plot data and simulation matrices for every fitted temperature.
+
+        Solid lines represent data and dashed lines simulation. Parameter
+        summary figures are appended. Set ``fig_save`` to write all pages to
+        ``folder/figname.pdf``.
+        """
         ## Plot >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         fig_list = []
         ## Plot function
@@ -303,6 +401,11 @@ class Fitness:
             file_figures.close()
 
     def save_member_to_json(self, filename="file", folder=""):
+        """Serialize the current nested parameter mapping to JSON.
+
+        Writes ``folder/filename.json`` with indentation. The destination
+        directory must already exist.
+        """
         path = os.path.join(folder, filename + ".json")
         with open(path, 'w') as f:
             json.dump(self.params_dict, f, indent=4)
@@ -315,7 +418,11 @@ global shared_num_member
 shared_num_member = None
 
 def init(num_member):
-    """store the counter for later use """
+    """Install a shared multiprocessing evaluation counter in each worker.
+
+    The supplied ``multiprocessing.Value`` is stored in module globals for
+    process-safe progress reporting during optimizer evaluations.
+    """
     # global shared_num_member
     globals()['shared_num_member'] = num_member
 
@@ -323,6 +430,30 @@ def fit_admr_parallel(params_dict, bounds_dict, data_dict,
                     normalized_data=True, filename="fit_results", folder="",
                     popsize=15, mutation=(0.5, 1), recombination=0.7,
                     percent_workers=100, num_cpu=None):
+    """Run joint process-parallel differential-evolution fitting.
+
+    Parameters
+    ----------
+    params_dict, bounds_dict, data_dict : dict
+        Inputs accepted by :class:`Fitness`.
+    normalized_data : bool, optional
+        Select normalized or absolute residuals.
+    filename, folder : str, optional
+        Output stem and directory used if the caller later saves results.
+        They are retained for API compatibility by this function.
+    popsize, mutation, recombination : optional
+        Differential-evolution controls forwarded to SciPy.
+    percent_workers : float, optional
+        Percentage of physical CPU cores assigned to the worker pool.
+    num_cpu : int, optional
+        Override physical-core detection.
+
+    Returns
+    -------
+    Fitness
+        Objective object updated with the best parameters and final simulated
+        matrices. The worker pool is terminated before return.
+    """
     ## Create fitness object for parallel calculations
     fitness_obj = Fitness(data_dict, params_dict, bounds_dict, normalized_data)
     ## Initialize workers

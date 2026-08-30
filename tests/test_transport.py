@@ -241,7 +241,7 @@ class Tests_ADMR(unittest.TestCase):
         admr = ADMR([cObj], **p)
         admr.show_progress = False
         admr.runADMR()
-        admr.figADMR()
+        admr.figADMR(fig_show=False, fig_save=False)
 
 if __name__ == '__main__':
     unittest.main()

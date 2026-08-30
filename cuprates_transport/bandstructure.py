@@ -17,6 +17,45 @@ Angstrom = 1e-10                                        # 1 A in meters
 
 
 class BandStructure:
+    """Tight-binding band and discretized constant-energy surface.
+
+    The dispersion is supplied as a SymPy-compatible string. Its parameters
+    are dimensionless fractions of ``energy_scale``; momenta are expressed in
+    inverse angstrom and velocities are returned in SI units. Instantiation
+    creates compiled energy and velocity functions but does not discretize the
+    Fermi surface. Call :meth:`runBandStructure` before transport calculations.
+
+    Parameters
+    ----------
+    a, b, c : float
+        Real-space lattice constants in angstrom.
+    energy_scale : float
+        Overall energy scale in meV.
+    band_params : dict, optional
+        Named dimensionless coefficients used by ``band_model``.
+    band_model : str, optional
+        SymPy expression in ``kx``, ``ky``, ``kz``, lattice constants, and the
+        keys of ``band_params``.
+    band_name : str, optional
+        Human-readable label used in plots and output filenames.
+    resolution : sequence of int, optional
+        Grid sizes along ``kx``, ``ky``, and ``kz``. Even values are increased
+        by one during initialization.
+    k_max : sequence of float, optional
+        Dimensionless positive Brillouin-zone bounds.
+    number_of_bz : int or float, optional
+        Number of Brillouin zones represented by the integration domain.
+    parallel : bool, optional
+        Enable Numba's parallel compilation for energy and velocity functions.
+    march_square : bool, optional
+        Use two-dimensional contours at each ``kz`` instead of a
+        three-dimensional marching-cubes surface.
+
+    Notes
+    -----
+    ``runBandStructure`` populates ``kf``, ``vf``, ``dkf``, ``dos_k``, ``n``,
+    and ``p``. Changing a band parameter invalidates these cached arrays.
+    """
     def __init__(self,
                  a, b, c,
                  energy_scale,
@@ -111,9 +150,23 @@ class BandStructure:
             print(f"{key} is not a defined band parameter")
 
     def get_band_param(self, key):
+        """Return one dimensionless tight-binding parameter by name.
+
+        An undefined key is reported to standard output and returns ``None``
+        for compatibility with the historical API.
+        """
         return self[key]
 
     def set_band_param(self, key, val):
+        """Set an existing band parameter and invalidate surface data.
+
+        Parameters
+        ----------
+        key : str
+            Existing key in ``band_params``.
+        val : object
+            New dimensionless value. Run :meth:`runBandStructure` afterward.
+        """
         self[key] = val
 
     # Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
@@ -135,12 +188,31 @@ class BandStructure:
 
     # Methods >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
     def runBandStructure(self, epsilon=0, printDoping=False):
+        """Discretize a constant-energy surface and estimate band filling.
+
+        Parameters
+        ----------
+        epsilon : float, optional
+            Energy relative to the chemical potential in meV; zero selects the
+            Fermi surface.
+        printDoping : bool, optional
+            Print the band label and calculated hole doping.
+
+        Notes
+        -----
+        Mutates the surface, velocity, DOS, filling, and doping attributes.
+        """
         self.discretize_fermi_surface(epsilon=epsilon)
         self.doping(res_x=self.resolution[0]*10,
                     res_y=self.resolution[1]*10,
                     res_z=self.resolution[2]*10, printDoping=printDoping)
 
     def erase_Fermi_surface(self):
+        """Clear cached surface, velocity, DOS, filling, and doping results.
+
+        Symbolic and compiled dispersion functions are retained. A subsequent
+        call to :meth:`runBandStructure` repopulates the cleared attributes.
+        """
         self.kf  = None
         self.vf  = None
         self.dkf = None
@@ -153,9 +225,11 @@ class BandStructure:
         self.number_of_points_per_kz_list = []
 
     def energy_velocity_definition(self):
-        """
-        Defines with Sympy the dispersion relation and
-        symbolicly derives the velocity
+        """Compile numerical dispersion and group-velocity functions.
+
+        Symbolic derivatives of ``band_model`` are converted using
+        ``v = grad_k(epsilon) / hbar`` and compiled with Numba. The generated
+        callables are stored as ``epsilon_func`` and ``v_func``.
         """
         # Symbolic variables //////////////////////////////////////////////////
         kx = sp.Symbol('kx')
@@ -184,15 +258,30 @@ class BandStructure:
             self.v_func = jit(v_func, nopython=True)
 
     def bandParameters(self):
+        """Return positional parameters expected by the compiled functions.
+
+        Returns ``[a, b, c, ...]`` followed by alphabetically sorted band
+        parameters converted from dimensionless values to meV.
+        """
         abc = [self.a, self.b, self.c]
         val = [value * self.energy_scale for (key, value)
                in sorted(self._band_params.items())]
         return abc + val
 
     def energy_func(self, kx, ky, kz):
+        """Evaluate the dispersion in meV at momenta in inverse angstrom.
+
+        The three arguments may be scalars or broadcast-compatible NumPy
+        arrays. The return value follows their broadcast shape.
+        """
         return self.epsilon_func(kx, ky, kz, *self.bandParameters())
 
     def velocity_func(self, kx, ky, kz):
+        """Return ``(vx, vy, vz)`` in m/s at the supplied momenta.
+
+        The three momentum arguments may be scalars or broadcast-compatible
+        arrays in inverse angstrom.
+        """
         return self.v_func(kx, ky, kz, *self.bandParameters())
 
     def mass_func(self):
@@ -208,8 +297,10 @@ class BandStructure:
         # vf_norm = sqrt(vf[0, :]**2 + vf[1, :]**2 + vf[2, :]**2)  # in Joule.m
         # self.mass = hbar * np.min(kf_norm/vf_norm) / m0
 
-        """
-        The cyclotronic mass in units of m0 (the bare electron mass)
+        """Estimate and store the orbit-averaged cyclotron mass.
+
+        The result ``mass`` is expressed in free-electron masses and requires
+        ``dks`` from the marching-squares discretization.
         """
         try:
             dks = self.dks / Angstrom # in m^-1
@@ -222,6 +313,11 @@ class BandStructure:
 
 
     def dispersion_grid(self, resolution):
+        """Evaluate the dispersion on a uniform reciprocal-space grid.
+
+        Returns the energy mesh in meV, the three momentum meshes in inverse
+        angstrom, and their one-dimensional coordinate arrays.
+        """
         kx_a = np.linspace(-self.k_max[0] / self.a, self.k_max[0] / self.a, resolution[0])
         ky_a = np.linspace(-self.k_max[1] / self.b, self.k_max[1] / self.b, resolution[1])
         kz_a = np.linspace(-self.k_max[2] / self.c, self.k_max[2] / self.c, resolution[2])
@@ -230,6 +326,12 @@ class BandStructure:
         return energy, kxx, kyy, kzz, kx_a, ky_a, kz_a
 
     def update_filling(self, res_x=500, res_y=500, res_z=500):
+        """Estimate and store electron filling and hole doping.
+
+        ``res_x``, ``res_y``, and ``res_z`` set the uniform grid sizes. The
+        returned filling includes spin degeneracy and is normalized by
+        ``number_of_bz``; ``p`` is stored as ``1 - n``.
+        """
         energy, _, _, _, _, _, _ = self.dispersion_grid([res_x, res_y, res_z])
         kVolume = energy.shape[0] * energy.shape[1] * energy.shape[2]
         self.n = 2 * np.sum(np.greater_equal(0, energy)) / kVolume / self.number_of_bz
@@ -238,17 +340,32 @@ class BandStructure:
         return self.n
 
     def doping(self, res_x=500, res_y=500, res_z=500, printDoping=False):
+        """Compute and return hole doping ``p = 1 - n``.
+
+        The ``res_*`` arguments control the integration grid. Set
+        ``printDoping`` to print the value with the band label.
+        """
         self.update_filling(res_x,res_y,res_z)
         if printDoping is True:
             print(self.band_name + " :: " + "p=" + "{0:.3f}".format(self.p))
         return self.p
 
     def filling(self, res_x=500, res_y=500, res_z=500):
+        """Compute, print, and return the spin-degenerate electron filling.
+
+        The three arguments set reciprocal-space grid sizes. Both ``n`` and
+        the corresponding hole doping ``p`` are updated as side effects.
+        """
         self.update_filling(res_x,res_y,res_z)
         print("n = " + "{0:.3f}".format(self.n))
         return self.n
 
     def doping_per_kz(self, res_x=500, res_y=500, res_z=11):
+        """Return electron filling and hole doping for each sampled ``kz``.
+
+        Returns two arrays of length ``res_z``: ``n_per_kz`` and
+        ``p_per_kz = 1 - n_per_kz``.
+        """
         energy, _, _, _, _, _, _ = self.dispersion_grid([res_x, res_y, res_z])
         # Number of k in the Brillouin zone per plane
         Nz = energy.shape[0] * energy.shape[1]
@@ -259,14 +376,31 @@ class BandStructure:
         return n_per_kz, p_per_kz
 
     def diff_doping(self, mu, p_target):
+        """Set ``mu`` and return calculated doping minus ``p_target``.
+
+        This mutating objective is intended for the Brent root solver used by
+        :meth:`set_mu_to_doping`.
+        """
         self._band_params["mu"] = mu
         return self.doping() - p_target
 
     def set_mu_to_doping(self, p_target, ptol=0.001):
+        """Adjust chemical potential to reach a target hole doping.
+
+        The dimensionless ``mu`` is solved on ``[-10, 10]`` with absolute
+        tolerance ``ptol``. Recompute the Fermi surface after this call.
+        """
         self._band_params["mu"] = optimize.brentq(self.diff_doping, -10, 10,
                                                   args=(p_target,), xtol=ptol)
 
     def discretize_fermi_surface(self, epsilon=0):
+        """Discretize a constant-energy surface and compute local weights.
+
+        Selects the configured marching algorithm and populates ``kf`` with
+        shape ``(3, N)``, ``dkf`` with shape ``(N,)``, ``vf`` with shape
+        ``(3, N)``, and ``dos_k = 1/(hbar*|v|)`` in ``J^-1 m^-1``.
+        ``epsilon`` is expressed in meV relative to the chemical potential.
+        """
         if self.march_square is True:
             self.kf, self.dkf = self.marching_square(epsilon)
         else:
@@ -280,17 +414,20 @@ class BandStructure:
         self.dos_k = 1 / (hbar * sqrt(self.vf[0,:]**2 + self.vf[1,:]**2 +self.vf[2,:]**2))
 
     def rotation(self, x, y, angle):
+        """Rotate planar coordinates clockwise by ``angle`` radians.
+
+        ``x`` and ``y`` may be scalars or broadcast-compatible arrays. Returns
+        the rotated pair ``(xp, yp)`` with the same broadcast shape.
+        """
         xp = cos(angle) * x + sin(angle) * y
         yp = -sin(angle) * x + cos(angle) * y
         return xp, yp
 
     def dos_epsilon_func(self):
-        """
-        Density of State integrated at the Fermi level
-            dos_epsilon = int( dkf / |grad(E(k))| ) = int( dkf * dos_k )
-        Units :
-            - dos_epsilon in Joule^-1 m^-3
-            - dkf in Angstrom^-2
+        """Integrate and store the surface density of states.
+
+        ``dos_epsilon`` is stored in ``J^-1 m^-3`` with spin degeneracy.
+        Requires ``dkf`` and ``dos_k`` from a prior surface discretization.
         """
         prefactor =  2 / (2*pi)**3 # factor 2 for the spin
         self.dos_epsilon = prefactor * np.sum(self.dkf / Angstrom**2 * self.dos_k)
@@ -300,10 +437,11 @@ class BandStructure:
 
 
     def marching_cube(self, epsilon=0):
-        """
-        Marching cube algorithm used to discretize the Fermi surface
-        It returns: - kf with dimensions (xyz, position on FS)
-                    - dkf with dimensions (position on FS)
+        """Triangulate a three-dimensional constant-energy surface.
+
+        Returns ``kf`` with shape ``(3, N)`` in inverse angstrom and vertex
+        weights ``dkf`` with shape ``(N,)`` in inverse-square angstrom. One
+        third of every triangle area is assigned to each of its vertices.
         """
         # Generate a uniform meshgrid
         energy, _, _, _, kx_a, ky_a, kz_a = self.dispersion_grid(self.resolution)
@@ -342,10 +480,12 @@ class BandStructure:
         return kf, dkf
 
     def marching_square(self, epsilon=0):
-        """
-        Marching square algorithm used to discretize the Fermi surface per slices
-        It returns: - kf with dimensions (xyz, position on FS)
-                    - dkf with dimensions (position on FS)
+        """Discretize the surface as contours on successive ``kz`` slices.
+
+        Returns ``kf`` with shape ``(3, N)`` in inverse angstrom and surface
+        weights ``dkf`` with shape ``(N,)`` in inverse-square angstrom. The
+        method also populates ``dks``, ``dkz``, and the number of contour
+        points per ``kz`` layer.
         """
         # Initialize kx and ky arrays
         # res_xy_rough: make denser rough meshgrid to interpolate after
@@ -440,8 +580,19 @@ class BandStructure:
     mpl.rcParams['pdf.fonttype'] = 3
 
     def figDiscretizeFS2D(self, kz = 0, meshXY = 1001):
-        """
-        Show Discretized 2D Fermi Surface.
+        """Plot a discretized two-dimensional Fermi-surface slice.
+
+        Parameters
+        ----------
+        kz : float, optional
+            Slice momentum in inverse angstrom.
+        meshXY : int, optional
+            Resolution of the smooth background contour.
+
+        Notes
+        -----
+        This diagnostic requires ``march_square=True`` and an existing surface
+        discretization. It displays the figure and returns nothing.
         """
         try:
             assert self.march_square
@@ -486,8 +637,11 @@ class BandStructure:
         plt.show()
 
     def figDiscretizeFS3D(self, scale_velocities = 0):
-        """
-        Show Discretized 3D Fermi Surface.
+        """Plot the current three-dimensional Fermi-surface point cloud.
+
+        If ``scale_velocities`` is nonzero, group-velocity vectors are overlaid
+        after multiplication by that visual scale factor. The method displays
+        the figure and returns nothing.
         """
         fig = plt.figure()
         axes = fig.add_subplot(111, projection='3d')
@@ -539,8 +693,11 @@ class BandStructure:
         plt.show()
 
     def figMultipleFS2D(self):
-        """
-        Show 2D Fermi Surface for different kz.
+        """Plot repeated-zone Fermi contours for representative ``kz`` values.
+
+        Reciprocal axes are scaled by the lattice constants. This plotting
+        diagnostic evaluates the current dispersion without mutating surface
+        arrays.
         """
         kx = np.linspace(-4*self.k_max[0] / self.a, 4*self.k_max[0] / self.a, self.res_xy_rough)
         ky = np.linspace(-4*self.k_max[1] / self.b, 4*self.k_max[1] / self.b, self.res_xy_rough)
@@ -586,6 +743,11 @@ class BandStructure:
 ## Functions to compute the doping of a two bands system and more ---------------#
 
 def doping(bandIterable, printDoping=False):
+    """Return total hole doping for independent bands.
+
+    Electron fillings, including spin, are summed across ``bandIterable`` and
+    the result is ``1 - sum(n_band)``. Each band's filling cache is updated.
+    """
     totalFilling=0
     if printDoping is True:
         print("------------------------------------------------")
@@ -601,12 +763,22 @@ def doping(bandIterable, printDoping=False):
     return doping
 
 def dopingCondition(mu,p_target,bandIterable):
+    """Set a shared ``mu`` and return multiband doping minus its target.
+
+    This mutating function prints every trial chemical potential and is
+    intended as the objective for :func:`set_mu_to_doping`.
+    """
     print("mu = " + "{0:.3f}".format(mu))
     for band in bandIterable:
         band["mu"] = mu
     return doping(bandIterable) - p_target
 
 def set_mu_to_doping(bandIterable, p_target, ptol=0.001):
+    """Set a common chemical potential for a target multiband doping.
+
+    The dimensionless chemical potential is solved on ``[-10, 10]`` using
+    Brent's method with tolerance ``ptol`` and assigned to every supplied band.
+    """
     print("Computing mu for hole doping = " + "{0:.3f}".format(p_target))
     mu = optimize.brentq(dopingCondition, -10, 10, args=(p_target ,bandIterable), xtol=ptol)
     for band in bandIterable:

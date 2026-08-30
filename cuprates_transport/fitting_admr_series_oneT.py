@@ -14,6 +14,41 @@ from cuprates_transport.conductivity import Conductivity
 ##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 class FittingADMR:
+    """Fit a single-temperature ADMR dataset with lmfit.
+
+    Parameters
+    ----------
+    init_member : dict
+        Complete band, scattering, field, grid, and data metadata used to
+        construct ``BandStructure``, ``Conductivity``, and ``ADMR``. The keys
+        ``data_T``, ``data_p``, ``Bphi_array``, and ``fixdoping`` are consumed
+        directly by this workflow.
+    ranges_dict : dict
+        Mapping from fitted parameter name to ``[lower, upper]`` bounds.
+        Parameters may live at the top level of ``init_member`` or inside its
+        ``band_params`` dictionary.
+    data_dict : dict
+        Mapping ``(temperature, phi)`` to ``[filename, theta_column,
+        rzz_column, theta_cut, rhozz_at_zero]``.
+    pipi_FSR : bool, optional
+        Historical switch for a reconstructed band implementation. This module
+        currently constructs ``BandStructure`` regardless of the value.
+    folder : str, optional
+        Directory used for JSON and PDF output.
+    method : str, optional
+        lmfit method name handled by :meth:`runFit`.
+    population, N_generation, mutation_s, crossing_p : number, optional
+        Retained differential-evolution settings. The present ``runFit`` path
+        delegates optimizer configuration to lmfit.
+    normalized_data : bool, optional
+        Fit normalized ``rho_zz/rho_zz(0)`` when true; otherwise fit absolute
+        resistivity after the module's historical ``1e5`` scaling.
+
+    Notes
+    -----
+    This fitting API is provisional. Methods mutate ``member`` and repeatedly
+    rebuild simulation objects.
+    """
     def __init__(self, init_member, ranges_dict, data_dict, pipi_FSR=False,
                  folder="",
                  method="differential_evolution",
@@ -61,6 +96,14 @@ class FittingADMR:
 
 
     def produce_ADMR_object(self):
+        """Rebuild band, conductivity, and ADMR objects from ``member``.
+
+        Free band parameters are copied into ``bandObject``. If ``fixdoping``
+        lies in ``[-1, 1]``, the chemical potential is solved before the Fermi
+        surface is discretized. The resulting objects are stored in
+        ``condObject`` and ``admrObject`` and configured with the loaded angle
+        arrays.
+        """
         ## Update bandObject
         for param_name in self.ranges_dict.keys():
                 if hasattr(self.bandObject, param_name):
@@ -81,6 +124,11 @@ class FittingADMR:
 
 
     def load_Bphi_data(self):
+        """Select and sort azimuthal angles available at ``member['data_T']``.
+
+        Only angles also present in ``member['Bphi_array']`` are retained. The
+        result is stored as the floating-point array ``Bphi_array``.
+        """
         ## Create array of phi at the selected temperature
         Bphi_array = []
         for t, phi in self.data_dict.keys():
@@ -91,6 +139,11 @@ class FittingADMR:
 
 
     def load_Btheta_data(self):
+        """Construct the common polar-angle grid used by data and simulation.
+
+        Starts from the configured min/max/step values and truncates the grid
+        to the smallest ``theta_cut`` among selected azimuths.
+        """
         ## Create Initial Btheta
         Btheta_array = np.arange(self.member["Btheta_min"],
                                  self.member["Btheta_max"] + self.member["Btheta_step"],
@@ -109,8 +162,13 @@ class FittingADMR:
 
 
     def load_and_interp_data(self):
-        """
-        data_dict[data_T,phi] = [filename, col_theta, col_rzz, theta_cut, rhozz_0]
+        """Load, normalize, and interpolate experimental ADMR data.
+
+        Each ``data_dict[(data_T, phi)]`` entry is ``[filename, theta_column,
+        rzz_column, theta_cut, rhozz_at_zero]``. Data are sorted by theta,
+        normalized at zero degrees, and interpolated onto ``Btheta_array``.
+        Results populate normalized ``rzz_data_matrix`` and absolute
+        ``rhozz_data_matrix`` in ohm metre.
         """
         ## Create Btheta array
         self.load_Btheta_data()
@@ -143,7 +201,20 @@ class FittingADMR:
 
 
     def compute_diff(self, pars):
-        """Compute diff = sim - data matrix"""
+        """Return the flattened data-minus-simulation residual vector.
+
+        Parameters
+        ----------
+        pars : lmfit.Parameters
+            Current optimizer parameters.
+
+        Returns
+        -------
+        ndarray
+            Residuals flattened over azimuth and polar angle. The method
+            reloads data, updates ``member``, runs a complete ADMR simulation,
+            prints progress, and increments ``nb_calls``.
+        """
 
         self.pars = pars
 
@@ -185,6 +256,19 @@ class FittingADMR:
 
 
     def runFit(self, filename=None):
+        """Run the selected lmfit optimizer and save the best result.
+
+        Parameters
+        ----------
+        filename : str, optional
+            Stem used for the JSON parameter file and comparison PDF.
+
+        Notes
+        -----
+        Supported branches are ``least_square``, ``shgo``,
+        ``differential_evolution``, and ``ampgo``. The method prints lmfit's
+        report, updates ``member``, writes output files, and returns ``None``.
+        """
         ## Initialize parameters
 
         self.nb_calls = 0
@@ -222,11 +306,22 @@ class FittingADMR:
 
 
     def load_member_from_json(self):
+        """Load ``member`` from ``folder/json_name``.
+
+        Set ``json_name`` before calling. The loaded mapping replaces the
+        current member but does not automatically rebuild simulation objects.
+        """
         with open(self.folder + "/" + self.json_name, "r") as f:
             self.member = json.load(f)
 
 
     def save_member_to_json(self, filename=None):
+        """Serialize the current member dictionary as formatted JSON.
+
+        ``filename`` is a stem without extension. If omitted, a descriptive
+        name is generated from data metadata and the ADMR object. The output
+        directory ``folder`` must exist.
+        """
         self.produce_ADMR_object()
         if filename==None:
             filename = "data_" + \
@@ -238,6 +333,13 @@ class FittingADMR:
 
 
     def fig_compare(self, fig_show=True, fig_save=False, figname=None):
+        """Plot experimental curves and the current simulated ADMR.
+
+        Parameters control interactive display, PDF saving, and the output
+        stem. Solid lines show data and dashed lines show simulations. The
+        method reruns the current model, may write a multipage PDF containing
+        parameter summaries, and returns ``None``.
+        """
 
         ## Create Btheta array
         self.load_Btheta_data()

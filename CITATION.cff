@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite the exact software version or commit
+  and the associated physics publication.
+title: cuprates-transport
+abstract: >-
+  A Python package for semiclassical Boltzmann transport calculations using
+  the Chambers formula, with support for general tight-binding dispersions,
+  anisotropic scattering, magnetic-field transport, and ADMR.
+version: 0.7.0
+authors:
+  - family-names: Grissonnanche
+    given-names: Gael
+repository-code: https://github.com/gaelgrissonnanche/cuprates_transport
+license: GPL-3.0-only
+keywords:
+  - Boltzmann transport
+  - Chambers formula
+  - condensed matter physics
+  - Fermi surface
+  - magnetoresistance
+  - angle-dependent magnetoresistance

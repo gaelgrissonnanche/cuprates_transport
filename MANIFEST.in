@@ -1,0 +1,20 @@
+include CHANGELOG.md
+include CITATION.cff
+include CONTRIBUTING.md
+include LICENSE.txt
+include README.md
+include SUPPORT.md
+include mkdocs.yml
+include pyproject.toml
+include chambers.yml
+recursive-include docs *.md *.pdf
+include examples/RH_rhoxx_vs_B_NdLSCO_0p24.py
+include examples/admr_NdLSCO_0p24.py
+include examples/check_free_electrons.py
+recursive-include tests *.py
+prune examples/.ipynb_checkpoints
+prune examples/fit_admr
+exclude examples/Seebeck_vs_T_NdLSCO_0p24.py
+prune **/__pycache__
+global-exclude *.py[cod]
+global-exclude .DS_Store

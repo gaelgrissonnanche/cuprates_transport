@@ -1,0 +1,30 @@
+site_name: cuprates-transport
+site_description: Boltzmann transport calculations from the Chambers formula
+site_url: https://gaelgrissonnanche.github.io/cuprates_transport/
+repo_url: https://github.com/gaelgrissonnanche/cuprates_transport
+repo_name: gaelgrissonnanche/cuprates_transport
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Theory: theory.md
+  - Units and conventions: units.md
+  - API guide: api.md
+  - Numerics and validation: numerics.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

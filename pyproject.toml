@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cuprates-transport"
+version = "0.7.0"
+description = "Semiclassical Boltzmann transport from the Chambers formula"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "GPL-3.0-only"
+license-files = ["LICENSE.txt"]
+authors = [
+  { name = "Gael Grissonnanche", email = "gael.phys@gmail.com" },
+]
+keywords = [
+  "Boltzmann transport",
+  "Chambers formula",
+  "condensed matter physics",
+  "Fermi surface",
+  "magnetoresistance",
+  "ADMR",
+  "cuprates",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+  "lmfit",
+  "matplotlib",
+  "numba",
+  "numpy",
+  "psutil",
+  "scikit-image",
+  "scipy",
+  "sympy",
+  "tqdm",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build",
+  "flake8",
+  "pytest>=7",
+  "pytest-cov",
+  "twine",
+]
+docs = [
+  "mkdocs>=1.5",
+  "mkdocs-material>=9.5",
+  "pymdown-extensions>=10",
+]
+
+[project.urls]
+Homepage = "https://github.com/gaelgrissonnanche/cuprates_transport"
+Repository = "https://github.com/gaelgrissonnanche/cuprates_transport"
+Issues = "https://github.com/gaelgrissonnanche/cuprates_transport/issues"
+Changelog = "https://github.com/gaelgrissonnanche/cuprates_transport/blob/master/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["cuprates_transport*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+
+[tool.coverage.run]
+source = ["cuprates_transport"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
