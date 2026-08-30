@@ -44,6 +44,7 @@ print("time structure = " + str(time()-tband) + " s")
 ttransport = time()
 condObject = Conductivity(bandObject, **params)
 condObject.runTransport()
+# condObject.gamma_0 = 100
 # condObject.figOnekft()
 # condObject.figParameters()
 

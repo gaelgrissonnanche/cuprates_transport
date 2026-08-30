@@ -164,6 +164,14 @@ class Scattering:
         return np.abs(self.a1 * phi + self.a2 * phi**2 + self.a3 * phi**3 +
                       self.a4 * phi**4 + self.a5 * phi**5)
 
+    @scattering_method
+    def gamma_skew_marginal_fl(self, epsilon):
+        return np.sqrt((self.a_epsilon * epsilon +
+                        self.a_abs_epsilon * np.abs(epsilon))**2 +
+                        (self.a_T * kB * meV / hbar * 1e-12 * self.T)**2)
+
+
+
     # @scattering_method
     # def gamma_cmfp_func(self, vx, vy, vz):
     #     vf = sqrt( vx**2 + vy**2 + vz**2 )
@@ -203,23 +211,14 @@ class Scattering:
     #     gamma_step_array[index_high] = self.gamma_step
     #     return gamma_step_array
 
-    # @scattering_method
-    # def gamma_skew_marginal_fl(self, epsilon):
-    #     return np.sqrt((self.a_epsilon * epsilon +
-    #                     self.a_abs_epsilon * np.abs(epsilon))**2 +
-    #                     (self.a_T * kB * meV / hbar * 1e-12 * self.T)**2)
+
 
     # @scattering_method
     # def gamma_fl(self, epsilon):
     #     return (self.a_epsilon_2 * epsilon**2 +
     #             self.a_T2 * (kB * meV / hbar * 1e-12 * self.T)**2)
 
-    # @scattering_method
-    # def gamma_skew_planckian(self, epsilon):
-    #     x = epsilon / (kB * self.T)
-    #     x = np.where(x == 0, 1.0e-20, x)
-    #     return ((self.a_asym * kB * self.T) * ((x + self.p_asym)/2) * np.cosh(x/2) /
-    #             np.sinh((x + self.p_asym)/2) / np.cosh(self.p_asym/2))
+
 
     # @scattering_method
     # def factor_arcs_func(self, kx, ky, kz):
